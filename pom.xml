@@ -12,10 +12,10 @@
     </parent>
 
     <groupId>com.jdend</groupId>
-    <artifactId>erp</artifactId>
+    <artifactId>loan-erp</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>erp</name>
-    <description>JDEND ERP</description>
+    <name>loan-erp</name>
+    <description>JDEND 대부업 ERP</description>
 
     <properties>
         <java.version>17</java.version>

@@ -1,5 +1,8 @@
 HELP.md
 target/
+hs_err_pid*.log
+replay_pid*.log
+uploads/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
