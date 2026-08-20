@@ -106,35 +106,6 @@
         </div>
       </div>
 
-      <div class="chart-card" style="flex:1; min-width:260px; max-width:340px;">
-        <div class="card-header">
-          <h2>계약현황</h2>
-        </div>
-        <div class="card-body">
-          <div class="contract-stat-grid">
-            <div class="contract-stat-item long">
-              <div class="contract-stat-label">장기</div>
-              <div class="contract-stat-number" id="statLongTerm">-</div>
-              <div class="contract-stat-unit">대</div>
-            </div>
-            <div class="contract-stat-item short">
-              <div class="contract-stat-label">단기</div>
-              <div class="contract-stat-number" id="statShortTerm">-</div>
-              <div class="contract-stat-unit">대</div>
-            </div>
-            <div class="contract-stat-item wait">
-              <div class="contract-stat-label">대기</div>
-              <div class="contract-stat-number" id="statWaiting">-</div>
-              <div class="contract-stat-unit">대</div>
-            </div>
-          </div>
-          <div class="contract-total-row">
-            <div class="contract-total-label">총 차량수</div>
-            <div class="contract-total-number" id="statTotal">-</div>
-            <div class="contract-total-unit">대</div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- 은행/전표 대사 현황 -->
@@ -190,56 +161,6 @@
       </div>
     </div>
 
-    <!-- 보험 · 정기검사 현황 (2열 그리드) -->
-    <div class="dashboard-grid">
-      <!-- 보험 현황 -->
-      <div class="erp-card">
-        <div class="card-header">
-          <h2>보험 현황 (만료·임박·미가입)</h2>
-          <a href="pages/vehicle/insurance_status.html" class="view-all-link">전체보기 →</a>
-        </div>
-        <div class="card-body">
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>차량번호</th>
-                  <th>차종</th>
-                  <th>보험종료일</th>
-                  <th>D-Day</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody id="insuranceAlertTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- 정기검사 현황 -->
-      <div class="erp-card">
-        <div class="card-header">
-          <h2>정기검사 현황 (만료·임박·미등록)</h2>
-          <a href="pages/vehicle/periodic_inspection.html" class="view-all-link">전체보기 →</a>
-        </div>
-        <div class="card-body">
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>차량번호</th>
-                  <th>차종</th>
-                  <th>검사종료일</th>
-                  <th>D-Day</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody id="inspectionAlertTbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- 하단 섹션 -->
     <div class="dashboard-grid">
@@ -304,12 +225,9 @@
       try {
         const base = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : '';
 
-        await loadContractStatus(base);
         await loadBankSummary(base);
         await loadBankVoucherDiff(base);
         await loadPendingVouchers(base);
-        await loadInsuranceAlert(base);
-        await loadInspectionAlert(base);
         await loadMaturitySoon(base);
         await loadReceivablesTop(base);
 
@@ -391,82 +309,6 @@
             <td class="amount-cell" style="${witColor}">${witDiff >= 0 ? '' : '-'}${fmtNumber(Math.abs(witDiff))}</td>
           </tr>
         `);
-      }
-    }
-
-    async function loadContractStatus(base) {
-      const data = await getJson(`${base}/api/dashboard/contract-status`);
-
-      const longTerm = Number(
-        data.longTerm ?? data.long_term ?? data.longterm ?? data.longCount ?? data.long_count ?? 0
-      );
-      const shortTerm = Number(
-        data.shortTerm ?? data.short_term ?? data.shortterm ?? data.shortCount ?? data.short_count ?? 0
-      );
-      const waiting = Number(
-        data.waiting ?? data.pending ?? data.standby ?? data.waitCount ?? data.waitingCount ?? data.wait_count ?? 0
-      );
-      const total = longTerm + shortTerm + waiting;
-
-      document.getElementById('statLongTerm').textContent = longTerm;
-      document.getElementById('statShortTerm').textContent = shortTerm;
-      document.getElementById('statWaiting').textContent = waiting;
-      document.getElementById('statTotal').textContent = total;
-    }
-
-    async function loadInsuranceAlert(base) {
-      const tbody = document.getElementById('insuranceAlertTbody');
-      tbody.innerHTML = '';
-      try {
-        const all = await getJson(`${base}/api/dashboard/vehicle-insurance-all`);
-        const rows = (all || []).filter(r => r.status !== '정상').slice(0, 5);
-        if (rows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#64748b;">이상 없음</td></tr>`;
-          return;
-        }
-        for (const r of rows) {
-          const badgeClass = r.status === '만료' ? 'badge-danger' : r.status === '만료임박' ? 'badge-warning' : 'badge-secondary';
-          const ddayText = r.dday != null ? (r.dday < 0 ? `D+${Math.abs(r.dday)}` : `D-${r.dday}`) : '-';
-          tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-              <td>${esc(r.vehicleNo)}</td>
-              <td>${esc(r.carModel)}</td>
-              <td>${fmtDate(r.insuranceEndDate)}</td>
-              <td>${ddayText}</td>
-              <td><span class="badge ${badgeClass}">${esc(r.status)}</span></td>
-            </tr>
-          `);
-        }
-      } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c;">로드 오류</td></tr>`;
-      }
-    }
-
-    async function loadInspectionAlert(base) {
-      const tbody = document.getElementById('inspectionAlertTbody');
-      tbody.innerHTML = '';
-      try {
-        const all = await getJson(`${base}/api/dashboard/vehicle-inspection-all`);
-        const rows = (all || []).filter(r => r.status !== '정상').slice(0, 5);
-        if (rows.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#64748b;">이상 없음</td></tr>`;
-          return;
-        }
-        for (const r of rows) {
-          const badgeClass = r.status === '만료' ? 'badge-danger' : r.status === '만료임박' ? 'badge-warning' : 'badge-secondary';
-          const ddayText = r.dday != null ? (r.dday < 0 ? `D+${Math.abs(r.dday)}` : `D-${r.dday}`) : '-';
-          tbody.insertAdjacentHTML('beforeend', `
-            <tr>
-              <td>${esc(r.vehicleNo)}</td>
-              <td>${esc(r.carModel)}</td>
-              <td>${fmtDate(r.inspectionEndDate)}</td>
-              <td>${ddayText}</td>
-              <td><span class="badge ${badgeClass}">${esc(r.status)}</span></td>
-            </tr>
-          `);
-        }
-      } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c;">로드 오류</td></tr>`;
       }
     }
 

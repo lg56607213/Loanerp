@@ -214,51 +214,11 @@ public class FinancialStatementAccountService {
   // 신규 회사(테넌트) DB는 테이블 구조만 복제되고 데이터가 비어있어 대분류 자체가 없을 수 있다.
   // 그 상태로는 화면에 "하위분류추가"를 누를 노드가 하나도 없어 막히므로, 조회 시점에 표준 대분류를
   // 자동으로 만들어준다(자산/부채/자본/수익/비용, 코드 10/20/30/40/50 고정).
-  @Transactional
-  public void ensureVatAccounts() {
-    ensureVatAccount("부가세대급금", "ASSET", "bs");
-    ensureVatAccount("부가세예수금", "LIABILITY", "bs");
-  }
 
-  private void ensureVatAccount(String accountName, String category, String statementType) {
-    if (repo.existsByAccountName(accountName)) return;
-
-    ensureRoot(category);
-
-    List<FinancialStatementAccount> allInCategory = repo.findByCategoryOrderByAccountCodeAsc(category);
-
-    FinancialStatementAccount root = allInCategory.stream()
-        .filter(a -> a.getParentId() == null)
-        .findFirst()
-        .orElseThrow(() -> new RuntimeException(category + " 루트 계정이 없습니다."));
-
-    FinancialStatementAccount parent = allInCategory.stream()
-        .filter(a -> a.getLevel() == 2)
-        .findFirst()
-        .orElse(root);
-
-    long seq = repo.countByParentId(parent.getId()) + 1;
-    String accountCode = parent.getAccountCode() + String.format("%02d", seq);
-    int level = parent.getLevel() + 1;
-
-    repo.save(FinancialStatementAccount.builder()
-        .statementType(statementType)
-        .category(category)
-        .level(level)
-        .parentId(parent.getId())
-        .accountCode(accountCode)
-        .accountName(accountName)
-        .accountType(accountName)
-        .displayOrder((int) (seq - 1))
-        .isActive("사용")
-        .isPostable("사용")
-        .build());
-  }
 
   @Transactional
   public List<FinancialStatementAccountTreeResponse> tree(String category) {
     ensureRoot(category);
-    ensureVatAccounts();
 
     List<FinancialStatementAccount> all = repo.findByCategoryOrderByAccountCodeAsc(category);
 

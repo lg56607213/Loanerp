@@ -1,7 +1,6 @@
 package com.jdend.erp.contract.entity;
 
 import com.jdend.erp.customer.Customer;
-import com.jdend.erp.vehicle.entity.VehicleOrder;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -30,10 +29,6 @@ public class Contract {
 
   @Column(name="customer_number", nullable=false, length=30)
   private String customerNumber;
-
-  @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name="vehicle_order_id")
-  private VehicleOrder vehicleOrder;
 
   @Column(name="vehicle_no", nullable=false, length=30)
   private String vehicleNo;

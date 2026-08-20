@@ -239,24 +239,14 @@ public class PrepaidRentService {
         // 기타계정관리 > 선수금 전표 설정의 계정코드를 사용한다 (미설정 시 기본코드).
         String prepaidCode = settingsService.getPrepaidDebitAccountCode();
         String revenueCode = settingsService.getPrepaidCreditAccountCode();
-        String vatCode     = settingsService.getPrepaidVatCreditAccountCode(); // null이면 VAT 분리 없음
-
         Contract contract = findContract(req.getContractId());
         String memoText = "선수금 적용" + appendMemo(req.getMemo());
         long amount = req.getAmount();
 
+        // 면세사업(대부업)이므로 부가세 분리 없이 총액으로 계상한다.
         List<VoucherCreateRequest.VoucherLineRequest> creditEntries = new ArrayList<>();
-        if (vatCode != null) {
-            long vatAmount    = amount * 10L / 110L;
-            long supplyAmount = amount - vatAmount;
-            creditEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
-                    .accountCode(revenueCode).amount(supplyAmount).description(memoText + " (공급가액)").build());
-            creditEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
-                    .accountCode(vatCode).amount(vatAmount).description(memoText + " 부가세").build());
-        } else {
-            creditEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
-                    .accountCode(revenueCode).amount(amount).description(memoText).build());
-        }
+        creditEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
+                .accountCode(revenueCode).amount(amount).description(memoText).build());
 
         voucherService.create(VoucherCreateRequest.builder()
                 .voucherDate(req.getTransactionDate())

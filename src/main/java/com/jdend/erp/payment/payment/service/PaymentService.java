@@ -17,7 +17,6 @@ import com.jdend.erp.payment.payment.entity.Payment;
 import com.jdend.erp.payment.payment.repository.PaymentRepository;
 import com.jdend.erp.payment.receivable.entity.Receivable;
 import com.jdend.erp.payment.receivable.repository.ReceivableRepository;
-import com.jdend.erp.vehicle.repository.VehicleOrderRepository;
 import com.jdend.erp.accounting.voucher.service.AccountResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +37,6 @@ public class PaymentService {
   private final VoucherRepository voucherRepository;
   private final OtherAccountSettingsService accountSettings;
   private final AccountResolver accountResolver;
-  private final VehicleOrderRepository vehicleOrderRepo;
   private final ReceivableRepository receivableRepo;  // 미수현황 별도 관리용 (분개 기준 아님)
   private final VoucherNumberService voucherNumberService;
   private final PrepaidRentService prepaidRentService;
@@ -226,20 +224,11 @@ public class PaymentService {
     String voucherNo = nextVoucherNo(voucherDate);
     String memo = buildPaymentVoucherMemo(payment);
 
-    String vehicleMgmtNo = null;
-    String pVehicleNo = blankToNull(payment.getVehicleNo());
-    if (pVehicleNo != null) {
-      vehicleMgmtNo = vehicleOrderRepo.findByVehicleNoNormalized(pVehicleNo)
-          .map(vo -> vo.getVehicleMgmtNo())
-          .orElse(null);
-    }
-
     Voucher voucher = Voucher.builder()
         .voucherNo(voucherNo)
         .voucherDate(voucherDate)
         .contractNumber(blankToNull(payment.getContractNumber()))
         .vehicleNo(blankToNull(payment.getVehicleNo()))
-        .vehicleMgmtNo(vehicleMgmtNo)
         .totalAmount(payment.getPaymentAmount())
         .status("대기")
         .memo(memo)
@@ -258,18 +247,16 @@ public class PaymentService {
         .sortOrder(1)
         .build());
 
-    String vatAccount = accountSettings.getPaymentVatCreditAccount();
-
     if (excess > 0 && totalDue > 0) {
-      // 초과 수납: 대변 ① 렌트수익(공급가액) + ② 부가세예수금, ③ 선수금 (초과분)
-      addRentCreditLines(voucher, creditAccount, vatAccount, totalDue, 2);
+      // 초과 수납: 대변 ① 수익 + ② 선수금 (초과분)
+      addRevenueCreditLine(voucher, creditAccount, totalDue, 2);
       voucher.addLine(VoucherLine.builder()
           .lineType("CREDIT")
           .accountCode(prepaidAccountCode())
           .accountName("선수금")
           .amount(excess)
           .description("초과수납 선수금")
-          .sortOrder(vatAccount != null ? 4 : 3)
+          .sortOrder(3)
           .build());
     } else if (excess > 0) {
       // 미수금 0인데 전액 초과: 대변 선수금 전액
@@ -282,8 +269,8 @@ public class PaymentService {
           .sortOrder(2)
           .build());
     } else {
-      // 일반 수납: 대변 렌트수익(공급가액) + 부가세예수금
-      addRentCreditLines(voucher, creditAccount, vatAccount, payment.getPaymentAmount(), 2);
+      // 일반 수납: 대변 수익 전액
+      addRevenueCreditLine(voucher, creditAccount, payment.getPaymentAmount(), 2);
     }
 
     Voucher saved = voucherRepository.save(voucher);
@@ -298,41 +285,19 @@ public class PaymentService {
   }
 
   /**
-   * 렌트수익 대변 라인을 추가한다.
-   * vatAccount 가 설정된 경우 공급가액(렌트수익)과 부가세예수금으로 분리해서 각각 추가한다.
-   * 수납금액은 부가세포함 공급대가이므로 vatAmount = amount * 10 / 110 (floor).
+   * 수익 대변 라인을 추가한다.
+   * 대부업 이자수익은 부가가치세 면세이므로 공급가액/부가세 분리 없이 총액으로 계상한다.
    */
-  private void addRentCreditLines(Voucher voucher, String creditAccount, String vatAccount,
-                                  long amount, int startOrder) {
-    if (vatAccount != null) {
-      long vatAmount    = amount * 10L / 110L;
-      long supplyAmount = amount - vatAmount;
-      voucher.addLine(VoucherLine.builder()
-          .lineType("CREDIT")
-          .accountCode(accountResolver.codeOf(creditAccount))
-          .accountName(creditAccount)
-          .amount(supplyAmount)
-          .description("수납등록 입금 (공급가액)")
-          .sortOrder(startOrder)
-          .build());
-      voucher.addLine(VoucherLine.builder()
-          .lineType("CREDIT")
-          .accountCode(accountResolver.codeOf(vatAccount))
-          .accountName(vatAccount)
-          .amount(vatAmount)
-          .description("수납등록 부가세")
-          .sortOrder(startOrder + 1)
-          .build());
-    } else {
-      voucher.addLine(VoucherLine.builder()
-          .lineType("CREDIT")
-          .accountCode(accountResolver.codeOf(creditAccount))
-          .accountName(creditAccount)
-          .amount(amount)
-          .description("수납등록 입금")
-          .sortOrder(startOrder)
-          .build());
-    }
+  private void addRevenueCreditLine(Voucher voucher, String creditAccount,
+                                    long amount, int startOrder) {
+    voucher.addLine(VoucherLine.builder()
+        .lineType("CREDIT")
+        .accountCode(accountResolver.codeOf(creditAccount))
+        .accountName(creditAccount)
+        .amount(amount)
+        .description("수납등록 입금")
+        .sortOrder(startOrder)
+        .build());
   }
 
   /**

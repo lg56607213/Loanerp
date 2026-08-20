@@ -176,11 +176,11 @@ public class CompanyApplicationService {
 
         if (base.isBlank()) base = "company";
 
-        if (!loginUserRepository.existsByLoginId(base) && !loginUserRepository.existsByTargetDb("erp_company_" + base)) return base;
+        if (!loginUserRepository.existsByLoginId(base) && !loginUserRepository.existsByTargetDb("loan_company_" + base)) return base;
 
         for (int i = 2; i <= 999; i++) {
             String candidate = base + i;
-            if (!loginUserRepository.existsByLoginId(candidate) && !loginUserRepository.existsByTargetDb("erp_company_" + candidate)) return candidate;
+            if (!loginUserRepository.existsByLoginId(candidate) && !loginUserRepository.existsByTargetDb("loan_company_" + candidate)) return candidate;
         }
 
         throw new RuntimeException("회사 코드 생성에 실패했습니다. 운영자에게 문의해주세요.");

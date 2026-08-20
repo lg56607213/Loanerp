@@ -150,10 +150,6 @@ SET a.category='ASSET', a.level=3, a.parent_id=p.id, a.account_code='100504', a.
 WHERE a.account_name='선급금' AND a.parent_id IS NULL AND p.account_code='1005';
 
 UPDATE financial_statement_accounts a, financial_statement_accounts p
-SET a.category='ASSET', a.level=3, a.parent_id=p.id, a.account_code='100506', a.is_postable='사용'
-WHERE a.account_name='부가세대급금' AND a.parent_id IS NULL AND p.account_code='1005';
-
-UPDATE financial_statement_accounts a, financial_statement_accounts p
 SET a.category='ASSET', a.level=3, a.parent_id=p.id, a.account_code='100403', a.is_postable='사용'
 WHERE a.account_name='렌트자산' AND a.parent_id IS NULL AND p.account_code='1004';
 
@@ -169,10 +165,6 @@ WHERE a.account_name='미지급금' AND a.parent_id IS NULL AND p.account_code='
 UPDATE financial_statement_accounts a, financial_statement_accounts p
 SET a.category='LIABILITY', a.level=3, a.parent_id=p.id, a.account_code='200102', a.is_postable='사용'
 WHERE a.account_name='선수금' AND a.parent_id IS NULL AND p.account_code='2001';
-
-UPDATE financial_statement_accounts a, financial_statement_accounts p
-SET a.category='LIABILITY', a.level=3, a.parent_id=p.id, a.account_code='200103', a.is_postable='사용'
-WHERE a.account_name='부가세예수금' AND a.parent_id IS NULL AND p.account_code='2001';
 
 UPDATE financial_statement_accounts a, financial_statement_accounts p
 SET a.category='LIABILITY', a.level=3, a.parent_id=p.id, a.account_code='200201', a.is_postable='사용'

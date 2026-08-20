@@ -253,17 +253,6 @@
             </div>
           </div>
 
-          <div class="summary-section" id="vatSummarySection" style="margin-top:8px; display:none;">
-            <div class="summary-card" style="border-color:#d0e4ff; background:#f0f6ff;">
-              <label style="color:#2f6fed;">매입부가세 (부가세대급금)</label>
-              <div class="summary-value" id="vatDeductibleAmount" style="color:#2f6fed;">0</div>
-            </div>
-            <div class="summary-card" style="border-color:#ffd6c8; background:#fff5f2;">
-              <label style="color:#c84b00;">매출부가세 (부가세예수금)</label>
-              <div class="summary-value" id="vatPayableAmount" style="color:#c84b00;">0</div>
-            </div>
-          </div>
-
           <div class="error-message hidden" id="errorMessage">
             차변과 대변이 일치하지 않습니다. 전표를 등록할 수 없습니다.
           </div>
@@ -521,22 +510,6 @@
         errorMessage.classList.remove("hidden");
       }
 
-      // VAT running totals
-      let vatDeductible = 0;
-      let vatPayable = 0;
-      qsa("#debitEntriesBody tr").forEach(row => {
-        const acct = row.querySelector(".debit-account")?.value || "";
-        const amt = Number((row.querySelector(".debit-amount")?.value || "").replace(/,/g, "")) || 0;
-        if (acct === "부가세대급금") vatDeductible += amt;
-      });
-      qsa("#creditEntriesBody tr").forEach(row => {
-        const acct = row.querySelector(".credit-account")?.value || "";
-        const amt = Number((row.querySelector(".credit-amount")?.value || "").replace(/,/g, "")) || 0;
-        if (acct === "부가세예수금") vatPayable += amt;
-      });
-      qs("#vatDeductibleAmount").textContent = vatDeductible.toLocaleString();
-      qs("#vatPayableAmount").textContent = vatPayable.toLocaleString();
-      qs("#vatSummarySection").style.display = (vatDeductible > 0 || vatPayable > 0) ? "" : "none";
     }
 
     function addDebitRow() {

@@ -8,11 +8,6 @@ import com.jdend.erp.dashboard.dto.*;
 import com.jdend.erp.dashboard.repository.*;
 import com.jdend.erp.myinfo.entity.BankAccount;
 import com.jdend.erp.myinfo.repository.BankAccountRepository;
-import com.jdend.erp.vehicle.entity.VehicleOrder;
-import com.jdend.erp.vehicle.inspection.entity.VehicleInspection;
-import com.jdend.erp.vehicle.inspection.repository.VehicleInspectionRepository;
-import com.jdend.erp.vehicle.insurance.entity.VehicleInsurance;
-import com.jdend.erp.vehicle.repository.VehicleOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -30,11 +25,8 @@ public class DashboardService {
   private final DashboardVoucherRepository voucherRepo;
   private final BankAccountRepository bankAccountRepo;
   private final ContractDashboardRepository contractRepo;
-  private final VehicleInsuranceDashboardRepository insuranceRepo;
   private final MaturityDashboardRepository maturityRepo;
   private final ReceivableDashboardRepository receivableRepo;
-  private final VehicleOrderRepository vehicleOrderRepo;
-  private final VehicleInspectionRepository inspectionRepo;
   private final VoucherRepository voucherRepository;
   private final ContractRepository contractRepository;
   private final CustomerRepository customerRepository;
@@ -54,65 +46,6 @@ public class DashboardService {
         .todayWithdrawal(wit)
         .closingBalance(closing)
         .build();
-  }
-
-  // ✅🔥 핵심 수정 부분
-  public DashboardContractStatusResponse contractStatus() {
-
-    // 전체 차량
-    List<VehicleOrder> allVehicles = vehicleOrderRepo.findAll();
-
-    // 장기 / 단기 차량번호
-    Set<String> longSet = new HashSet<>(contractRepo.findLongTermVehicleNos());
-    Set<String> shortSet = new HashSet<>(contractRepo.findShortTermVehicleNos());
-
-    long longTerm = 0;
-    long shortTerm = 0;
-    long waiting = 0;
-
-    for (VehicleOrder v : allVehicles) {
-
-      String vehicleNo = normalize(v.getVehicleNo());
-
-      if (vehicleNo == null) {
-        waiting++;
-        continue;
-      }
-
-      // BUG-10차-05: 동일 차량이 장기+단기 계약을 동시에 보유하면 longTerm만 집계되던 문제 수정.
-      // else-if 대신 독립 if로 각각 카운트하고, 어느 쪽에도 속하지 않을 때만 waiting으로 분류.
-      boolean isLong  = longSet.contains(vehicleNo);
-      boolean isShort = shortSet.contains(vehicleNo);
-      if (isLong)  longTerm++;
-      if (isShort) shortTerm++;
-      if (!isLong && !isShort) waiting++;
-    }
-
-    return DashboardContractStatusResponse.builder()
-        .longTerm(longTerm)
-        .shortTerm(shortTerm)
-        .waiting(waiting)
-        .build();
-  }
-
-  public List<DashboardInsuranceRow> insuranceExpiring(int days, int limit) {
-    LocalDate today = LocalDate.now();
-    LocalDate until = today.plusDays(days);
-
-    List<DashboardInsuranceRow> rows = insuranceRepo.findInsuranceExpiring(today, until, limit);
-    for (DashboardInsuranceRow r : rows) {
-      r.setDday(r.getInsuranceEndDate() == null ? 0 : ChronoUnit.DAYS.between(today, r.getInsuranceEndDate()));
-      // BUG-5차-03: contractNumber로 고객명 조회
-      if (r.getContractNumber() != null && !r.getContractNumber().isBlank()) {
-        contractRepository.findByContractNumber(r.getContractNumber()).ifPresent(contract -> {
-          if (contract.getCustomerNumber() != null && !contract.getCustomerNumber().isBlank()) {
-            customerRepository.findByCustomerNumber(contract.getCustomerNumber())
-                .ifPresent(customer -> r.setCustomerName(customer.getCustomerName()));
-          }
-        });
-      }
-    }
-    return rows;
   }
 
   public List<DashboardMaturityRow> maturitySoon(int days, int limit) {
@@ -277,116 +210,6 @@ public class DashboardService {
     return v == null ? 0L : v;
   }
 
-  /** 등록된 전체 차량의 보험 가입 현황 (미가입 포함) */
-  public List<DashboardVehicleInsuranceRow> vehicleInsuranceAll() {
-    List<VehicleOrder> vehicles = vehicleOrderRepo.findAll().stream()
-        .filter(o -> o.getVehicleNo() != null && !o.getVehicleNo().isBlank())
-        .toList();
-
-    // 차량번호 기준 최신 보험 종료일
-    Map<String, LocalDate> latestEnd = new HashMap<>();
-    for (VehicleInsurance i : insuranceRepo.findAll()) {
-      if (i.getVehicleNo() == null) continue;
-      String key = normalize(i.getVehicleNo());
-      LocalDate cur = latestEnd.get(key);
-      if (cur == null || i.getInsuranceEndDate().isAfter(cur)) {
-        latestEnd.put(key, i.getInsuranceEndDate());
-      }
-    }
-
-    LocalDate today = LocalDate.now();
-    List<DashboardVehicleInsuranceRow> result = new ArrayList<>();
-
-    for (VehicleOrder o : vehicles) {
-      String key = normalize(o.getVehicleNo());
-      LocalDate endDate = latestEnd.get(key);
-
-      String status;
-      Long dday = null;
-      if (endDate == null) {
-        status = "미가입";
-      } else {
-        dday = ChronoUnit.DAYS.between(today, endDate);
-        if (dday < 0)       status = "만료";
-        else if (dday <= 30) status = "만료임박";
-        else                 status = "정상";
-      }
-
-      result.add(DashboardVehicleInsuranceRow.builder()
-          .vehicleMgmtNo(o.getVehicleMgmtNo())
-          .vehicleNo(o.getVehicleNo())
-          .carModel(o.getCarModel())
-          .insuranceEndDate(endDate)
-          .status(status)
-          .dday(dday)
-          .build());
-    }
-
-    // 만료 → 만료임박 → 미가입 → 정상 순 정렬
-    result.sort(Comparator.comparingInt((DashboardVehicleInsuranceRow r) -> statusOrder(r.getStatus()))
-        .thenComparing(r -> r.getInsuranceEndDate() == null ? LocalDate.MAX : r.getInsuranceEndDate()));
-    return result;
-  }
-
-  /** 등록된 전체 차량의 정기검사 현황 (미등록 포함) */
-  public List<DashboardVehicleInspectionRow> vehicleInspectionAll() {
-    List<VehicleOrder> vehicles = vehicleOrderRepo.findAll().stream()
-        .filter(o -> o.getVehicleNo() != null && !o.getVehicleNo().isBlank())
-        .toList();
-
-    // 차량관리번호 기준 최신 검사 종료일 (vehicle_inspections 테이블 우선)
-    Map<String, LocalDate> latestInspEnd = new HashMap<>();
-    for (VehicleInspection vi : inspectionRepo.findAll()) {
-      if (vi.getVehicleMgmtNo() == null || vi.getValidEnd() == null) continue;
-      String key = normalize(vi.getVehicleMgmtNo());
-      LocalDate cur = latestInspEnd.get(key);
-      if (cur == null || vi.getValidEnd().isAfter(cur)) {
-        latestInspEnd.put(key, vi.getValidEnd());
-      }
-    }
-
-    LocalDate today = LocalDate.now();
-    List<DashboardVehicleInspectionRow> result = new ArrayList<>();
-
-    for (VehicleOrder o : vehicles) {
-      String key = normalize(o.getVehicleMgmtNo());
-      // vehicle_inspections 우선, 없으면 등록 시 기재한 inspection_end
-      LocalDate endDate = latestInspEnd.getOrDefault(key, o.getInspectionEnd());
-
-      String status;
-      Long dday = null;
-      if (endDate == null) {
-        status = "미등록";
-      } else {
-        dday = ChronoUnit.DAYS.between(today, endDate);
-        if (dday < 0)       status = "만료";
-        else if (dday <= 30) status = "만료임박";
-        else                 status = "정상";
-      }
-
-      result.add(DashboardVehicleInspectionRow.builder()
-          .vehicleMgmtNo(o.getVehicleMgmtNo())
-          .vehicleNo(o.getVehicleNo())
-          .carModel(o.getCarModel())
-          .inspectionEndDate(endDate)
-          .status(status)
-          .dday(dday)
-          .build());
-    }
-
-    result.sort(Comparator.comparingInt((DashboardVehicleInspectionRow r) -> statusOrder(r.getStatus()))
-        .thenComparing(r -> r.getInspectionEndDate() == null ? LocalDate.MAX : r.getInspectionEndDate()));
-    return result;
-  }
-
-  private int statusOrder(String status) {
-    return switch (status) {
-      case "만료"   -> 0;
-      case "만료임박" -> 1;
-      case "미가입", "미등록" -> 2;
-      default       -> 3; // 정상
-    };
-  }
 
   public DashboardPendingVoucherResponse pendingVoucherSummary() {
     List<Voucher> pending = voucherRepository.searchForApproval(null, "대기");

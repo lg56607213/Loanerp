@@ -154,24 +154,18 @@
               <table class="voucher-table">
                 <thead>
                   <tr>
-                    <th style="width:28%">계정과목</th>
+                    <th style="width:33%">계정과목</th>
                     <th style="width:20%">금액</th>
-                    <th style="width:27%">적요</th>
-                    <th style="width:15%">부가세 자동</th>
+                    <th style="width:37%">적요</th>
                     <th style="width:10%">삭제</th>
                   </tr>
                 </thead>
                 <tbody id="debitEntriesBody"></tbody>
                 <tfoot>
-                  <tr class="vat-row">
-                    <td><span class="vat-label">부가세 대급금</span></td>
-                    <td><span id="debitVatAmount">0</span></td>
-                    <td colspan="3"></td>
-                  </tr>
                   <tr class="total-row">
                     <td><strong>합계</strong></td>
                     <td><strong id="debitTotal">0</strong></td>
-                    <td colspan="3"></td>
+                    <td colspan="2"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -189,24 +183,18 @@
               <table class="voucher-table">
                 <thead>
                   <tr>
-                    <th style="width:28%">계정과목</th>
+                    <th style="width:33%">계정과목</th>
                     <th style="width:20%">금액</th>
-                    <th style="width:27%">적요</th>
-                    <th style="width:15%">부가세 자동</th>
+                    <th style="width:37%">적요</th>
                     <th style="width:10%">삭제</th>
                   </tr>
                 </thead>
                 <tbody id="creditEntriesBody"></tbody>
                 <tfoot>
-                  <tr class="vat-row">
-                    <td><span class="vat-label">부가세 예수금</span></td>
-                    <td><span id="creditVatAmount">0</span></td>
-                    <td colspan="3"></td>
-                  </tr>
                   <tr class="total-row">
                     <td><strong>합계</strong></td>
                     <td><strong id="creditTotal">0</strong></td>
-                    <td colspan="3"></td>
+                    <td colspan="2"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -312,7 +300,7 @@
     // 계정 옵션
     // =========================
     let accountOptions = `<option value="">계정 선택</option>`;
-    let accountNameToCode = {}; // 계정명 → 계정코드 역매핑 (부가세 계정 코드 조회용)
+    let accountNameToCode = {}; // 계정명 → 계정코드 역매핑
 
     function buildAccountOptionsHtml(accounts){
       if(!accounts || accounts.length === 0)
@@ -409,88 +397,17 @@
       }
     }
 
-    function syncVatDisplayFromLines(){
-      const vatDebitCode  = accountNameToCode["부가세대급금"]  || "__없음__";
-      const vatCreditCode = accountNameToCode["부가세예수금"] || "__없음__";
-      let debitVat = 0;
-      qsa("#debitEntriesBody tr").forEach(tr=>{
-        const acc = tr.querySelector(".debit-account")?.value || "";
-        const amt = Number((tr.querySelector(".debit-amount")?.value||"0").replace(/,/g,""))||0;
-        if(acc === vatDebitCode) debitVat += amt;
-      });
-      let creditVat = 0;
-      qsa("#creditEntriesBody tr").forEach(tr=>{
-        const acc = tr.querySelector(".credit-account")?.value || "";
-        const amt = Number((tr.querySelector(".credit-amount")?.value||"0").replace(/,/g,""))||0;
-        if(acc === vatCreditCode) creditVat += amt;
-      });
-      qs("#debitVatAmount").textContent = debitVat.toLocaleString();
-      qs("#creditVatAmount").textContent = creditVat.toLocaleString();
-    }
-
-    // =========================
-    // 부가세 자동 계산 (행 단위)
-    // =========================
-    // 대변에서 부가세를 자동 생성해야 하는 계정 키워드
-    const VAT_CREDIT_RE = /수익|임대|용역|매출/;
-    // 차변에서 부가세를 자동 생성해야 하는 계정 키워드
-    const VAT_DEBIT_RE  = /유지비|수선|소모품|임차|수수료|보험료|광고|인건비|복리|매입비/;
-    // 부가세 계정명
-    const VAT_ACCT = { debit:"부가세대급금", credit:"부가세예수금" };
-
-    function isVatTrigger(accountName, side){
-      if(!accountName || accountName.includes("부가세")) return false;
-      return side === "credit" ? VAT_CREDIT_RE.test(accountName) : VAT_DEBIT_RE.test(accountName);
-    }
 
     let _rowSeq = 0;
     function nextRowId(){ return "r" + (++_rowSeq); }
 
-    // 소스 행과 연결된 부가세 행을 찾아 동기화
-    function syncVatRow(srcTr, side){
-      const rowId = srcTr.dataset.rowId;
-      if(!rowId) return;
-      const tbody = srcTr.parentElement;
-      const checked = srcTr.querySelector(".vat-check")?.checked;
-      const amtVal = srcTr.querySelector("." + side + "-amount")?.value || "0";
-      const supplyAmt = Number(amtVal.replace(/,/g,"")) || 0;
-
-      let vatTr = tbody.querySelector(`tr[data-vat-for="${rowId}"]`);
-
-      if(!checked || supplyAmt <= 0){
-        if(vatTr) vatTr.remove();
-      }else{
-        const vatAmt = Math.round(supplyAmt * 0.1);
-        const vatAcct     = VAT_ACCT[side];
-        const vatAcctCode = accountNameToCode[vatAcct] || vatAcct; // 계정명→코드 변환
-        if(!vatTr){
-          vatTr = document.createElement("tr");
-          vatTr.className = "entry-row vat-entry";
-          vatTr.dataset.vatFor = rowId;
-          vatTr.innerHTML = `
-            <td><select class="${side}-account">${setSelectSelected(accountOptions, vatAcctCode)}</select></td>
-            <td><input type="text" class="${side}-amount" value="${vatAmt.toLocaleString()}" readonly style="background:#f5f5f5;color:#555;"></td>
-            <td><input type="text" class="${side}-description" value="부가세" placeholder="적요"></td>
-            <td style="text-align:center;font-size:11px;color:#94a3b8;padding:0 4px;">자동</td>
-            <td></td>
-          `;
-          srcTr.insertAdjacentElement("afterend", vatTr);
-        }else{
-          vatTr.querySelector("." + side + "-amount").value = vatAmt.toLocaleString();
-        }
-      }
-      calculateTotals();
-      syncVatDisplayFromLines();
-    }
-
     // =========================
     // 행 생성 (공통)
     // =========================
-    function buildEntryRow(side, preAccount, preAmount, preDesc, vatChecked){
+    function buildEntryRow(side, preAccount, preAmount, preDesc){
       preAccount  = preAccount  || "";
       preAmount   = preAmount   || "";
       preDesc     = preDesc     || "";
-      vatChecked  = vatChecked  || false;
 
       const rowId = nextRowId();
       const accCls = side + "-account";
@@ -505,42 +422,28 @@
         <td><select class="${accCls}" required>${optHtml}</select></td>
         <td><input type="text" class="${amtCls}" value="${preAmount}" placeholder="0" required></td>
         <td><input type="text" class="${dscCls}" value="${preDesc}" placeholder="적요"></td>
-        <td style="text-align:center;">
-          <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;white-space:nowrap;">
-            <input type="checkbox" class="vat-check" ${vatChecked?"checked":""}>부가세
-          </label>
-        </td>
         <td><button type="button" class="btn-delete-row">삭제</button></td>
       `;
 
       const accSel = tr.querySelector("." + accCls);
       const amtInp = tr.querySelector("." + amtCls);
-      const vatChk = tr.querySelector(".vat-check");
       const delBtn = tr.querySelector(".btn-delete-row");
 
       accSel.addEventListener("change", ()=>{
-        const acctName = accSel.options[accSel.selectedIndex]?.getAttribute('data-name') || '';
-        if(isVatTrigger(acctName, side)) vatChk.checked = true;
-        syncVatRow(tr, side);
-        syncVatDisplayFromLines();
+        calculateTotals();
       });
       amtInp.addEventListener("input", ()=>{
         formatAmountInput(amtInp);
-        syncVatRow(tr, side);
         calculateTotals();
       });
-      vatChk.addEventListener("change", ()=> syncVatRow(tr, side));
       delBtn.addEventListener("click", ()=>{
         const tbody = tr.parentElement;
         if(tbody.querySelectorAll("tr[data-row-id]").length <= 1){
           alert("최소 1개의 항목은 유지해야 합니다.");
           return;
         }
-        const vatTr = tbody.querySelector(`tr[data-vat-for="${rowId}"]`);
-        if(vatTr) vatTr.remove();
         tr.remove();
         calculateTotals();
-        syncVatDisplayFromLines();
       });
 
       return tr;
@@ -565,7 +468,6 @@
       const total = Number((qs("#totalAmount").value||"0").replace(/,/g,"")) || 0;
       if(!type || total <= 0 || type === "일반") return;
 
-      const supply = Math.round(total / 1.1);
       const prefix = ((qs("#vehicleNo").value||"").trim() + " ").trimStart();
 
       const debitTbody  = qs("#debitEntriesBody");
@@ -576,23 +478,18 @@
       if(type === "매출"){
         // 차변: 100101 (보통예금) = 합계금액 전액
         debitTbody.appendChild(buildEntryRow("debit","100101",total.toLocaleString(),prefix+"매출"));
-        // 대변: 400101 (렌트수익) = 공급가액, 부가세예수금 자동 생성
-        const creditRow = buildEntryRow("credit","400101",supply.toLocaleString(),prefix+"렌트료",true);
-        creditTbody.appendChild(creditRow);
-        syncVatRow(creditRow, "credit");
+        // 대변: 400101 (수익) = 총액 (면세사업 — 부가세 분리 없음)
+        creditTbody.appendChild(buildEntryRow("credit","400101",total.toLocaleString(),prefix+"수익"));
       }
 
       if(type === "매입"){
-        // 차변: 차량유지비 supply (부가세 체크 → 부가세대급금 자동 생성)
-        const debitRow = buildEntryRow("debit","차량유지비",supply.toLocaleString(),prefix+"매입",true);
-        debitTbody.appendChild(debitRow);
-        syncVatRow(debitRow, "debit");
-        // 대변: 보통예금 total (부가세 없음)
+        // 차변: 매입 총액 (면세사업 — 매입세액 불공제, 총액 비용계상)
+        debitTbody.appendChild(buildEntryRow("debit","지급수수료",total.toLocaleString(),prefix+"매입"));
+        // 대변: 보통예금 total
         creditTbody.appendChild(buildEntryRow("credit","보통예금",total.toLocaleString(),prefix+"매입대금"));
       }
 
       calculateTotals();
-      syncVatDisplayFromLines();
     }
 
     // =========================
@@ -722,7 +619,6 @@
 
       refreshVoucherNo();
       calculateTotals();
-      syncVatDisplayFromLines();
     }
 
     // =========================
@@ -754,7 +650,6 @@
       document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && contractModal.style.display==="flex") closeContractModal(); });
 
       calculateTotals();
-      syncVatDisplayFromLines();
     });
   </script>
 </body>

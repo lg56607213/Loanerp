@@ -21,18 +21,7 @@ public class DashboardController {
     return service.cashDaily(baseDate);
   }
 
-  @GetMapping("/contract-status")
-  public DashboardContractStatusResponse contractStatus() {
-    return service.contractStatus();
-  }
 
-  @GetMapping("/insurance-expiring")
-  public List<DashboardInsuranceRow> insuranceExpiring(
-      @RequestParam(defaultValue = "7") int days,
-      @RequestParam(defaultValue = "5") int limit
-  ) {
-    return service.insuranceExpiring(days, limit);
-  }
 
   @GetMapping("/maturity-soon")
   public List<DashboardMaturityRow> maturitySoon(
@@ -57,15 +46,7 @@ public class DashboardController {
     return service.bankVoucherDiff();
   }
 
-  @GetMapping("/vehicle-insurance-all")
-  public List<DashboardVehicleInsuranceRow> vehicleInsuranceAll() {
-    return service.vehicleInsuranceAll();
-  }
 
-  @GetMapping("/vehicle-inspection-all")
-  public List<DashboardVehicleInspectionRow> vehicleInspectionAll() {
-    return service.vehicleInspectionAll();
-  }
 
   @GetMapping("/pending-vouchers")
   public DashboardPendingVoucherResponse pendingVouchers() {

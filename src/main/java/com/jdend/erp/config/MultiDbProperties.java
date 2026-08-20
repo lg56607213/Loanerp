@@ -14,7 +14,9 @@ public class MultiDbProperties {
 
     private String defaultDb = "auth";
 
-    private String templateDb = "erp";
+    // 대부업 ERP 전용 템플릿 DB. 렌터카 ERP(erp)와 같은 MySQL 인스턴스를 쓰더라도
+    // 스키마가 섞이지 않도록 이름을 분리한다.
+    private String templateDb = "loan_erp";
 
     private Map<String, DbInfo> datasources = new HashMap<>();
 

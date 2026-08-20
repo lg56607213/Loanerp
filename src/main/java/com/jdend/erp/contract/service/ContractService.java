@@ -6,8 +6,6 @@ import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
 import com.jdend.erp.payment.schedule.service.PaymentScheduleAutoGeneratorService;
-import com.jdend.erp.vehicle.entity.VehicleOrder;
-import com.jdend.erp.vehicle.repository.VehicleOrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +22,6 @@ public class ContractService {
 
   private final ContractRepository contractRepo;
   private final CustomerRepository customerRepo;
-  private final VehicleOrderRepository vehicleOrderRepo;
   private final PaymentScheduleAutoGeneratorService scheduleAutoGen;
 
   @Transactional(readOnly = true)
@@ -125,7 +122,6 @@ public class ContractService {
     validateRequired(req);
 
     Customer customer = customerRepo.findByCustomerNumber(req.customerNumber).orElse(null);
-    VehicleOrder vo = vehicleOrderRepo.findByVehicleNoNormalized(req.vehicleNo).orElse(null);
 
     Long monthlyRent = nvl(req.monthlyRent);
     Integer billingCount = (req.billingCount == null ? 0 : req.billingCount);
@@ -135,11 +131,8 @@ public class ContractService {
         .contractNumber(generateNextContractNumber(req.contractType))
         .customer(customer)
         .customerNumber(req.customerNumber)
-        .vehicleOrder(vo)
         .vehicleNo(req.vehicleNo)
-        .vehicleModel(req.vehicleModel != null && !req.vehicleModel.isBlank()
-            ? req.vehicleModel
-            : (vo != null ? vo.getCarModel() : null))
+        .vehicleModel(req.vehicleModel)
         .contractType(req.contractType)
         .contractCategory(req.contractCategory)
         .status(normalizeStatus(req.status))
@@ -195,12 +188,6 @@ public class ContractService {
 
     if (req.vehicleNo != null && !req.vehicleNo.isBlank()) {
       c.setVehicleNo(req.vehicleNo);
-      VehicleOrder vo = vehicleOrderRepo.findByVehicleNoNormalized(req.vehicleNo).orElse(null);
-      c.setVehicleOrder(vo);
-
-      if (req.vehicleModel == null || req.vehicleModel.isBlank()) {
-        if (vo != null) c.setVehicleModel(vo.getCarModel());
-      }
     }
 
     if (req.vehicleModel != null) c.setVehicleModel(req.vehicleModel);

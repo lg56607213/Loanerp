@@ -26,11 +26,11 @@ public class TenantDatabaseService {
             throw new RuntimeException("회사코드/DB 값이 올바르지 않습니다.");
         }
 
-        if (cleaned.startsWith("erp_company_")) {
+        if (cleaned.startsWith("loan_company_")) {
             return cleaned;
         }
 
-        return "erp_company_" + cleaned;
+        return "loan_company_" + cleaned;
     }
 
     public void ensureTenantDatabase(String targetDb) {
@@ -209,7 +209,6 @@ public class TenantDatabaseService {
   },
   "inspectionMapping": {
     "debit":    {"account": "500203", "accountName": "차량유지비"},
-    "vatDebit": {"account": "100506", "accountName": "부가세대급금"},
     "credit":   {"account": "100101", "accountName": "보통예금"}
   },
   "deprecMapping": {
@@ -218,14 +217,12 @@ public class TenantDatabaseService {
   },
   "paymentMapping": {
     "debit":     {"account": "100101", "accountName": "보통예금"},
-    "credit":    {"account": "400101", "accountName": "렌트수익"},
-    "vatCredit": {"account": "200103", "accountName": "부가세예수금"}
+    "credit":    {"account": "400101", "accountName": "렌트수익"}
   },
   "prepaidMapping": {
     "bank":      {"account": "100101", "accountName": "보통예금"},
     "debit":     {"account": "200102", "accountName": "선수금"},
-    "credit":    {"account": "400101", "accountName": "렌트수익"},
-    "vatCredit": {"account": "200103", "accountName": "부가세예수금"}
+    "credit":    {"account": "400101", "accountName": "렌트수익"}
   },
   "saleMapping": {
     "debit":  {"account": "100101", "accountName": "보통예금"},
@@ -234,18 +231,13 @@ public class TenantDatabaseService {
   "saleDetailMapping": {
     "accumDeprec":   {"account": "100404", "accountName": "감가상각누계액"},
     "undepreciated": {"account": "500214", "accountName": "미상각잔액"},
-    "vatCredit":     {"account": "200103", "accountName": "부가세예수금"},
     "vehicleAsset":  {"account": "100401", "accountName": "차량운반구"}
   },
   "maintenanceMapping": {
     "debit":       {"account": "500203", "accountName": "차량유지비"},
-    "vatDebit":    {"account": "100506", "accountName": "부가세대급금"},
     "creditUnpaid":{"account": "200101", "accountName": "미지급금"},
     "creditCard":  {"account": "200104", "accountName": "미지급비용"},
     "creditBank":  {"account": "100101", "accountName": "보통예금"}
-  },
-  "advanceVatMapping": {
-    "debit": {"account": "100506", "accountName": "부가세대급금"}
   },
   "insuranceMapping": {
     "debit":  {"account": "500204", "accountName": "보험료"},
@@ -262,8 +254,7 @@ public class TenantDatabaseService {
   "earlyTermMapping": {
     "unrealizedRent": {
       "debit":     {"account": "100503", "accountName": "미수금"},
-      "credit":    {"account": "400101", "accountName": "렌트수익"},
-      "vatCredit": {"account": "200103", "accountName": "부가세예수금"}
+      "credit":    {"account": "400101", "accountName": "렌트수익"}
     },
     "terminationFee": {
       "debit":  {"account": "100101", "accountName": "보통예금"},

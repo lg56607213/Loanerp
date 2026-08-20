@@ -33,29 +33,6 @@ function loadSidebar() {
             </ul>
           </li>
           <li class="has-sub">
-            <span class="menu-label">차량등록</span>
-            <ul>
-              <li class="has-sub">
-                <span class="menu-label">차량현황</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/vehicle_order.html">발주</a></li>
-                  <li><a href="${basePath}pages/vehicle/vehicle_advance.html">선급</a></li>
-                  <li><a href="${basePath}pages/vehicle/vehicle_register.html">등록</a></li>
-                  <li><a href="${basePath}pages/vehicle/vehicle_delivery.html">실행</a></li>
-                </ul>
-              </li>
-<li class="has-sub">
-  <span class="menu-label">차량 차입금관리</span>
-  <ul>
-    <li><a href="${basePath}pages/payment/loan_schedule_register.html">차입금스케줄등록</a></li>
-    <li><a href="${basePath}pages/payment/loan_schedule_adjust.html">차입금스케줄조정</a></li>
-    <li><a href="${basePath}pages/payment/loan_status.html">차입금현황</a></li>
-  </ul>
-</li>
-              <li><a href="${basePath}pages/vehicle/vehicle_state.html">차량상태</a></li>
-            </ul>
-          </li>
-          <li class="has-sub">
             <span class="menu-label">계약관리</span>
             <ul>
               <li class="has-sub">
@@ -84,63 +61,6 @@ function loadSidebar() {
             </ul>
           </li>
           <li class="has-sub">
-            <span class="menu-label">차량관리</span>
-            <ul>
-              <li class="has-sub">
-                <span class="menu-label">정비</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/maintenance_register.html">정비등록</a></li>
-                  <li><a href="${basePath}pages/vehicle/maintenance_status.html">정비현황</a></li>
-                  <li id="mtStatusMenuItem" style="display:none;"><a href="${basePath}pages/vehicle/mt_status.html">MT현황</a></li>
-                  <li id="mtRegisterMenuItem" style="display:none;"><a href="${basePath}pages/vehicle/mt_register.html">MT등록</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">검사관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/periodic_inspection.html">검사현황</a></li>
-                  <li><a href="${basePath}pages/vehicle/inspection_register.html">검사등록</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">배차등록</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/dispatch_register.html">납품&회수&기타</a></li>
-                  <li><a href="${basePath}pages/vehicle/dispatch_status.html">배차현황</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">감가상각</span>
-                <ul>
-                  <li><a href="${basePath}pages/accounting/depreciation_register.html">감가상각등록</a></li>
-                  <li><a href="${basePath}pages/accounting/depreciation_schedule_change.html">스케줄변경</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">매각관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/vehicle_sale_register.html">매각등록</a></li>
-                  <li><a href="${basePath}pages/vehicle/vehicle_sale_status.html">매각현황</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">보험관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/insurance_register.html">등록</a></li>
-                  <li><a href="${basePath}pages/vehicle/insurance_status.html">보험현황</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">스캔관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/vehicle/vehicle_scan.html">차량등록증</a></li>
-                  <li><a href="${basePath}pages/vehicle/insurance_scan.html">보험증권</a></li>
-                  <li><a href="${basePath}pages/contract/contract_scan.html">계약서</a></li>
-                </ul>
-              </li>
-            </ul>
-          </li>
-          <li class="has-sub">
             <span class="menu-label">수납관리</span>
             <ul>
               <li class="has-sub">
@@ -154,7 +74,6 @@ function loadSidebar() {
                 <ul>
                   <li><a href="${basePath}pages/payment/billing_create.html">청구생성</a></li>
                   <li><a href="${basePath}pages/payment/billing_issue.html">청구서발행</a></li>
-                  <li><a href="${basePath}pages/payment/tax_invoice_issue.html">세금계산서 발행</a></li>
                 </ul>
               </li>
               <li class="has-sub">
@@ -224,7 +143,7 @@ function loadSidebar() {
                 <span class="menu-label">보증금/선수금관리</span>
                 <ul>
                   <li><a href="${basePath}pages/accounting/deposit_management.html">보증금/선수금관리</a></li>
-                  <li><a href="${basePath}pages/accounting/prepaid_rent_management.html">선수금(렌트)관리</a></li>
+                  <li><a href="${basePath}pages/accounting/prepaid_rent_management.html">선수금관리</a></li>
                 </ul>
               </li>
             </ul>
@@ -292,7 +211,6 @@ function loadSidebar() {
       .then(function (data) {
         const role = data && data.success ? data.role : null;
         const taxEnabled = data && data.taxConsultationEnabled;
-        const maintenanceEnabled = data && data.maintenanceEnabled;
 
         // 사용자관리 메뉴
         const item = document.getElementById('companyUsersMenuItem');
@@ -318,13 +236,6 @@ function loadSidebar() {
         const subscriptionItem = document.getElementById('subscriptionMenuItem');
         if (subscriptionItem && role === 'ADMIN') subscriptionItem.style.display = '';
 
-        // MT 메뉴 — 운영자이거나 maintenanceEnabled 권한이 있는 업체만 노출
-        if (role === 'ADMIN' || maintenanceEnabled) {
-          var mtStatus = document.getElementById('mtStatusMenuItem');
-          var mtRegister = document.getElementById('mtRegisterMenuItem');
-          if (mtStatus) mtStatus.style.display = '';
-          if (mtRegister) mtRegister.style.display = '';
-        }
       })
       .catch(function (e) { console.error('권한 조회 실패', e); });
   })();

@@ -83,16 +83,12 @@ SELECT 'bs', 'ASSET', 3, id, '100504', '선급금', '기타자산', 4, '사용',
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 3, id, '100505', '선급비용', '기타자산', 5, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '1005';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'bs', 'ASSET', 3, id, '100506', '부가세대급금', '기타자산', 6, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '1005';
-INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 3, id, '100507', '기타', '기타자산', 7, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '1005';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'LIABILITY', 3, id, '200101', '미지급금', '유동부채', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'LIABILITY', 3, id, '200102', '선수금', '유동부채', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
-INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'bs', 'LIABILITY', 3, id, '200103', '부가세예수금', '유동부채', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'LIABILITY', 3, id, '200104', '미지급비용', '유동부채', 4, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)

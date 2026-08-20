@@ -119,14 +119,9 @@
           <div class="mapping-item">
             <label>차변</label>
             <div class="account-input-group">
-              <label class="sub-label">공급가액</label>
+              <label class="sub-label">계정</label>
               <input type="text" class="account-code" id="inspectionDebitCode" placeholder="계정코드">
               <select class="account-select" id="inspectionDebitAccount" data-default-name="차량유지비"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">부가세</label>
-              <input type="text" class="account-code" id="inspectionVatDebitCode" placeholder="계정코드">
-              <select class="account-select" id="inspectionVatDebitAccount"></select>
             </div>
           </div>
           <div class="mapping-arrow">→</div>
@@ -214,14 +209,9 @@
           <div class="mapping-item">
             <label>대변</label>
             <div class="account-input-group">
-              <label class="sub-label">공급가액</label>
+              <label class="sub-label">계정</label>
               <input type="text" class="account-code" id="earlyTermUnrealizedRentCreditCode" placeholder="계정코드">
               <select class="account-select" id="earlyTermUnrealizedRentCredit"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">부가세</label>
-              <input type="text" class="account-code" id="earlyTermUnrealizedRentVatCreditCode" placeholder="계정코드">
-              <select class="account-select" id="earlyTermUnrealizedRentVatCredit"></select>
             </div>
           </div>
         </div>
@@ -321,7 +311,7 @@
       <!-- 수납 전표 -->
       <div class="form-section">
         <h3 class="section-title">수납 전표</h3>
-        <p class="section-note">수납 등록 시 자동 발생하는 전표 계정을 설정합니다. 부가세예수금이 설정되면 수납금액을 공급가액(렌트수익)과 부가세(10%)로 자동 분리합니다.</p>
+        <p class="section-note">수납 등록 시 자동 발생하는 전표 계정을 설정합니다. 대부업은 면세사업이므로 부가세를 분리하지 않고 총액으로 계상합니다.</p>
         <div class="mapping-row">
           <div class="mapping-item">
             <label>차변</label>
@@ -332,15 +322,10 @@
           </div>
           <div class="mapping-arrow">→</div>
           <div class="mapping-item">
-            <label>대변 (렌트수익 - 공급가액)</label>
+            <label>대변 (수익)</label>
             <div class="account-input-group">
               <input type="text" class="account-code" id="paymentCreditCode" placeholder="계정코드">
               <select class="account-select" id="paymentCreditAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">부가세예수금</label>
-              <input type="text" class="account-code" id="paymentVatCreditCode" placeholder="계정코드">
-              <select class="account-select" id="paymentVatCreditAccount"></select>
             </div>
           </div>
         </div>
@@ -354,14 +339,9 @@
           <div class="mapping-item">
             <label>차변</label>
             <div class="account-input-group">
-              <label class="sub-label">공급가액</label>
+              <label class="sub-label">계정</label>
               <input type="text" class="account-code" id="maintenanceDebitCode" placeholder="계정코드">
               <select class="account-select" id="maintenanceDebitAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">부가세</label>
-              <input type="text" class="account-code" id="maintenanceVatDebitCode" placeholder="계정코드">
-              <select class="account-select" id="maintenanceVatDebitAccount"></select>
             </div>
           </div>
           <div class="mapping-arrow">→</div>
@@ -386,23 +366,6 @@
         </div>
       </div>
 
-      <!-- 차량선급 — 부가세 계정 -->
-      <div class="form-section">
-        <h3 class="section-title">차량선급 — 부가세 계정</h3>
-        <p class="section-note">차량 선급 항목 중 부가세 분개에 사용할 차변 계정을 설정합니다. 미설정 시 부가세 분개는 생략됩니다. (항목별 차변은 위의 선급관리 계정분류에서 설정)</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변 (부가세)</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="advanceVatDebitCode" placeholder="계정코드">
-              <select class="account-select" id="advanceVatDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow"> </div>
-          <div class="mapping-item"></div>
-        </div>
-      </div>
-
       <!-- 차량매각 — 장부 계정 -->
       <div class="form-section">
         <h3 class="section-title">차량매각 — 장부 계정</h3>
@@ -424,11 +387,6 @@
           <div class="mapping-arrow">→</div>
           <div class="mapping-item">
             <label>대변 (장부가 제거)</label>
-            <div class="account-input-group">
-              <label class="sub-label">부가세예수금</label>
-              <input type="text" class="account-code" id="saleVatCreditCode" placeholder="계정코드">
-              <select class="account-select" id="saleVatCreditAccount"></select>
-            </div>
             <div class="account-input-group" style="margin-top: 10px;">
               <label class="sub-label">차량운반구</label>
               <input type="text" class="account-code" id="saleVehicleAssetCode" placeholder="계정코드">
@@ -514,14 +472,9 @@
           <div class="mapping-item">
             <label>수익</label>
             <div class="account-input-group">
-              <label class="sub-label">적용 전표 대변 (공급가액)</label>
+              <label class="sub-label">적용 전표 대변</label>
               <input type="text" class="account-code" id="prepaidCreditCode" placeholder="계정코드">
               <select class="account-select" id="prepaidCreditAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">부가세예수금</label>
-              <input type="text" class="account-code" id="prepaidVatCreditCode" placeholder="계정코드">
-              <select class="account-select" id="prepaidVatCreditAccount"></select>
             </div>
           </div>
         </div>
@@ -707,7 +660,6 @@
 
     const inspectionMapping = {
       debit:    { code: inputVal('inspectionDebitCode'),       account: selVal('inspectionDebitAccount'),    accountName: selText('inspectionDebitAccount')    },
-      vatDebit: { code: inputVal('inspectionVatDebitCode'),    account: selVal('inspectionVatDebitAccount'), accountName: selText('inspectionVatDebitAccount') },
       credit:   { code: inputVal('inspectionCreditCode'),      account: selVal('inspectionCreditAccount'),   accountName: selText('inspectionCreditAccount'),   bankAccount: selVal('inspectionBankAccount') }
     };
 
@@ -725,7 +677,6 @@
       unrealizedRent: {
         debit:     { code: inputVal('earlyTermUnrealizedRentDebitCode'),      account: selVal('earlyTermUnrealizedRentDebit'),       accountName: selText('earlyTermUnrealizedRentDebit')       },
         credit:    { code: inputVal('earlyTermUnrealizedRentCreditCode'),     account: selVal('earlyTermUnrealizedRentCredit'),      accountName: selText('earlyTermUnrealizedRentCredit')      },
-        vatCredit: { code: inputVal('earlyTermUnrealizedRentVatCreditCode'),  account: selVal('earlyTermUnrealizedRentVatCredit'),   accountName: selText('earlyTermUnrealizedRentVatCredit')   }
       },
       terminationAmount: {
         debit:  { code: inputVal('earlyTermAmountDebitCode'),  account: selVal('earlyTermAmountDebit'),  accountName: selText('earlyTermAmountDebit')  },
@@ -751,7 +702,6 @@
     const paymentMapping = {
       debit:     { code: inputVal('paymentDebitCode'),      account: selVal('paymentDebitAccount'),      accountName: selText('paymentDebitAccount')      },
       credit:    { code: inputVal('paymentCreditCode'),     account: selVal('paymentCreditAccount'),     accountName: selText('paymentCreditAccount')     },
-      vatCredit: { code: inputVal('paymentVatCreditCode'),  account: selVal('paymentVatCreditAccount'),  accountName: selText('paymentVatCreditAccount')  }
     };
 
     const insuranceMapping = {
@@ -766,28 +716,22 @@
 
     const maintenanceMapping = {
       debit:        { code: inputVal('maintenanceDebitCode'),        account: selVal('maintenanceDebitAccount'),        accountName: selText('maintenanceDebitAccount')        },
-      vatDebit:     { code: inputVal('maintenanceVatDebitCode'),     account: selVal('maintenanceVatDebitAccount'),     accountName: selText('maintenanceVatDebitAccount')     },
       creditUnpaid: { code: inputVal('maintenanceCreditUnpaidCode'), account: selVal('maintenanceCreditUnpaidAccount'), accountName: selText('maintenanceCreditUnpaidAccount') },
       creditCard:   { code: inputVal('maintenanceCreditCardCode'),   account: selVal('maintenanceCreditCardAccount'),   accountName: selText('maintenanceCreditCardAccount')   },
       creditBank:   { code: inputVal('maintenanceCreditBankCode'),   account: selVal('maintenanceCreditBankAccount'),   accountName: selText('maintenanceCreditBankAccount')   }
     };
 
-    const advanceVatMapping = {
-      debit: { code: inputVal('advanceVatDebitCode'), account: selVal('advanceVatDebitAccount'), accountName: selText('advanceVatDebitAccount') }
-    };
 
     // 선수금 — 회계 기준은 계정코드(account). accountName 은 화면 표시용 참고값.
     const prepaidMapping = {
       bank:   { code: inputVal('prepaidBankCode'),   account: selVal('prepaidBankAccount'),   accountName: selText('prepaidBankAccount')   },
       debit:  { code: inputVal('prepaidDebitCode'),  account: selVal('prepaidDebitAccount'),  accountName: selText('prepaidDebitAccount')  },
       credit:    { code: inputVal('prepaidCreditCode'),    account: selVal('prepaidCreditAccount'),    accountName: selText('prepaidCreditAccount')    },
-      vatCredit: { code: inputVal('prepaidVatCreditCode'), account: selVal('prepaidVatCreditAccount'), accountName: selText('prepaidVatCreditAccount') }
     };
 
     const saleDetailMapping = {
       accumDeprec:   { code: inputVal('saleAccumDeprecCode'),   account: selVal('saleAccumDeprecAccount'),   accountName: selText('saleAccumDeprecAccount')   },
       undepreciated: { code: inputVal('saleUndepreciatedCode'), account: selVal('saleUndepreciatedAccount'), accountName: selText('saleUndepreciatedAccount') },
-      vatCredit:     { code: inputVal('saleVatCreditCode'),     account: selVal('saleVatCreditAccount'),     accountName: selText('saleVatCreditAccount')     },
       vehicleAsset:  { code: inputVal('saleVehicleAssetCode'),  account: selVal('saleVehicleAssetAccount'),  accountName: selText('saleVehicleAssetAccount')  }
     };
 
@@ -797,7 +741,7 @@
       loanOpenMapping, deprecMapping, earlyTermMapping,
       legalCostMapping, saleMapping, paymentMapping,
       insuranceMapping, insuranceRefundMapping,
-      maintenanceMapping, advanceVatMapping, saleDetailMapping,
+      maintenanceMapping, saleDetailMapping,
       prepaidMapping
     };
   }
@@ -860,7 +804,6 @@
     // 정기검사
     if (settings.inspectionMapping) {
       applySelect('inspectionDebitAccount',    settings.inspectionMapping.debit?.account);
-      applySelect('inspectionVatDebitAccount', settings.inspectionMapping.vatDebit?.account);
       applySelect('inspectionCreditAccount',   settings.inspectionMapping.credit?.account);
       const bank = document.getElementById('inspectionBankAccount');
       if (bank) bank.value = settings.inspectionMapping.credit?.bankAccount ?? "";
@@ -882,7 +825,6 @@
     if (settings.earlyTermMapping) {
       applySelect('earlyTermUnrealizedRentDebit',      settings.earlyTermMapping.unrealizedRent?.debit?.account);
       applySelect('earlyTermUnrealizedRentCredit',     settings.earlyTermMapping.unrealizedRent?.credit?.account);
-      applySelect('earlyTermUnrealizedRentVatCredit',  settings.earlyTermMapping.unrealizedRent?.vatCredit?.account);
       applySelect('earlyTermAmountDebit',                   settings.earlyTermMapping.terminationAmount?.debit?.account);
       applySelect('earlyTermAmountCredit',                  settings.earlyTermMapping.terminationAmount?.credit?.account);
       applySelect('earlyTermAmountCreditNoReceivable',      settings.earlyTermMapping.terminationAmount?.creditNoReceivable?.account);
@@ -906,7 +848,6 @@
     if (settings.paymentMapping) {
       applySelect('paymentDebitAccount',      settings.paymentMapping.debit?.account);
       applySelect('paymentCreditAccount',     settings.paymentMapping.credit?.account);
-      applySelect('paymentVatCreditAccount',  settings.paymentMapping.vatCredit?.account);
     }
 
     // 보험 신규/갱신
@@ -924,28 +865,19 @@
     // 정비 전표
     if (settings.maintenanceMapping) {
       applySelect('maintenanceDebitAccount',        settings.maintenanceMapping.debit?.account);
-      applySelect('maintenanceVatDebitAccount',     settings.maintenanceMapping.vatDebit?.account);
       applySelect('maintenanceCreditUnpaidAccount', settings.maintenanceMapping.creditUnpaid?.account);
       applySelect('maintenanceCreditCardAccount',   settings.maintenanceMapping.creditCard?.account);
       applySelect('maintenanceCreditBankAccount',   settings.maintenanceMapping.creditBank?.account);
     }
 
-    // 차량선급 부가세
-    if (settings.advanceVatMapping) {
-      applySelect('advanceVatDebitAccount', settings.advanceVatMapping.debit?.account);
-    }
-
-    // 차량매각 장부 계정
     // 선수금 — 저장값이 없으면 기본 계정코드로 채워 둔다 (백엔드 기본값과 동일)
     applySelect('prepaidBankAccount',      settings.prepaidMapping?.bank?.account      || '100101');
     applySelect('prepaidDebitAccount',     settings.prepaidMapping?.debit?.account     || '200102');
     applySelect('prepaidCreditAccount',    settings.prepaidMapping?.credit?.account    || '400101');
-    applySelect('prepaidVatCreditAccount', settings.prepaidMapping?.vatCredit?.account || '200103');
 
     if (settings.saleDetailMapping) {
       applySelect('saleAccumDeprecAccount',   settings.saleDetailMapping.accumDeprec?.account);
       applySelect('saleUndepreciatedAccount', settings.saleDetailMapping.undepreciated?.account);
-      applySelect('saleVatCreditAccount',     settings.saleDetailMapping.vatCredit?.account);
       applySelect('saleVehicleAssetAccount',  settings.saleDetailMapping.vehicleAsset?.account);
     }
   }

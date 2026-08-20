@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 앱 시작 시 모든 테넌트 DB(erp_company_*)에 Hibernate ddl-auto=update를 적용한다.
+ * 앱 시작 시 모든 테넌트 DB(loan_company_*)에 Hibernate ddl-auto=update를 적용한다.
  * 멀티테넌트 구조에서 기본 DataSource(erp)에만 적용되는 ddl-auto=update 한계를 보완한다.
  */
 @Slf4j
@@ -32,7 +32,7 @@ public class TenantSchemaUpdateRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         List<String> tenantDbs = jdbcTemplate.queryForList(
             "SELECT schema_name FROM information_schema.schemata " +
-            "WHERE schema_name LIKE 'erp_company_%' ORDER BY schema_name",
+            "WHERE schema_name LIKE 'loan_company_%' ORDER BY schema_name",
             String.class
         );
 

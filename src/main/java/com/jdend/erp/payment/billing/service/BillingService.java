@@ -232,13 +232,9 @@ public class BillingService {
 
     Long rentAmount = b.getRentAmount() == null ? total : b.getRentAmount();
     Long extraAmount = 0L;
-    // BUG-⑬ 수정: double 연산의 소수점 오차를 제거하기 위해 BigDecimal로 부가세 역산
-    // 세액 = total * 10/110 (HALF_UP 반올림), 공급가액 = total - 세액
-    Long taxAmount = BigDecimal.valueOf(total)
-        .multiply(BigDecimal.valueOf(10))
-        .divide(BigDecimal.valueOf(110), 0, RoundingMode.HALF_UP)
-        .longValue();
-    Long supplyAmount = total - taxAmount;
+    // 대부업(면세사업)이므로 부가세를 역산하지 않는다. 공급가액 = 총액, 세액 = 0.
+    Long taxAmount = 0L;
+    Long supplyAmount = total;
     String memo = safe(b.getMemo()).equals("-") ? "" : b.getMemo();
 
     String baseContractNumber = null;

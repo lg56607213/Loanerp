@@ -8,7 +8,6 @@ import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.service.ContractService;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
-import com.jdend.erp.vehicle.service.VehicleOrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
@@ -25,7 +24,6 @@ public class MaturityManagementService {
   private final ContractRepository contractRepository;
   private final CustomerRepository customerRepository;
   private final ContractService contractService;
-  private final VehicleOrderService vehicleOrderService;
 
   @Transactional(readOnly = true)
   public Page<MaturityRowDto> list(String status, int page, int size) {
@@ -70,18 +68,6 @@ public class MaturityManagementService {
         .build();
 
     Long savedId = repo.save(mm).getId();
-
-    // 재렌트 시 차량관리번호는 변경하지 않는다(v5 규칙). 이력 기록만 수행한다.
-    // 아직 실행 확정 전이거나 차량을 못 찾는 경우는 만기관리 등록 자체를 막지 않는다.
-    if (old.getVehicleNo() != null && !old.getVehicleNo().isBlank()) {
-      try {
-        String mgmtNo = vehicleOrderService.applyRerent(old.getVehicleNo());
-        log.info("재렌트 이력 기록 완료: 계약 {} 차량관리번호 {} 유지 (차량 {})",
-            old.getContractNumber(), mgmtNo, old.getVehicleNo());
-      } catch (Exception e) {
-        log.warn("재렌트 이력 기록 실패 (차량 {}): {}", old.getVehicleNo(), e.getMessage());
-      }
-    }
 
     return savedId;
   }

@@ -86,8 +86,6 @@ public class OtherAccountSettingsService {
   public String getLoanCreditAccount()       { return nested("loanMapping",       "credit"); }
   /** 정기검사 차변 계정명 (차량유지비 - 공급가액) */
   public String getInspectionDebitAccount()     { return nested("inspectionMapping", "debit");     }
-  /** 정기검사 부가세대급금 차변 계정명 (설정 시 VAT 자동 분리) */
-  public String getInspectionVatDebitAccount()  { return nested("inspectionMapping", "vatDebit");  }
   /** 정기검사 대변 계정명 */
   public String getInspectionCreditAccount()    { return nested("inspectionMapping", "credit");    }
 
@@ -111,15 +109,11 @@ public class OtherAccountSettingsService {
   public String getPaymentDebitAccount()     { return nested("paymentMapping",    "debit");     }
   /** 수납 대변 계정명 (렌트수익 - 공급가액) */
   public String getPaymentCreditAccount()    { return nested("paymentMapping",    "credit");    }
-  /** 수납 부가세예수금 대변 계정명 */
-  public String getPaymentVatCreditAccount() { return nested("paymentMapping",    "vatCredit"); }
 
   /** 중도해지 미회수렌트료 차변 계정명 */
   public String getEarlyTermUnrealizedRentDebit()      { return nested3("earlyTermMapping","unrealizedRent","debit");     }
   /** 중도해지 미회수렌트료 대변 계정명 (렌트수익 - 공급가액) */
   public String getEarlyTermUnrealizedRentCredit()     { return nested3("earlyTermMapping","unrealizedRent","credit");    }
-  /** 중도해지 미회수렌트료 부가세예수금 대변 계정명 (설정 시 VAT 자동 분리) */
-  public String getEarlyTermUnrealizedRentVatCredit()  { return nested3("earlyTermMapping","unrealizedRent","vatCredit"); }
   /** 중도해지 수수료 차변 계정명 */
   public String getEarlyTermFeeDebit()             { return nested3("earlyTermMapping","terminationFee",   "debit");  }
   /** 중도해지 수수료 대변 계정명 */
@@ -154,18 +148,6 @@ public class OtherAccountSettingsService {
   public String getPrepaidDebitAccountCode()  { return nestedCode("prepaidMapping", "debit",  DEFAULT_PREPAID_LIAB_CODE);   }
   /** 선수금 적용 시 대변(수익) 계정코드 (기본값: 400101 렌트수익) */
   public String getPrepaidCreditAccountCode() { return nestedCode("prepaidMapping", "credit", DEFAULT_PREPAID_REVENUE_CODE); }
-  /** 선수금 적용 시 부가세예수금 계정코드 (미설정 시 null → VAT 분리 없음) */
-  public String getPrepaidVatCreditAccountCode() {
-    Object sec = getSettingsMap().get("prepaidMapping");
-    if (sec instanceof Map) {
-      Object entry = ((Map<?, ?>) sec).get("vatCredit");
-      if (entry instanceof Map) {
-        Object code = ((Map<?, ?>) entry).get("account");
-        if (code instanceof String && !((String) code).isBlank()) return (String) code;
-      }
-    }
-    return null;
-  }
 
   /** 선수금 입금 시 차변 계정코드 기본값 — 보통예금 */
   public static final String DEFAULT_PREPAID_BANK_CODE    = "100101";
@@ -177,22 +159,16 @@ public class OtherAccountSettingsService {
 
   /** 정비 차변 계정명 (공급가액) */
   public String getMaintenanceDebitAccount()        { return nested("maintenanceMapping", "debit");        }
-  /** 정비 부가세 차변 계정명 */
-  public String getMaintenanceVatDebitAccount()     { return nested("maintenanceMapping", "vatDebit");     }
   /** 정비 대변 계정명 (미지급금 결제) */
   public String getMaintenanceCreditUnpaidAccount() { return nested("maintenanceMapping", "creditUnpaid"); }
   /** 정비 대변 계정명 (법인카드 결제) */
   public String getMaintenanceCreditCardAccount()   { return nested("maintenanceMapping", "creditCard");   }
   /** 정비 대변 계정명 (보통예금 결제) */
   public String getMaintenanceCreditBankAccount()   { return nested("maintenanceMapping", "creditBank");   }
-  /** 선급 부가세 차변 계정명 */
-  public String getAdvanceVatDebitAccount()         { return nested("advanceVatMapping",  "debit");        }
   /** 매각 감가상각누계액 차변 계정명 */
   public String getSaleAccumDeprecAccount()         { return nested("saleDetailMapping",  "accumDeprec");  }
   /** 매각 미상각잔액 차변 계정명 */
   public String getSaleUndepreciatedAccount()       { return nested("saleDetailMapping",  "undepreciated"); }
-  /** 매각 부가세예수금 대변 계정명 */
-  public String getSaleVatCreditAccount()           { return nested("saleDetailMapping",  "vatCredit");    }
   /** 매각 차량운반구 대변 계정명 */
   public String getSaleVehicleAssetAccount()        { return nested("saleDetailMapping",  "vehicleAsset"); }
 
