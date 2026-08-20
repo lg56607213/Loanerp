@@ -193,7 +193,7 @@ public class TenantDatabaseService {
   },
   "loanMapping": {
     "debit1": {"account": "200201", "accountName": "차입금"},
-    "debit2": {"account": "500301", "accountName": "이자비용"},
+    "debit2": {"account": "500101", "accountName": "이자비용"},
     "credit": {"account": "100101", "accountName": "보통예금"}
   },
   "paymentMapping": {

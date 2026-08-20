@@ -136,7 +136,7 @@ public class StatementService {
     // 영업/영업외 구분 — 중분류 계정코드 기준
     long operatingRevenue    = sumChildren(revenue, CODE_OPERATING_REVENUE);
     long nonOperatingRevenue = sumChildren(revenue, CODE_NON_OPERATING_REVENUE);
-    long operatingExpense    = sumChildren(expense, CODE_COST_OF_SALES, CODE_SGA);
+    long operatingExpense    = sumChildren(expense, CODE_OPERATING_COST, CODE_SGA);
     long nonOperatingExpense = sumChildren(expense, CODE_NON_OPERATING_EXPENSE);
     long incomeTax           = sumChildren(expense, CODE_INCOME_TAX);
 
@@ -160,7 +160,7 @@ public class StatementService {
   // 손익계산서 중분류 계정코드
   private static final String CODE_OPERATING_REVENUE     = "4001"; // 영업수익
   private static final String CODE_NON_OPERATING_REVENUE = "4002"; // 영업외수익
-  private static final String CODE_COST_OF_SALES         = "5001"; // 매출원가
+  private static final String CODE_OPERATING_COST         = "5001"; // 영업비용 (이자비용 등)
   private static final String CODE_SGA                   = "5002"; // 판매비와관리비
   private static final String CODE_NON_OPERATING_EXPENSE = "5003"; // 영업외비용
   private static final String CODE_INCOME_TAX            = "5004"; // 법인세

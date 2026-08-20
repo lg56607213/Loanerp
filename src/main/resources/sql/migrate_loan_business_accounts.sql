@@ -78,3 +78,20 @@ UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_co
 
 -- ========== 7) 부가세 계정 제거 (대부업은 면세사업) ==========
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code IN ('100506', '200103');
+
+-- ========== 8) 이자비용을 영업비용으로 이동 ==========
+-- 대부업은 자금 조달이 본업의 일부이므로 차입금 이자비용을 영업비용으로 본다.
+-- 중분류 '매출원가'(5001)를 '영업비용'으로 전환하고 그 아래에 이자비용을 둔다.
+--   영업이익 = 영업수익(4001) - [영업비용(5001) + 판매비와관리비(5002)]
+UPDATE financial_statement_accounts
+   SET account_name = '영업비용', account_type = '영업비용', is_postable = '미사용'
+ WHERE account_code = '5001';
+
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500101', '이자비용', '영업비용', 1, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '5001';
+
+-- 기존 이자비용(500301, 영업외비용) 전표를 새 계정으로 이관한 뒤 비활성화한다.
+UPDATE voucher_lines SET account_code = '500101' WHERE account_code = '500301';
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500301';

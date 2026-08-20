@@ -43,7 +43,7 @@ INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level
 SELECT 'is', 'REVENUE', 2, id, '4002', '영업외수익', '영업외수익', 2, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '40';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'EXPENSE', 2, id, '5001', '매출원가', '매출원가', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '50';
+SELECT 'is', 'EXPENSE', 2, id, '5001', '영업비용', '영업비용', 1, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '50';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 2, id, '5002', '판매비와관리비', '판매비와관리비', 2, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '50';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
@@ -136,7 +136,7 @@ SELECT 'is', 'EXPENSE', 3, id, '500213', '임차료', '판매비와관리비', 1
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500214', '미상각잔액', '판매비와관리비', 14, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'EXPENSE', 3, id, '500301', '이자비용', '영업외비용', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
+SELECT 'is', 'EXPENSE', 3, id, '500101', '이자비용', '영업비용', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500302', '기타비용', '영업외비용', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
 
