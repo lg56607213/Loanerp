@@ -155,7 +155,7 @@ INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level
 SELECT 'bs', 'LIABILITY', 3, id, '200105', '가수금', '유동부채', 5, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'EXPENSE', 3, id, '500303', '법무비용', '영업외비용', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
+SELECT 'is', 'EXPENSE', 3, id, '500102', '법무비용', '영업비용', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5001';
 
 -- ========== 대부업 계정 활성화 ==========
 UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100301';   -- 단기대여금 (대출채권)

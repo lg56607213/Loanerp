@@ -206,7 +206,7 @@ public class TenantDatabaseService {
     "credit":    {"account": "400101", "accountName": "이자수익"}
   },
   "legalCostMapping": {
-    "debit":  {"account": "500303", "accountName": "법무비용"},
+    "debit":  {"account": "500102", "accountName": "법무비용"},
     "credit": {"account": "200101", "accountName": "미지급금"}
   },
   "earlyTermMapping": {
