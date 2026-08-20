@@ -1,8 +1,16 @@
 server:
   port: 8080
+  # Cloudflare/리버스 프록시 뒤에서 X-Forwarded-Proto 를 인식해 https 로 판단하게 한다.
+  # 이게 없으면 https 접속인데도 Secure 쿠키가 내려가지 않아 로그인이 유지되지 않는다.
+  forward-headers-strategy: framework
   servlet:
     session:
       timeout: 120m
+      cookie:
+        http-only: true
+        same-site: lax
+        # 로컬(http)에서는 false, 도메인(https) 붙일 때 COOKIE_SECURE=true 로 준다.
+        secure: ${COOKIE_SECURE:false}
 
 spring:
   jpa:
@@ -32,10 +40,13 @@ spring:
             enable: true
             required: true
 
+# CODEF 계좌연동 자격증명.
+# 시크릿은 절대 코드에 두지 않는다. 환경변수 또는 application-local.yml(gitignore)로 주입한다.
+# 미설정 시 계좌연동 기능만 동작하지 않고 앱은 정상 기동한다.
 codef:
-  client-id: a872e297-5b27-459d-9896-5e02f2cb1d41
-  client-secret: 6e341ebb-de76-4af6-9093-be61e5dfc242
-  public-key: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAye8Hl1Aym+MY4RfkB0tgnovLJmRQYCDUo4qAyHvsaQ1cw0N4Uxr5r/NMlG2A188GdGcGdvJ4G3G/05hZ0acTbwDGCLGWQT3jxyS9g8ZXBiRsWW2nwJEj2WewLBqH1hUd1eAieit8JsSOfshHSzbaynBlU+ZYcORHQhsSU9Jek7rbhWjymM8FaDuQmMAxp6PkAx0X+3D6ccVVgNsniKSXM2Qncahjs0FVlxylZ/vm/VUtylUDUwGDD2LhUVaUrwBw3OA5mUnSODs0NUsbe/kYA6bmpwgN8fKPDXBxgMAHhnMAXxxrMeRne3nK6Waq9mbsTq9SkJ02iboVQwLGLllnmwIDAQAB
+  client-id: ${CODEF_CLIENT_ID:}
+  client-secret: ${CODEF_CLIENT_SECRET:}
+  public-key: ${CODEF_PUBLIC_KEY:}
   base-url: https://api.codef.io
   oauth-url: https://oauth.codef.io
 
