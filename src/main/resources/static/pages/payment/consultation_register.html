@@ -95,11 +95,6 @@
             </div>
 
             <div class="form-group">
-              <label for="vehicleNo">차량번호</label>
-              <input type="text" id="vehicleNo" placeholder="자동 산출" disabled>
-            </div>
-
-            <div class="form-group">
               <label for="customerName">고객명</label>
               <input type="text" id="customerName" placeholder="자동 산출" disabled>
             </div>
@@ -146,7 +141,7 @@
             </thead>
             <tbody id="consultHistoryBody">
               <tr>
-                <td colspan="5" class="no-data">
+                <td colspan="4" class="no-data">
                   <div class="no-data-icon">📋</div>
                   <div>계약번호를 입력하면 상담 이력이 표시됩니다.</div>
                 </td>
@@ -173,7 +168,7 @@
       </div>
       <div class="modal-body">
         <div class="modal-search-row">
-          <input type="text" id="contractModalKw" placeholder="계약번호 / 고객명 / 차량번호로 검색">
+          <input type="text" id="contractModalKw" placeholder="채권번호 / 고객명으로 검색">
           <button type="button" id="btnContractModalSearch">검색</button>
         </div>
 
@@ -182,7 +177,6 @@
             <tr>
               <th style="width:150px;">계약번호</th>
               <th style="width:200px;">고객명</th>
-              <th style="width:140px;">차량번호</th>
               <th style="width:120px;">시작일</th>
               <th style="width:120px;">만기일</th>
               <th style="width:120px;">월렌트</th>
@@ -190,7 +184,7 @@
             </tr>
           </thead>
           <tbody id="contractModalTbody">
-            <tr><td colspan="7" style="text-align:center;padding:14px;">조회중...</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:14px;">조회중...</td></tr>
           </tbody>
         </table>
       </div>
@@ -215,7 +209,6 @@
     }
 
     const contractNoEl = document.getElementById('contractNo');
-    const vehicleNoEl = document.getElementById('vehicleNo');
     const customerNameEl = document.getElementById('customerName');
     const consultDateEl = document.getElementById('consultDate');
     const consultContentEl = document.getElementById('consultContent');
@@ -240,8 +233,6 @@
         const res = await fetch(`${API_BASE_URL}/api/consultations/contract-summary?contractNumber=${encodeURIComponent(cn)}`);
         mustOk(res);
         const s = await res.json();
-
-        vehicleNoEl.value = s.vehicleNo || '';
         customerNameEl.value = s.customerName || '';
 
         await loadHistory(cn);
@@ -254,7 +245,7 @@
 
     async function loadHistory(contractNumber){
       historyBodyEl.innerHTML = `
-        <tr><td colspan="5" class="no-data"><div class="no-data-icon">⏳</div><div>불러오는 중...</div></td></tr>
+        <tr><td colspan="4" class="no-data"><div class="no-data-icon">⏳</div><div>불러오는 중...</div></td></tr>
       `;
 
       const res = await fetch(`${API_BASE_URL}/api/consultations?contractNumber=${encodeURIComponent(contractNumber)}`);
@@ -266,7 +257,7 @@
       if(!list.length){
         historyBodyEl.innerHTML = `
           <tr>
-            <td colspan="5" class="no-data">
+            <td colspan="4" class="no-data">
               <div class="no-data-icon">📝</div>
               <div>등록된 상담 이력이 없습니다.</div>
             </td>
@@ -296,12 +287,11 @@
     }
 
     function clearContractInfo(){
-      vehicleNoEl.value = '';
       customerNameEl.value = '';
       historyCountEl.textContent = '총 0건';
       historyBodyEl.innerHTML = `
         <tr>
-          <td colspan="5" class="no-data">
+          <td colspan="4" class="no-data">
             <div class="no-data-icon">📋</div>
             <div>계약번호를 입력하면 상담 이력이 표시됩니다.</div>
           </td>
@@ -395,7 +385,7 @@
     async function openModal(){
       modalBackdrop.style.display = 'flex';
       modalKw.value = '';
-      modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">조회중...</td></tr>`;
+      modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">조회중...</td></tr>`;
       setTimeout(() => modalKw.focus(), 30);
 
       // ✅ 돋보기 클릭 시 바로 전체조회
@@ -416,13 +406,13 @@
       const kw = modalKw.value.trim();
 
       try{
-        modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">검색중...</td></tr>`;
+        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색중...</td></tr>`;
         const res = await fetch(`${API_BASE_URL}/api/contracts/search?kw=${encodeURIComponent(kw)}`);
         mustOk(res);
         const list = await res.json();
 
         if(!list.length){
-          modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">검색 결과가 없습니다.</td></tr>`;
+          modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색 결과가 없습니다.</td></tr>`;
           return;
         }
 
@@ -433,10 +423,9 @@
           tr.innerHTML = `
             <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
             <td>${row.customerName ?? '-'}</td>
-            <td>${row.vehicleNo ?? '-'}</td>
             <td>${row.startDate ?? '-'}</td>
             <td>${row.endDate ?? '-'}</td>
-            <td>${(row.monthlyRent ?? 0).toLocaleString()} 원</td>
+            <td>${(row.monthlyPayment ?? 0).toLocaleString()} 원</td>
             <td><button type="button" class="btn-small">선택</button></td>
           `;
 
@@ -450,7 +439,7 @@
         });
       }catch(e){
         console.error(e);
-        modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
+        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
       }
     }
 

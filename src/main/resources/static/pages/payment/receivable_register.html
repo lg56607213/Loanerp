@@ -137,10 +137,6 @@
               <h4>고객 정보</h4>
               <div class="info-row">
                 <div class="info-item">
-                  <span class="info-label">차량번호</span>
-                  <span class="info-value" id="displayVehicleNumber">-</span>
-                </div>
-                <div class="info-item">
                   <span class="info-label">고객명</span>
                   <span class="info-value" id="displayCustomerName">-</span>
                 </div>
@@ -232,7 +228,7 @@
       </div>
       <div class="modal-body">
         <div class="modal-search-row">
-          <input type="text" id="contractModalKw" placeholder="계약번호 / 고객명 / 차량번호로 검색">
+          <input type="text" id="contractModalKw" placeholder="채권번호 / 고객명으로 검색">
           <button type="button" id="btnContractModalSearch">검색</button>
         </div>
 
@@ -241,7 +237,6 @@
             <tr>
               <th style="width:150px;">계약번호</th>
               <th style="width:180px;">고객명</th>
-              <th style="width:120px;">차량번호</th>
               <th style="width:110px;">시작일</th>
               <th style="width:110px;">만기일</th>
               <th style="width:120px;">월렌트</th>
@@ -249,7 +244,7 @@
             </tr>
           </thead>
           <tbody id="contractModalTbody">
-            <tr><td colspan="7" style="text-align:center;padding:14px;">조회중...</td></tr>
+            <tr><td colspan="6" style="text-align:center;padding:14px;">조회중...</td></tr>
           </tbody>
         </table>
       </div>
@@ -282,12 +277,10 @@
         const res = await fetch(`${API_BASE_URL}/api/contracts/${encodeURIComponent(cn)}/summary`);
         mustOk(res);
         const d = await res.json();
-
-        document.getElementById('displayVehicleNumber').textContent = d.vehicleNo || '-';
         document.getElementById('displayCustomerName').textContent = d.customerName || '-';
         document.getElementById('displayRegistrationNumber').textContent = d.registrationNumber || '-';
         document.getElementById('displayEmail').textContent = d.email || '-';
-        document.getElementById('displayRentAmount').textContent = won(d.monthlyRent || 0);
+        document.getElementById('displayRentAmount').textContent = won(d.monthlyPayment || 0);
         document.getElementById('displayContractStatus').textContent = d.contractStatus || '-';
         document.getElementById('customerInfo').classList.add('active');
       }catch(e){
@@ -365,7 +358,7 @@
     async function openModal(){
       modalBackdrop.style.display = 'flex';
       modalKw.value = '';
-      modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">조회중...</td></tr>`;
+      modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">조회중...</td></tr>`;
       setTimeout(() => modalKw.focus(), 30);
 
       // ✅ 돋보기 클릭 시 바로 전체조회
@@ -387,14 +380,14 @@
       const kw = modalKw.value.trim();
 
       try{
-        modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">검색중...</td></tr>`;
+        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색중...</td></tr>`;
 
         const res = await fetch(`${API_BASE_URL}/api/contracts/payable-search?kw=${encodeURIComponent(kw)}`);
         mustOk(res);
         const list = await res.json();
 
         if(!list.length){
-          modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">검색 결과가 없습니다.</td></tr>`;
+          modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색 결과가 없습니다.</td></tr>`;
           return;
         }
 
@@ -406,10 +399,9 @@
           tr.innerHTML = `
             <td><span class="badge">${escHtml(row.contractNumber ?? '-')}</span></td>
             <td>${escHtml(row.customerName ?? '-')}</td>
-            <td>${escHtml(row.vehicleNo ?? '-')}</td>
             <td>${row.startDate ?? '-'}</td>
             <td>${row.endDate ?? '-'}</td>
-            <td>${(row.monthlyRent ?? 0).toLocaleString()} 원</td>
+            <td>${(row.monthlyPayment ?? 0).toLocaleString()} 원</td>
             <td><button type="button" class="btn-small">선택</button></td>
           `;
 
@@ -423,7 +415,7 @@
         });
       }catch(e){
         console.error(e);
-        modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
+        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
       }
     }
 

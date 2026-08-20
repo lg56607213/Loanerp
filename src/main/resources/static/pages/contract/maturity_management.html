@@ -64,11 +64,10 @@
                 <th>기존계약번호</th>
                 <th>신규계약번호</th>
                 <th>고객명</th>
-                <th>차량번호</th>
                 <th>기존종료일</th>
                 <th>신규시작일</th>
                 <th>신규종료일</th>
-                <th>신규월렌트료</th>
+                <th>신규 월납입액</th>
                 <th>상태</th>
                 <th>관리</th>
               </tr>
@@ -117,15 +116,11 @@
                   <span class="info-value" id="displayCustomerName">-</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">차량번호</span>
-                  <span class="info-value" id="displayVehicleNumber">-</span>
-                </div>
-                <div class="info-item">
                   <span class="info-label">계약기간</span>
                   <span class="info-value" id="displayContractPeriod">-</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">월 렌트료</span>
+                  <span class="info-label">월납입액</span>
                   <span class="info-value" id="displayMonthlyRent">-</span>
                 </div>
               </div>
@@ -186,7 +181,7 @@
 
       <div class="modal-body">
         <div class="row">
-          <input type="text" id="contractSearchKw" placeholder="검색어(계약번호/고객명/차량번호)">
+          <input type="text" id="contractSearchKw" placeholder="검색어(채권번호/고객명)">
           <button type="button" class="btn btn-primary" id="btnContractSearch">검색</button>
         </div>
         <div class="muted">행을 클릭하면 해당 계약이 선택됩니다.</div>
@@ -197,14 +192,13 @@
               <tr>
                 <th style="width:140px;">계약번호</th>
                 <th style="width:140px;">고객명</th>
-                <th style="width:120px;">차량번호</th>
                 <th style="width:90px;">구분</th>
                 <th>기간</th>
-                <th style="width:120px;">월렌트료</th>
+                <th style="width:120px;">월납입액</th>
               </tr>
             </thead>
             <tbody id="contractSearchBody">
-              <tr><td colspan="6" style="text-align:center; padding:14px;">검색어를 입력하고 검색하세요.</td></tr>
+              <tr><td colspan="4" style="text-align:center; padding:14px;">검색어를 입력하고 검색하세요.</td></tr>
             </tbody>
           </table>
         </div>
@@ -261,7 +255,7 @@
     function renderTable(rows, pageZeroBased, size){
       tbody.innerHTML = '';
       if(!rows.length){
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:16px;">데이터가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:16px;">데이터가 없습니다.</td></tr>`;
         return;
       }
 
@@ -275,7 +269,6 @@
           <td>${escHtml(r.oldContractNumber || '-')}</td>
           <td>${escHtml(r.newContractNumber || '-')}</td>
           <td>${escHtml(r.customerName || '-')}</td>
-          <td>${escHtml(r.vehicleNo || '-')}</td>
           <td>${ymd(r.oldEndDate)}</td>
           <td>${ymd(r.newStartDate)}</td>
           <td>${ymd(r.newEndDate)}</td>
@@ -402,7 +395,7 @@
       contractSearchCount.textContent = '';
 
       if(!list.length){
-        contractSearchBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:14px;">검색 결과가 없습니다.</td></tr>`;
+        contractSearchBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:14px;">검색 결과가 없습니다.</td></tr>`;
         return;
       }
 
@@ -413,10 +406,9 @@
         tr.innerHTML = `
           <td>${escHtml(c.contractNumber || '-')}</td>
           <td>${escHtml(c.customerName || '-')}</td>
-          <td>${escHtml(c.vehicleNo || '-')}</td>
           <td>${escHtml(c.contractType || '-')}</td>
           <td>${ymd(c.startDate)} ~ ${ymd(c.endDate)}</td>
-          <td>${formatWon(c.monthlyRent)}</td>
+          <td>${formatWon(c.monthlyPayment)}</td>
         `;
         tr.addEventListener('click', () => {
           applyOldContract(c);
@@ -434,9 +426,8 @@
 
       document.getElementById('contractInfo').classList.remove('hidden');
       document.getElementById('displayCustomerName').textContent = c.customerName || '-';
-      document.getElementById('displayVehicleNumber').textContent = c.vehicleNo || '-';
       document.getElementById('displayContractPeriod').textContent = `${ymd(c.startDate)} ~ ${ymd(c.endDate)}`;
-      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyRent);
+      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyPayment);
 
       // 신규 시작일 기본값: 기존 종료일 + 1일 (있을 때만)
       if(c.endDate){

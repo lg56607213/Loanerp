@@ -141,10 +141,6 @@
                   <h4>고객 정보</h4>
                   <div class="info-row">
                     <div class="info-item">
-                      <span class="info-label">차량번호</span>
-                      <span class="info-value" id="displayVehicleNumber">-</span>
-                    </div>
-                    <div class="info-item">
                       <span class="info-label">고객명</span>
                       <span class="info-value" id="displayCustomerName">-</span>
                     </div>
@@ -298,7 +294,7 @@
 
       <div class="modal-body">
         <div class="modal-search-row">
-          <input type="text" id="contractModalKw" placeholder="계약번호 / 고객명 / 차량번호로 검색">
+          <input type="text" id="contractModalKw" placeholder="채권번호 / 고객명으로 검색">
           <button type="button" id="btnContractModalSearch">검색</button>
         </div>
 
@@ -307,7 +303,6 @@
             <tr>
               <th style="width:150px;">계약번호</th>
               <th style="width:180px;">고객명</th>
-              <th style="width:120px;">차량번호</th>
               <th style="width:110px;">시작일</th>
               <th style="width:110px;">만기일</th>
               <th style="width:120px;">월렌트</th>
@@ -363,7 +358,6 @@
     });
 
     let editId = null;
-    let currentVehicleNo = '';
 
     async function mustOk(res) {
       if (!res.ok) {
@@ -430,24 +424,20 @@
         await mustOk(res);
         const d = await res.json();
 
-        currentVehicleNo = d.vehicleNo || '';
-
-        document.getElementById('displayVehicleNumber').textContent = d.vehicleNo || '-';
         document.getElementById('displayCustomerName').textContent = d.customerName || '-';
         document.getElementById('displayRegistrationNumber').textContent = d.registrationNumber || '-';
         document.getElementById('displayEmail').textContent = d.email || '-';
-        document.getElementById('displayRentAmount').textContent = (d.monthlyRent ?? 0).toLocaleString() + ' 원';
+        document.getElementById('displayRentAmount').textContent = (d.monthlyPayment ?? 0).toLocaleString() + ' 원';
         document.getElementById('displayContractStatus').textContent = d.contractStatus || '-';
         document.getElementById('customerInfo').classList.add('active');
 
         await Promise.all([
           loadPaymentHistory(cn),
-          loadScheduleStatusByVehicleNo(currentVehicleNo)
+          loadScheduleStatusByContractNumber(cn)
         ]);
 
       } catch (e) {
         console.error(e);
-        currentVehicleNo = '';
         document.getElementById('customerInfo').classList.remove('active');
         clearScheduleStatus('계약 조회 실패로 수납 현황을 불러올 수 없습니다.');
         alert('계약 조회 실패: ' + e.message);
@@ -505,7 +495,7 @@
         const cn = document.getElementById('contractNumber').value.trim();
         await Promise.all([
           loadPaymentHistory(cn),
-          loadScheduleStatusByVehicleNo(currentVehicleNo)
+          loadScheduleStatusByContractNumber(cn)
         ]);
       } catch (e) {
         alert('수납 취소 실패: ' + e.message);
@@ -522,11 +512,11 @@
       });
     }
 
-    async function loadScheduleStatusByVehicleNo(vehicleNo) {
+    async function loadScheduleStatusByContractNumber(contractNumber) {
       const tbody = document.getElementById('scheduleStatusTableBody');
 
-      if (!vehicleNo) {
-        clearScheduleStatus('차량번호가 없어 수납 현황을 불러올 수 없습니다.');
+      if (!contractNumber) {
+        clearScheduleStatus('채권번호가 없어 수납 현황을 불러올 수 없습니다.');
         return;
       }
 
@@ -539,7 +529,7 @@
       `;
 
       try {
-        const res = await fetch(`${API_BASE_URL}/api/schedules/by-vehicle-no?vehicleNo=${encodeURIComponent(vehicleNo)}`);
+        const res = await fetch(`${API_BASE_URL}/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(contractNumber)}`);
         await mustOk(res);
         const data = await res.json();
 
@@ -643,10 +633,9 @@
           tr.innerHTML = `
             <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
             <td>${row.customerName ?? '-'}</td>
-            <td>${row.vehicleNo ?? '-'}</td>
             <td>${row.startDate ?? '-'}</td>
             <td>${row.endDate ?? '-'}</td>
-            <td>${won(row.monthlyRent)}</td>
+            <td>${won(row.monthlyPayment)}</td>
             <td><button type="button" class="btn-small">선택</button></td>
           `;
 
@@ -712,7 +701,7 @@
         if (currentVehicleNo) {
           await Promise.all([
             loadPaymentHistory(cn),
-            loadScheduleStatusByVehicleNo(currentVehicleNo)
+            loadScheduleStatusByContractNumber(cn)
           ]);
         }
 
@@ -726,7 +715,6 @@
       if (!silent && !confirm('초기화 하시겠습니까?')) return;
 
       editId = null;
-      currentVehicleNo = '';
 
       document.getElementById('btnSubmit').textContent = '수납 등록';
       document.getElementById('paymentForm').reset();

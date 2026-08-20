@@ -50,10 +50,9 @@
         <div class="detail-grid">
           <div class="detail-item"><label>계약번호</label><div id="contractNumber"></div></div>
           <div class="detail-item"><label>고객명</label><div id="customerName"></div></div>
-          <div class="detail-item"><label>차량번호</label><div id="vehicleNo"></div></div>
           <div class="detail-item"><label>계약유형</label><div id="contractType"></div></div>
           <div class="detail-item"><label>계약기간</label><div id="contractPeriod"></div></div>
-          <div class="detail-item"><label>월 렌트료</label><div id="monthlyRent"></div></div>
+          <div class="detail-item"><label>월납입액</label><div id="monthlyRent"></div></div>
         </div>
       </div>
 
@@ -136,14 +135,13 @@
       <strong>계약 조회</strong>
       <button class="btn btn-secondary" id="btnCloseModal">닫기</button>
     </div>
-    <input type="text" id="searchKw" placeholder="계약번호/고객명/차량번호">
+    <input type="text" id="searchKw" placeholder="채권번호/고객명">
     <button id="btnSearch" class="btn btn-primary">검색</button>
     <table class="modal-table">
       <thead>
         <tr>
           <th>계약번호</th>
           <th>고객명</th>
-          <th>차량번호</th>
           <th>기간</th>
         </tr>
       </thead>
@@ -168,7 +166,6 @@ async function loadDetail(){
 
   document.getElementById("contractNumber").textContent = data.contractNumber;
   document.getElementById("customerName").textContent = data.customerName;
-  document.getElementById("vehicleNo").textContent = data.vehicleNo;
   document.getElementById("contractType").textContent = data.contractType;
   document.getElementById("contractPeriod").textContent = ymd(data.startDate)+" ~ "+ymd(data.endDate);
   document.getElementById("monthlyRent").textContent = won(data.monthlyRent);

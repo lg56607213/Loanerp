@@ -125,7 +125,6 @@
               <span class="info-box-icon">&#x2139;&#xFE0F;</span>
               <span class="info-box-text">
                 매월 해당일에 자동으로 전표가 발생됩니다. (스케줄러 적용 시)<br>
-                차량관리번호를 입력하면 서버에서 vehicle_orders를 조회해 차량번호(vehicle_no)로 저장합니다.
               </span>
             </div>
           </div>
@@ -201,10 +200,6 @@
             <label for="filterContract">계약번호</label>
             <input type="text" id="filterContract" placeholder="계약번호 검색">
           </div>
-          <div class="sg">
-            <label for="filterVehicle">차량번호</label>
-            <input type="text" id="filterVehicle" placeholder="차량번호 검색">
-          </div>
           <button type="button" class="btn btn-primary" id="searchBtn">조회</button>
         </div>
 
@@ -215,7 +210,6 @@
                 <th>No.</th>
                 <th>활성</th>
                 <th>계약번호</th>
-                <th>차량번호</th>
                 <th>발생일</th>
                 <th>차변계정</th>
                 <th>대변계정</th>
@@ -227,7 +221,7 @@
               </tr>
             </thead>
             <tbody id="ruleTableBody">
-              <tr class="empty-row"><td colspan="12">조회 버튼을 눌러 목록을 불러오세요.</td></tr>
+              <tr class="empty-row"><td colspan="11">조회 버튼을 눌러 목록을 불러오세요.</td></tr>
             </tbody>
           </table>
         </div>
@@ -355,7 +349,7 @@
         }));
         const saved = await res.json();
 
-        alert('월전표 규칙이 등록되었습니다.\n\n- ID: ' + saved.id + '\n- 다음 실행일: ' + (saved.nextRunDate || '') + '\n- 매월: ' + saved.monthlyDay + '일\n- 차변: ' + saved.debitAccount + ' ' + Number(saved.debitAmount).toLocaleString() + '원\n- 대변: ' + saved.creditAccount + ' ' + Number(saved.creditAmount).toLocaleString() + '원' + (saved.vehicleNo ? '\n- 차량번호: ' + saved.vehicleNo : ''));
+        alert('월전표 규칙이 등록되었습니다.\n\n- ID: ' + saved.id + '\n- 다음 실행일: ' + (saved.nextRunDate || '') + '\n- 매월: ' + saved.monthlyDay + '일\n- 차변: ' + saved.debitAccount + ' ' + Number(saved.debitAmount).toLocaleString() + '원\n- 대변: ' + saved.creditAccount + ' ' + Number(saved.creditAmount).toLocaleString() + '원');
 
         document.getElementById('voucherForm').reset();
         loadRules();
@@ -373,15 +367,13 @@
     async function loadRules() {
       const activeVal = document.getElementById('filterActive').value;
       const contractVal = document.getElementById('filterContract').value.trim();
-      const vehicleVal = document.getElementById('filterVehicle').value.trim();
 
       const params = new URLSearchParams();
       if (activeVal !== '') params.set('activeOnly', activeVal);
       if (contractVal) params.set('contractNumber', contractVal);
-      if (vehicleVal) params.set('vehicleNo', vehicleVal);
 
       const tbody = document.getElementById('ruleTableBody');
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="12">조회 중...</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="11">조회 중...</td></tr>';
 
       try {
         const res = await mustOk(await fetch(apiBase() + '/api/accounting/monthly-voucher-rules?' + params.toString()));
@@ -389,14 +381,14 @@
         renderRules(list);
       } catch (err) {
         console.error(err);
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="12">조회 실패: ' + escapeHtml(err.message) + '</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="11">조회 실패: ' + escapeHtml(err.message) + '</td></tr>';
       }
     }
 
     function renderRules(list) {
       const tbody = document.getElementById('ruleTableBody');
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="12">등록된 월전표 규칙이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="11">등록된 월전표 규칙이 없습니다.</td></tr>';
         return;
       }
 
@@ -407,7 +399,6 @@
           '<td>' + (idx + 1) + '</td>' +
           '<td><span class="badge-active ' + activeCls + '" onclick="toggleActive(' + r.id + ')" title="클릭하여 활성/비활성 전환">' + escapeHtml(activeLabel) + '</span></td>' +
           '<td>' + escapeHtml(r.contractNumber || '-') + '</td>' +
-          '<td>' + escapeHtml(r.vehicleNo || '-') + '</td>' +
           '<td>매월 ' + escapeHtml(String(r.monthlyDay)) + '일</td>' +
           '<td>' + escapeHtml(r.debitAccount) + '</td>' +
           '<td>' + escapeHtml(r.creditAccount) + '</td>' +
@@ -442,7 +433,6 @@
 
     document.getElementById('searchBtn').addEventListener('click', loadRules);
     document.getElementById('filterContract').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadRules(); });
-    document.getElementById('filterVehicle').addEventListener('keydown', function(e) { if (e.key === 'Enter') loadRules(); });
 
     // 페이지 진입 시 전체 목록 자동 조회
     loadRules();

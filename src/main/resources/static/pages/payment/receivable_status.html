@@ -62,7 +62,6 @@
                 <th>No</th>
                 <th>계약번호</th>
                 <th>고객명</th>
-                <th>차량번호</th>
                 <th>미수금액</th>
                 <th>미수발생일</th>
                 <th>미수유형</th>
@@ -139,7 +138,7 @@
       if(!list.length){
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" class="no-data">
+            <td colspan="9" class="no-data">
               <div class="no-data-icon">📋</div>
               <div>검색 결과가 없습니다.</div>
             </td>
@@ -158,7 +157,6 @@
           <td>${idx + 1}</td>
           <td>${esc(r.contractNumber)}</td>
           <td>${esc(r.customerName)}</td>
-          <td>${esc(r.vehicleNo)}</td>
           <td class="amount-cell">${Number(r.receivableAmount ?? 0).toLocaleString()}</td>
           <td>${esc(r.receivableDate)}</td>
           <td>${esc(r.receivableType)}</td>

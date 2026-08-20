@@ -378,7 +378,7 @@
 
     <!-- 검색 바 -->
     <div class="search-bar">
-      <input type="text" id="kwInput" placeholder="계약번호 / 고객명 / 차량번호 검색">
+      <input type="text" id="kwInput" placeholder="채권번호 / 고객명 검색">
       <select id="statusFilter">
         <option value="">전체 상태</option>
         <option value="접수">접수</option>
@@ -404,7 +404,6 @@
               <th style="width:44px;">#</th>
               <th style="width:140px;">계약번호</th>
               <th style="width:110px;">고객명</th>
-              <th style="width:110px;">차량번호</th>
               <th>사건유형</th>
               <th style="width:130px;">사건번호</th>
               <th style="width:100px;">등록일</th>
@@ -415,7 +414,7 @@
             </tr>
           </thead>
           <tbody id="mainTbody">
-            <tr class="empty-row"><td colspan="11">조회 버튼을 눌러 목록을 불러오세요.</td></tr>
+            <tr class="empty-row"><td colspan="9">조회 버튼을 눌러 목록을 불러오세요.</td></tr>
           </tbody>
         </table>
       </div>
@@ -471,7 +470,7 @@
               </tr>
             </thead>
             <tbody id="progTbody">
-              <tr><td colspan="5" style="padding:20px;color:#94a3b8;">진행내역이 없습니다.</td></tr>
+              <tr><td colspan="3" style="padding:20px;color:#94a3b8;">진행내역이 없습니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -556,7 +555,7 @@
               </tr>
             </thead>
             <tbody id="costTbody">
-              <tr><td colspan="7" style="padding:20px;color:#94a3b8;">등록된 비용내역이 없습니다.</td></tr>
+              <tr><td colspan="5" style="padding:20px;color:#94a3b8;">등록된 비용내역이 없습니다.</td></tr>
             </tbody>
           </table>
         </div>
@@ -580,10 +579,6 @@
               <input type="text" id="mContractNo" placeholder="계약번호 입력 또는 검색">
               <button class="icon-search-btn" id="btnOpenContractModal" title="계약 검색">🔎</button>
             </div>
-          </div>
-          <div class="modal-field">
-            <label>차량번호</label>
-            <input type="text" id="mVehicleNo" disabled placeholder="자동 산출">
           </div>
           <div class="modal-field">
             <label>고객명</label>
@@ -631,7 +626,7 @@
       </div>
       <div class="modal-body">
         <div class="cmodal-search-row">
-          <input type="text" id="cModalKw" placeholder="계약번호 / 고객명 / 차량번호로 검색">
+          <input type="text" id="cModalKw" placeholder="채권번호 / 고객명으로 검색">
           <button type="button" id="btnCModalSearch">검색</button>
         </div>
         <div style="overflow-x:auto;max-height:420px;overflow-y:auto;">
@@ -640,7 +635,6 @@
               <tr>
                 <th style="width:150px;">계약번호</th>
                 <th style="width:130px;">고객명</th>
-                <th style="width:120px;">차량번호</th>
                 <th style="width:100px;">시작일</th>
                 <th style="width:100px;">만기일</th>
                 <th style="width:110px;">월렌트</th>
@@ -648,7 +642,7 @@
               </tr>
             </thead>
             <tbody id="cModalTbody">
-              <tr><td colspan="7" style="text-align:center;padding:20px;">검색어를 입력하세요.</td></tr>
+              <tr><td colspan="5" style="text-align:center;padding:20px;">검색어를 입력하세요.</td></tr>
             </tbody>
           </table>
         </div>
@@ -743,7 +737,7 @@
       $('totalBadge').textContent = `총 ${list.length}건`;
       const tb = $('mainTbody');
       if (!list.length) {
-        tb.innerHTML = `<tr class="empty-row"><td colspan="11">검색 결과가 없습니다.</td></tr>`;
+        tb.innerHTML = `<tr class="empty-row"><td colspan="9">검색 결과가 없습니다.</td></tr>`;
         return;
       }
       tb.innerHTML = list.map((c, i) => {
@@ -758,7 +752,6 @@
           <td>${i + 1}</td>
           <td><span class="contract-badge">${esc(c.contractNumber ?? '-')}</span></td>
           <td class="left">${esc(c.customerName ?? '-')}</td>
-          <td>${esc(c.vehicleNo ?? '-')}</td>
           <td class="left">${esc(c.caseType ?? '-')}</td>
           <td>${esc(c.caseNumber ?? '-')}</td>
           <td>${c.registrationDate ?? '-'}</td>
@@ -831,7 +824,7 @@
     function renderProgressList(entries, caseId) {
       $('progCountLabel').textContent = `(${entries.length}건)`;
       if (!entries.length) {
-        $('progTbody').innerHTML = `<tr><td colspan="5" style="padding:20px;color:#94a3b8;">등록된 진행내역이 없습니다.</td></tr>`;
+        $('progTbody').innerHTML = `<tr><td colspan="3" style="padding:20px;color:#94a3b8;">등록된 진행내역이 없습니다.</td></tr>`;
         return;
       }
       $('progTbody').innerHTML = entries.map((e, i) => `
@@ -858,7 +851,7 @@
       $('sumNet').textContent  = fmtNum(net);
 
       if (!items.length) {
-        $('costTbody').innerHTML = `<tr><td colspan="7" style="padding:20px;color:#94a3b8;">등록된 비용내역이 없습니다.</td></tr>`;
+        $('costTbody').innerHTML = `<tr><td colspan="5" style="padding:20px;color:#94a3b8;">등록된 비용내역이 없습니다.</td></tr>`;
         return;
       }
       $('costTbody').innerHTML = items.map((it, i) => `
@@ -949,7 +942,6 @@
       $('modalTitle').textContent = '사건 등록';
       $('btnSubmitReg').textContent = '등록';
       $('mContractNo').value = '';
-      $('mVehicleNo').value  = '';
       $('mCustomerName').value = '';
       $('mCaseType').value   = '';
       $('mCaseNumber').value = '';
@@ -969,7 +961,6 @@
         $('modalTitle').textContent = '사건 수정';
         $('btnSubmitReg').textContent = '저장';
         $('mContractNo').value   = c.contractNumber ?? '';
-        $('mVehicleNo').value    = c.vehicleNo ?? '';
         $('mCustomerName').value = c.customerName ?? '';
         $('mCaseType').value     = c.caseType ?? '';
         $('mCaseNumber').value   = c.caseNumber ?? '';
@@ -1031,12 +1022,11 @@
     $('mContractNo').addEventListener('keydown', e => { if (e.key === 'Enter') fetchContractInfo(); });
     async function fetchContractInfo() {
       const cn = $('mContractNo').value.trim();
-      if (!cn) { $('mVehicleNo').value = ''; $('mCustomerName').value = ''; return; }
+      if (!cn) { $('mCustomerName').value = ''; return; }
       try {
         const res = await fetch(`${BASE}/api/consultations/contract-summary?contractNumber=${encodeURIComponent(cn)}`);
-        if (!res.ok) { $('mVehicleNo').value = ''; $('mCustomerName').value = ''; return; }
+        if (!res.ok) { $('mCustomerName').value = ''; return; }
         const s = await res.json();
-        $('mVehicleNo').value    = s.vehicleNo    || '';
         $('mCustomerName').value = s.customerName || '';
       } catch {}
     }
@@ -1044,7 +1034,7 @@
     // ── 계약 검색 모달 ──
     $('btnOpenContractModal').addEventListener('click', () => {
       $('cModalKw').value = '';
-      $('cModalTbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;">검색어를 입력하세요.</td></tr>`;
+      $('cModalTbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;">검색어를 입력하세요.</td></tr>`;
       $('contractOverlay').classList.add('open');
       setTimeout(() => $('cModalKw').focus(), 30);
     });
@@ -1057,34 +1047,32 @@
 
     async function searchContracts() {
       const kw = $('cModalKw').value.trim();
-      $('cModalTbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;">검색 중...</td></tr>`;
+      $('cModalTbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;">검색 중...</td></tr>`;
       try {
         const res = await fetch(`${BASE}/api/contracts/search?kw=${encodeURIComponent(kw)}`);
         await mustOk(res);
         const list = await res.json();
         if (!list.length) {
-          $('cModalTbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;">검색 결과가 없습니다.</td></tr>`;
+          $('cModalTbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;">검색 결과가 없습니다.</td></tr>`;
           return;
         }
         $('cModalTbody').innerHTML = list.map(r => `
-          <tr class="row-pick" onclick="pickContract('${esc(r.contractNumber)}','${esc(r.vehicleNo??'')}','${esc(r.customerName??'')}')">
+          <tr class="row-pick" onclick="pickContract('${esc(r.contractNumber)}','${esc(r.customerName??'')}')">
             <td><span class="contract-badge">${esc(r.contractNumber ?? '-')}</span></td>
             <td>${esc(r.customerName ?? '-')}</td>
-            <td>${esc(r.vehicleNo ?? '-')}</td>
             <td>${r.startDate ?? '-'}</td>
             <td>${r.endDate ?? '-'}</td>
-            <td>${(r.monthlyRent ?? 0).toLocaleString()}원</td>
+            <td>${(r.monthlyPayment ?? 0).toLocaleString()}원</td>
             <td><button class="btn-sm edit">선택</button></td>
           </tr>
         `).join('');
       } catch(e) {
-        $('cModalTbody').innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:#ef4444;">조회 실패: ${esc(e.message)}</td></tr>`;
+        $('cModalTbody').innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:#ef4444;">조회 실패: ${esc(e.message)}</td></tr>`;
       }
     }
 
-    function pickContract(cn, vehicleNo, customerName) {
+    function pickContract(cn, customerName) {
       $('mContractNo').value    = cn;
-      $('mVehicleNo').value     = vehicleNo;
       $('mCustomerName').value  = customerName;
       $('contractOverlay').classList.remove('open');
     }

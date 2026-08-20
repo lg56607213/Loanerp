@@ -331,7 +331,6 @@
         { label: '전표일자', value: first.voucherDate || '' },
         { label: '상태',     value: null, html: statusHtml },
       ];
-      if (first.vehicleNo)      metaItems.push({ label: '차량번호',  value: first.vehicleNo });
       if (first.contractNumber) metaItems.push({ label: '계약번호',  value: first.contractNumber });
 
       const metaHtml = metaItems.map(m => `

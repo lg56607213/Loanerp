@@ -14,7 +14,7 @@ public class ScheduleManagementController {
 
   private final ScheduleManagementService service;
 
-  @GetMapping("/by-vehicle-no")
+  @GetMapping("/by-contract-number")
   public ScheduleSearchResponse getByContractNumber(@RequestParam String contractNumber) {
     return service.getByContractNumber(contractNumber);
   }

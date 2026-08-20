@@ -63,7 +63,6 @@
                 <th>번호</th>
                 <th>계약번호</th>
                 <th>고객명</th>
-                <th>차량번호</th>
                 <th>종료방법</th>
                 <th>종료일자</th>
                 <th>미청구금액</th>
@@ -115,10 +114,6 @@
                   <span class="info-value" id="displayCustomerName">-</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">차량번호</span>
-                  <span class="info-value" id="displayVehicleNumber">-</span>
-                </div>
-                <div class="info-item">
                   <span class="info-label">계약유형</span>
                   <span class="info-value" id="displayContractType">-</span>
                 </div>
@@ -137,7 +132,7 @@
                   <span class="info-value" id="displayEndDate">-</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">월 렌트료</span>
+                  <span class="info-label">월납입액</span>
                   <span class="info-value" id="displayMonthlyRent">-</span>
                 </div>
                 <div class="info-item">
@@ -201,7 +196,7 @@
 
       <div class="modal-body">
         <div class="row">
-          <input type="text" id="contractSearchKw" placeholder="검색어(계약번호/고객명/차량번호)">
+          <input type="text" id="contractSearchKw" placeholder="검색어(채권번호/고객명)">
           <button type="button" class="btn btn-primary" id="btnContractSearch">검색</button>
         </div>
         <div class="muted">행을 클릭하면 해당 계약이 선택됩니다.</div>
@@ -212,14 +207,13 @@
               <tr>
                 <th style="width:140px;">계약번호</th>
                 <th style="width:140px;">고객명</th>
-                <th style="width:120px;">차량번호</th>
                 <th style="width:90px;">구분</th>
                 <th>기간</th>
-                <th style="width:120px;">월렌트료</th>
+                <th style="width:120px;">월납입액</th>
               </tr>
             </thead>
             <tbody id="contractSearchBody">
-              <tr><td colspan="6" style="text-align:center; padding:14px;">검색어를 입력하고 검색하세요.</td></tr>
+              <tr><td colspan="4" style="text-align:center; padding:14px;">검색어를 입력하고 검색하세요.</td></tr>
             </tbody>
           </table>
         </div>
@@ -277,7 +271,7 @@
     function renderTable(rows, pageZeroBased, size){
       tbody.innerHTML = '';
       if(!rows.length){
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:16px;">데이터가 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:16px;">데이터가 없습니다.</td></tr>`;
         return;
       }
 
@@ -289,7 +283,6 @@
           <td>${startNo + idx + 1}</td>
           <td>${escHtml(r.contractNumber || '-')}</td>
           <td>${escHtml(r.customerName || '-')}</td>
-          <td>${escHtml(r.vehicleNo || '-')}</td>
           <td>${r.terminationMethod || '-'}</td>
           <td>${ymd(r.terminationDate)}</td>
           <td>${formatWon(r.unpaidAmount)}</td>
@@ -413,7 +406,7 @@
       contractSearchCount.textContent = '';
 
       if(!list.length){
-        contractSearchBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:14px;">검색 결과가 없습니다.</td></tr>`;
+        contractSearchBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:14px;">검색 결과가 없습니다.</td></tr>`;
         return;
       }
       contractSearchCount.textContent = `총 ${list.length}건`;
@@ -423,10 +416,9 @@
         tr.innerHTML = `
           <td>${escHtml(c.contractNumber || '-')}</td>
           <td>${escHtml(c.customerName || '-')}</td>
-          <td>${escHtml(c.vehicleNo || '-')}</td>
           <td>${escHtml(c.contractType || '-')}</td>
           <td>${ymd(c.startDate)} ~ ${ymd(c.endDate)}</td>
-          <td>${formatWon(c.monthlyRent)}</td>
+          <td>${formatWon(c.monthlyPayment)}</td>
         `;
         tr.addEventListener('click', () => {
           applyContract(c);
@@ -442,12 +434,11 @@
       document.getElementById('contractNumber').value = c.contractNumber || '';
 
       document.getElementById('displayCustomerName').textContent = c.customerName || '-';
-      document.getElementById('displayVehicleNumber').textContent = c.vehicleNo || '-';
       document.getElementById('displayContractType').textContent = c.contractType || '-';
       document.getElementById('displayStartDate').textContent = ymd(c.startDate);
       document.getElementById('displayEndDate').textContent = ymd(c.endDate);
       document.getElementById('displayContractPeriod').textContent = `${ymd(c.startDate)} ~ ${ymd(c.endDate)}`;
-      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyRent);
+      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyPayment);
       document.getElementById('displayStatus').textContent = '만기'; // contracts 테이블에 상태 컬럼이 없어서 표시용
 
       document.getElementById('contractInfo').classList.remove('hidden');

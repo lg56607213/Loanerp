@@ -414,7 +414,6 @@
             <th>금액</th>
             <th>적요</th>
             <th>계약번호</th>
-            <th>차량번호</th>
             <th>메모</th>
             <th>상태</th>
           </tr>
@@ -552,7 +551,7 @@
 
       const body = document.getElementById("treeBody");
       if (!roots || roots.length === 0) {
-        body.innerHTML = `<tr><td colspan="6" class="empty-row">등록된 계정이 없습니다.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="5" class="empty-row">등록된 계정이 없습니다.</td></tr>`;
         return;
       }
       body.innerHTML = roots.map(r => renderNode(r, 0)).join("");
@@ -728,7 +727,7 @@
       body.innerHTML = "";
 
       if (!rows || rows.length === 0) {
-        body.innerHTML = `<tr><td colspan="10" class="empty-row">조회된 전표내역이 없습니다.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="9" class="empty-row">조회된 전표내역이 없습니다.</td></tr>`;
         document.getElementById("voucherSummaryText").textContent =
           `${selectedVoucherAccountName} 계정의 전표내역이 없습니다.`;
         return;
@@ -743,7 +742,6 @@
           <td class="amount">${formatNumber(r.amount)}</td>
           <td class="left">${escapeHtml(r.description)}</td>
           <td>${escapeHtml(r.contractNumber)}</td>
-          <td>${escapeHtml(r.vehicleNo)}</td>
           <td class="left">${escapeHtml(r.memo)}</td>
           <td>${escapeHtml(r.status)}</td>
         </tr>

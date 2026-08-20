@@ -9,6 +9,7 @@ import com.jdend.erp.contract.earlytermination.dto.*;
 import com.jdend.erp.contract.earlytermination.entity.EarlyTermination;
 import com.jdend.erp.contract.earlytermination.repository.EarlyTerminationRepository;
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
@@ -57,7 +58,7 @@ public class EarlyTerminationService {
   }
 
   // NEW-BUG-C: 허용된 해지방법 값 목록 (early_termination.html 선택 옵션 기준)
-  private static final List<String> VALID_TERMINATION_METHODS = List.of("인수", "반납");
+  private static final List<String> VALID_TERMINATION_METHODS = List.of("전액상환", "일부상환");
 
   public Long create(EarlyTerminationCreateRequest req) {
     if (req.getTerminationFee() == null) req.setTerminationFee(0L);
@@ -110,16 +111,12 @@ public class EarlyTerminationService {
 
     EarlyTermination saved = earlyTerminationRepository.save(et);
 
-    if ("처리완료".equals(saved.getStatus())) {
-      // 반납+처리완료: 전표 생성 + 계약 해지
-      if (isReturnCompleted(saved)) {
-        createReturnVoucher(saved);
-      }
-      // 인수+처리완료도 계약 해지 처리
-      updateContractStatus(saved.getContractNumber(), "해지");
-    } else {
-      // 처리대기: 계약을 "해지대기"로 변경 → 차량 재계약 등록 가능
-      updateContractStatus(saved.getContractNumber(), "해지대기");
+    // 전액상환이 처리완료되면 채권을 완제(종료) 처리한다.
+    // 일부상환은 원금 일부만 줄어들 뿐이므로 채권 상태를 바꾸지 않는다
+    // (정상/연체는 미납 스케줄로 조회 시점에 판정된다).
+    if ("처리완료".equals(saved.getStatus()) && isReturnCompleted(saved)) {
+      createReturnVoucher(saved);
+      updateContractStatus(saved.getContractNumber(), ContractStatus.CLOSED);
     }
 
     return saved.getId();
@@ -161,7 +158,7 @@ public class EarlyTerminationService {
     et.setTotalAmount(totalAmount);
     et.setCompanyAccount(req.getCompanyAccount());
 
-    boolean wasReturnCompleted = "반납".equals(prevMethod) && "처리완료".equals(prevStatus);
+    boolean wasReturnCompleted = "전액상환".equals(prevMethod) && "처리완료".equals(prevStatus);
     boolean isNowReturnCompleted = isReturnCompleted(et);
     boolean wasCompleted = "처리완료".equals(prevStatus);
     boolean isNowCompleted = "처리완료".equals(et.getStatus());
@@ -170,29 +167,28 @@ public class EarlyTerminationService {
       // BUG-F03: 이미 처리완료 상태에서 금액 수정 → 기존 전표 삭제 후 재생성
       if (et.getContractNumber() != null) {
         List<Voucher> oldVouchers = voucherRepository.findByContractNumberAndMemo(
-            et.getContractNumber(), "중도상환 반납");
+            et.getContractNumber(), "중도상환");
         voucherRepository.deleteAll(oldVouchers);
       }
       createReturnVoucher(et);
     } else if (!wasReturnCompleted && isNowReturnCompleted) {
-      // 처음으로 반납+처리완료 상태가 된 경우
+      // 처음으로 전액상환+처리완료 상태가 된 경우
       createReturnVoucher(et);
     } else if (wasReturnCompleted && !isNowReturnCompleted) {
       // NEW-BUG-05: 처리완료 → 처리대기 등 취소 시 기존 전표 삭제
       if (et.getContractNumber() != null) {
         List<Voucher> oldVouchers = voucherRepository.findByContractNumberAndMemo(
-            et.getContractNumber(), "중도상환 반납");
+            et.getContractNumber(), "중도상환");
         voucherRepository.deleteAll(oldVouchers);
       }
     }
 
-    // 계약 상태 동기화
-    if (isNowCompleted) {
-      // 처리완료(반납·인수 모두) → 계약 "해지"
-      updateContractStatus(et.getContractNumber(), "해지");
-    } else if (wasCompleted) {
-      // 처리완료 → 처리대기로 복귀 → "해지대기"로 되돌림
-      updateContractStatus(et.getContractNumber(), "해지대기");
+    // 채권 상태 동기화 — 전액상환 처리완료만 완제(종료)로 본다.
+    if (isNowCompleted && isNowReturnCompleted) {
+      updateContractStatus(et.getContractNumber(), ContractStatus.CLOSED);
+    } else if (wasCompleted && wasReturnCompleted) {
+      // 처리완료 -> 처리대기로 되돌린 경우 완제를 취소한다.
+      updateContractStatus(et.getContractNumber(), ContractStatus.NORMAL);
     }
   }
 
@@ -200,10 +196,10 @@ public class EarlyTerminationService {
     EarlyTermination et = earlyTerminationRepository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("중도상환 데이터를 찾을 수 없습니다. id=" + id));
 
-    // BUG-06: 연관 전표(중도상환 반납) 삭제
+    // BUG-06: 연관 전표(중도상환) 삭제
     if (et.getContractNumber() != null) {
       List<Voucher> vouchers = voucherRepository.findByContractNumberAndMemo(
-          et.getContractNumber(), "중도상환 반납");
+          et.getContractNumber(), "중도상환");
       if (!vouchers.isEmpty()) {
         voucherRepository.deleteAll(vouchers);
       }
@@ -302,7 +298,7 @@ public class EarlyTerminationService {
   }
 
   private boolean isReturnCompleted(EarlyTermination et) {
-    return "반납".equals(et.getTerminationMethod()) && "처리완료".equals(et.getStatus());
+    return "전액상환".equals(et.getTerminationMethod()) && "처리완료".equals(et.getStatus());
   }
 
   /**
@@ -410,7 +406,7 @@ public class EarlyTerminationService {
         VoucherCreateRequest.builder()
             .voucherDate(et.getTerminationDate() != null ? et.getTerminationDate() : LocalDate.now())
             .contractNumber(et.getContractNumber())
-            .memo("중도상환 반납")
+            .memo("중도상환")
             .debitEntries(debitEntries)
             .creditEntries(creditEntries)
             .build()

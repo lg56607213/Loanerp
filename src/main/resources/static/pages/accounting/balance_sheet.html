@@ -203,12 +203,11 @@
               <th style="width:140px;">금액</th>
               <th style="width:180px;">적요</th>
               <th style="width:140px;">계약번호</th>
-              <th style="width:120px;">차량번호</th>
               <th style="width:100px;">상태</th>
             </tr>
           </thead>
           <tbody id="detailTableBody">
-            <tr><td colspan="9" style="text-align:center;">조회중...</td></tr>
+            <tr><td colspan="8" style="text-align:center;">조회중...</td></tr>
           </tbody>
         </table>
       </div>
@@ -285,7 +284,7 @@
       const body = document.getElementById(bodyId);
       const children = rootNode?.children || [];
       if (children.length === 0) {
-        body.innerHTML = `<tr><td colspan="2" style="text-align:center;color:#9ca3af;">등록된 계정이 없습니다.</td></tr>`;
+        body.innerHTML = `<tr><td colspan="1" style="text-align:center;color:#9ca3af;">등록된 계정이 없습니다.</td></tr>`;
         return;
       }
       body.innerHTML = children.map(c => renderNodeRows(c, 0)).join('');
@@ -341,7 +340,7 @@
 
       document.getElementById('detailModalTitle').textContent = `${accountName} 상세내역`;
       document.getElementById('detailModalSubTitle').textContent = `${referenceDate} 기준 승인 전표 내역`;
-      document.getElementById('detailTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;">조회중...</td></tr>`;
+      document.getElementById('detailTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center;">조회중...</td></tr>`;
       document.getElementById('detailModal').style.display = 'flex';
 
       try {
@@ -357,7 +356,7 @@
 
         renderDetailRows(rows);
       } catch (e) {
-        document.getElementById('detailTableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;">조회 실패: ${e.message}</td></tr>`;
+        document.getElementById('detailTableBody').innerHTML = `<tr><td colspan="8" style="text-align:center;">조회 실패: ${e.message}</td></tr>`;
       }
     }
 
@@ -365,7 +364,7 @@
       const tbody = document.getElementById('detailTableBody');
 
       if (!rows || rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;">상세내역이 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;">상세내역이 없습니다.</td></tr>`;
         return;
       }
 
@@ -378,7 +377,6 @@
           <td class="text-right">${formatNumber(r.amount)}</td>
           <td>${r.description || '-'}</td>
           <td>${r.contractNumber || '-'}</td>
-          <td>${r.vehicleNo || '-'}</td>
           <td>${r.status || '-'}</td>
         </tr>
       `).join('');
@@ -437,19 +435,19 @@
 <div class="t-wrap">
   <div class="t-col">
     <table>
-      <thead><tr><th colspan="2">자산현황</th></tr></thead>
+      <thead><tr><th colspan="1">자산현황</th></tr></thead>
       <tbody>${assetHtml}</tbody>
       <tfoot><tr class="total-row"><td>자산 총계</td><td>${totalAssets}</td></tr></tfoot>
     </table>
   </div>
   <div class="t-col">
     <table>
-      <thead><tr><th colspan="2">부채현황</th></tr></thead>
+      <thead><tr><th colspan="1">부채현황</th></tr></thead>
       <tbody>${liabilityHtml}</tbody>
       <tfoot><tr class="total-row"><td>부채 총계</td><td>${totalLiabilities}</td></tr></tfoot>
     </table>
     <table>
-      <thead><tr><th colspan="2">자본현황</th></tr></thead>
+      <thead><tr><th colspan="1">자본현황</th></tr></thead>
       <tbody>${equityHtml}</tbody>
       <tfoot><tr class="total-row"><td>자본 총계</td><td>${totalEquity}</td></tr></tfoot>
     </table>

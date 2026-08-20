@@ -88,7 +88,7 @@
     <div class="erp-card">
       <div class="card-body">
         <div class="filter-bar">
-          <input type="text" id="filterKeyword" placeholder="계약번호 / 차량번호 / 계약자명 검색">
+          <input type="text" id="filterKeyword" placeholder="채권번호 / 고객명 검색">
           <button type="button" class="btn btn-primary" onclick="applyFilter()">조회</button>
           <button type="button" class="btn btn-secondary" onclick="resetFilter()">초기화</button>
           <button type="button" class="btn-excel" onclick="exportTableToExcel('overdueTableBody', '연체현황')">엑셀 내보내기</button>
@@ -102,7 +102,6 @@
               <tr>
                 <th>순번</th>
                 <th>계약번호</th>
-                <th>차량번호</th>
                 <th class="left">계약자명</th>
                 <th>회차</th>
                 <th>납기일</th>
@@ -113,7 +112,7 @@
               </tr>
             </thead>
             <tbody id="overdueTableBody">
-              <tr><td colspan="10" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr>
+              <tr><td colspan="9" style="padding:20px;color:#94a3b8;">불러오는 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -156,14 +155,13 @@
     function renderTable(data) {
       const tbody = document.getElementById('overdueTableBody');
       if (!data.length) {
-        tbody.innerHTML = `<tr><td colspan="10" style="padding:18px;color:#94a3b8;">연체 내역이 없습니다.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="padding:18px;color:#94a3b8;">연체 내역이 없습니다.</td></tr>`;
         return;
       }
       tbody.innerHTML = data.map((r, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${escHtml(r.contractNumber ?? '-')}</td>
-          <td>${escHtml(r.vehicleNo ?? '-')}</td>
           <td class="left">${escHtml(r.customerName ?? '-')}</td>
           <td>${r.installmentNo ?? '-'}회</td>
           <td>${r.paymentDate ?? '-'}</td>
@@ -181,7 +179,6 @@
         if (!kw) return true;
         return (
           (r.contractNumber ?? '').toLowerCase().includes(kw) ||
-          (r.vehicleNo ?? '').toLowerCase().includes(kw) ||
           (r.customerName ?? '').toLowerCase().includes(kw)
         );
       });
@@ -210,7 +207,7 @@
         renderTable(filtered);
       } catch (e) {
         document.getElementById('overdueTableBody').innerHTML =
-          `<tr><td colspan="10" style="padding:18px;color:#dc2626;">로드 실패: ${e.message}</td></tr>`;
+          `<tr><td colspan="9" style="padding:18px;color:#dc2626;">로드 실패: ${e.message}</td></tr>`;
       }
     }
 

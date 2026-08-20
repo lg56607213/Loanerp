@@ -33,10 +33,6 @@
               <label>고객명</label>
               <div class="detail-value" id="customerName">홍길동</div>
             </div>
-            <div class="detail-item">
-              <label>차량번호</label>
-              <div class="detail-value" id="vehicleNumber">12가3456</div>
-            </div>
           </div>
         </div>
 
@@ -103,10 +99,6 @@
               <div class="form-group">
                 <label>고객명</label>
                 <input type="text" id="editCustomerName" disabled>
-              </div>
-              <div class="form-group">
-                <label>차량번호</label>
-                <input type="text" id="editVehicleNumber" disabled>
               </div>
             </div>
           </div>
@@ -200,7 +192,6 @@
 
       document.getElementById('contractNumber').textContent = terminationData.contractNumber || '-';
       document.getElementById('customerName').textContent = terminationData.customerName || '-';
-      document.getElementById('vehicleNumber').textContent = terminationData.vehicleNo || '-';
       document.getElementById('terminationMethod').textContent = terminationData.terminationMethod || '-';
       document.getElementById('terminationDate').textContent = terminationData.terminationDate || '-';
       document.getElementById('status').textContent = terminationData.status || '-';
@@ -213,7 +204,6 @@
     editTerminationBtn.addEventListener('click', function() {
       document.getElementById('editContractNumber').value = terminationData.contractNumber || '';
       document.getElementById('editCustomerName').value = terminationData.customerName || '';
-      document.getElementById('editVehicleNumber').value = terminationData.vehicleNo || '';
       document.getElementById('editTerminationMethod').value = terminationData.terminationMethod || '';
       document.getElementById('editTerminationDate').value = terminationData.terminationDate || '';
       document.getElementById('editStatus').value = terminationData.status || '';

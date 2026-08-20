@@ -62,10 +62,6 @@
               <div class="detail-value" id="customerName">-</div>
             </div>
             <div class="detail-item">
-              <label>차량번호</label>
-              <div class="detail-value" id="vehicleNumber">-</div>
-            </div>
-            <div class="detail-item">
               <label>기존 종료일</label>
               <div class="detail-value" id="oldEndDate">-</div>
             </div>
@@ -137,10 +133,6 @@
                   <span class="info-value" id="editDisplayCustomerName">-</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">차량번호</span>
-                  <span class="info-value" id="editDisplayVehicleNumber">-</span>
-                </div>
-                <div class="info-item">
                   <span class="info-label">기존 종료일</span>
                   <span class="info-value" id="editDisplayOldEndDate">-</span>
                 </div>
@@ -206,7 +198,7 @@
 
       <div class="modal-body">
         <div class="row">
-          <input type="text" id="contractSearchKw" placeholder="검색어(계약번호/고객명/차량번호)">
+          <input type="text" id="contractSearchKw" placeholder="검색어(채권번호/고객명)">
           <button type="button" class="btn btn-primary" id="btnContractSearch">검색</button>
         </div>
         <div class="muted">행을 클릭하면 해당 계약이 선택됩니다.</div>
@@ -217,10 +209,9 @@
               <tr>
                 <th style="width:140px;">계약번호</th>
                 <th style="width:140px;">고객명</th>
-                <th style="width:120px;">차량번호</th>
                 <th style="width:90px;">구분</th>
                 <th>기간</th>
-                <th style="width:120px;">월렌트료</th>
+                <th style="width:120px;">월납입액</th>
               </tr>
             </thead>
             <tbody id="contractSearchBody">
@@ -290,7 +281,6 @@
       // 기존 계약
       setText('oldContractNumber', d.oldContractNumber);
       setText('customerName', d.customerName);
-      setText('vehicleNumber', d.vehicleNo);
       setText('oldEndDate', ymd(d.oldEndDate));
 
       // 재렌트
@@ -315,7 +305,6 @@
 
       // 기존 계약 현황(현재 저장값)
       document.getElementById('editDisplayCustomerName').textContent = maturityData.customerName || '-';
-      document.getElementById('editDisplayVehicleNumber').textContent = maturityData.vehicleNo || '-';
       document.getElementById('editDisplayOldEndDate').textContent = ymd(maturityData.oldEndDate);
       document.getElementById('editDisplayMonthlyRent').textContent = '-'; // 현재 테이블에 old monthly rent는 저장 안 함
       // (원하면 maturity_managements 테이블에 old_monthly_rent 컬럼 추가해서 저장 가능)
@@ -453,10 +442,9 @@
         tr.innerHTML = `
           <td>${escHtml(c.contractNumber || '-')}</td>
           <td>${escHtml(c.customerName || '-')}</td>
-          <td>${escHtml(c.vehicleNo || '-')}</td>
           <td>${escHtml(c.contractType || '-')}</td>
           <td>${ymd(c.startDate)} ~ ${ymd(c.endDate)}</td>
-          <td>${formatWon(c.monthlyRent)}</td>
+          <td>${formatWon(c.monthlyPayment)}</td>
         `;
         tr.addEventListener('click', () => {
           applyOldContract(c);
@@ -473,9 +461,8 @@
       document.getElementById('editSearchContractNumber').value = c.contractNumber || '';
 
       document.getElementById('editDisplayCustomerName').textContent = c.customerName || '-';
-      document.getElementById('editDisplayVehicleNumber').textContent = c.vehicleNo || '-';
       document.getElementById('editDisplayOldEndDate').textContent = ymd(c.endDate);
-      document.getElementById('editDisplayMonthlyRent').textContent = formatWon(c.monthlyRent);
+      document.getElementById('editDisplayMonthlyRent').textContent = formatWon(c.monthlyPayment);
 
       // 신규 시작일 기본값 = 기존 종료일 + 1일
       if(c.endDate){

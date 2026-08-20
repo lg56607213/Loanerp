@@ -112,13 +112,13 @@
             <thead>
               <tr>
                 <th>번호</th>
-                <th>계약번호</th>
+                <th>채권번호</th>
                 <th>고객명</th>
-                <th>차량번호</th>
-                <th>중도상환방법</th>
+                <th>대출구분</th>
+                <th>상환구분</th>
                 <th>중도상환일</th>
-                <th>중도상환금액</th>
-                <th>미회수렌트료</th>
+                <th>상환금액</th>
+                <th>미수이자</th>
                 <th>합계금액</th>
                 <th>상태</th>
                 <th>관리</th>
@@ -172,12 +172,7 @@
                 </div>
 
                 <div class="info-item">
-                  <span class="info-label">차량번호</span>
-                  <span class="info-value" id="displayVehicleNumber">-</span>
-                </div>
-
-                <div class="info-item">
-                  <span class="info-label">계약구분</span>
+                  <span class="info-label">대출구분</span>
                   <span class="info-value" id="displayContractType">-</span>
                 </div>
 
@@ -189,12 +184,12 @@
 
               <div class="info-row">
                 <div class="info-item">
-                  <span class="info-label">월 렌트료</span>
+                  <span class="info-label">월납입액</span>
                   <span class="info-value" id="displayMonthlyRent">-</span>
                 </div>
 
                 <div class="info-item">
-                  <span class="info-label">총 렌트료</span>
+                  <span class="info-label">대출금</span>
                   <span class="info-value" id="displayTotalRent">-</span>
                 </div>
 
@@ -215,11 +210,11 @@
             <h3 class="section-title">중도상환 정보</h3>
             <div class="form-grid">
               <div class="form-group">
-                <label for="terminationMethod" class="required">중도상환방법</label>
+                <label for="terminationMethod" class="required">상환구분</label>
                 <select id="terminationMethod" name="terminationMethod" required>
                   <option value="">선택하세요</option>
-                  <option value="인수">인수</option>
-                  <option value="반납">반납</option>
+                  <option value="전액상환">전액상환</option>
+                  <option value="일부상환">일부상환</option>
                 </select>
               </div>
 
@@ -248,9 +243,9 @@
               </div>
 
               <div class="form-group">
-                <label for="uncollectedRent">미회수렌트료</label>
+                <label for="uncollectedRent">미수이자</label>
                 <input type="number" id="uncollectedRent" name="uncollectedRent" placeholder="금액을 직접 입력하세요">
-                <small class="help-text">전표 항목은 미회수렌트료로 고정되고, 금액만 직접 입력합니다</small>
+                <small class="help-text">전표 항목은 미수이자로 고정되고, 금액만 직접 입력합니다</small>
               </div>
 
               <div class="form-group">
@@ -261,7 +256,7 @@
 
             <div class="form-grid" style="margin-top:0;">
               <div class="form-group">
-                <label for="etCompanyAccount">당사 계좌번호 <span class="muted" style="font-size:12px;">(반납 처리완료 전표 적요)</span></label>
+                <label for="etCompanyAccount">당사 계좌번호 <span class="muted" style="font-size:12px;">(처리완료 전표 적요)</span></label>
                 <select id="etCompanyAccount" name="etCompanyAccount">
                   <option value="">-- 계좌 선택 --</option>
                 </select>
@@ -275,7 +270,7 @@
 
             <div class="alert-info">
               <strong>⚠️ 안내</strong>
-              반납 + 처리완료 시 전표가 자동 발생됩니다.
+              처리완료 시 전표가 자동 발생됩니다. 정산 이자는 일할(365일)로 계산됩니다.
             </div>
           </div>
 
@@ -297,7 +292,7 @@
 
       <div class="modal-body">
         <div class="row">
-          <input type="text" id="contractSearchKw" placeholder="검색어(계약번호/고객명/차량번호)를 입력하세요">
+          <input type="text" id="contractSearchKw" placeholder="검색어(채권번호/고객명)를 입력하세요">
           <button type="button" class="btn btn-primary" id="btnContractSearch">검색</button>
         </div>
         <div class="muted">행을 클릭하면 해당 계약이 선택됩니다.</div>
@@ -306,12 +301,12 @@
           <table class="modal-table">
             <thead>
               <tr>
-                <th style="width:140px;">계약번호</th>
-                <th style="width:140px;">고객명</th>
-                <th style="width:120px;">차량번호</th>
-                <th style="width:90px;">구분</th>
+                <th style="width:150px;">채권번호</th>
+                <th style="width:120px;">고객명</th>
+                <th style="width:100px;">대출구분</th>
                 <th>기간</th>
-                <th style="width:120px;">월렌트료</th>
+                <th style="width:120px;">대출금</th>
+                <th style="width:120px;">잔여원금</th>
               </tr>
             </thead>
             <tbody id="contractSearchBody">
@@ -420,7 +415,7 @@
           <td>${startNo + idx + 1}</td>
           <td>${escHtml(r.contractNumber || '-')}</td>
           <td>${escHtml(r.customerName || '-')}</td>
-          <td>${escHtml(r.vehicleNo || '-')}</td>
+          <td>${escHtml(r.contractType || '-')}</td>
           <td>${escHtml(r.terminationMethod || '-')}</td>
           <td>${ymd(r.terminationDate) || '-'}</td>
           <td>${formatWon(r.terminationAmount)}</td>
@@ -567,10 +562,10 @@
         tr.innerHTML = `
           <td>${escHtml(c.contractNumber || '-')}</td>
           <td>${escHtml(c.customerName || '-')}</td>
-          <td>${escHtml(c.vehicleNo || '-')}</td>
-          <td>${escHtml(c.contractType || '-')}</td>
+          <td>${escHtml(c.loanType || '-')}</td>
           <td>${ymd(c.startDate)} ~ ${ymd(c.endDate)}</td>
-          <td>${formatWon(c.monthlyRent)}</td>
+          <td>${formatWon(c.loanAmount)}</td>
+          <td>${formatWon(c.remainingPrincipal)}</td>
         `;
 
         tr.addEventListener('click', () => {
@@ -588,8 +583,7 @@
       document.getElementById('contractNumber').value = c.contractNumber || '';
       document.getElementById('contractInfo').classList.remove('hidden');
       document.getElementById('displayCustomerName').textContent = c.customerName || '-';
-      document.getElementById('displayVehicleNumber').textContent = c.vehicleNo || '-';
-      document.getElementById('displayContractType').textContent = c.contractType || '-';
+      document.getElementById('displayContractType').textContent = c.loanType || '-';
 
       const start = new Date(c.startDate);
       const end = new Date(c.endDate);
@@ -603,8 +597,8 @@
       document.getElementById('displayContractPeriod').textContent =
         `${ymd(c.startDate)} ~ ${ymd(c.endDate)} (${totalMonths}개월)`;
 
-      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyRent);
-      document.getElementById('displayTotalRent').textContent = formatWon(c.totalRent);
+      document.getElementById('displayMonthlyRent').textContent = formatWon(c.monthlyPayment);
+      document.getElementById('displayTotalRent').textContent = formatWon(c.loanAmount);
       document.getElementById('displayElapsedMonths').textContent = `${elapsedMonths}개월`;
       document.getElementById('displayRemainingMonths').textContent = `${remainingMonths}개월`;
 

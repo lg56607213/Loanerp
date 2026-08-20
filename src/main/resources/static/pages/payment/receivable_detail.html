@@ -37,10 +37,6 @@
               <label>고객명</label>
               <div class="detail-value" id="customerName">-</div>
             </div>
-            <div class="detail-item">
-              <label>차량번호</label>
-              <div class="detail-value" id="vehicleNumber">-</div>
-            </div>
           </div>
         </div>
 
@@ -94,10 +90,6 @@
               <div class="detail-item">
                 <label>고객명</label>
                 <div class="detail-value" id="editCustomerName">-</div>
-              </div>
-              <div class="detail-item">
-                <label>차량번호</label>
-                <div class="detail-value" id="editVehicleNumber">-</div>
               </div>
             </div>
           </div>
@@ -175,7 +167,6 @@
 
       document.getElementById('contractNumber').textContent = current.contractNumber ?? '-';
       document.getElementById('customerName').textContent = current.customerName ?? '-';
-      document.getElementById('vehicleNumber').textContent = current.vehicleNo ?? '-';
 
       document.getElementById('receivableAmount').textContent = Number(current.receivableAmount ?? 0).toLocaleString() + '원';
       document.getElementById('receivableDate').textContent = current.receivableDate ?? '-';
@@ -189,7 +180,6 @@
 
       document.getElementById('editContractNumber').textContent = current.contractNumber ?? '-';
       document.getElementById('editCustomerName').textContent = current.customerName ?? '-';
-      document.getElementById('editVehicleNumber').textContent = current.vehicleNo ?? '-';
 
       document.getElementById('editReceivableAmount').value = current.receivableAmount ?? 0;
       document.getElementById('editReceivableDate').value = current.receivableDate ?? '';

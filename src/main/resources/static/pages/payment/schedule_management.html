@@ -106,19 +106,14 @@
     <div class="erp-card">
       <div class="card-body">
         <div class="form-section">
-          <h3 class="section-title">차량조회</h3>
+          <h3 class="section-title">채권조회</h3>
           <div class="search-row">
             <div class="form-group">
-              <label for="vehicleNo">차량번호</label>
+              <label for="contractNo">채권번호</label>
               <div class="input-with-icon">
-                <input type="text" id="vehicleNo" placeholder="예: 123노1234">
-                <button type="button" class="icon-btn" id="openVehicleModalBtn" title="차량 검색">🔍</button>
+                <input type="text" id="contractNo" placeholder="예: CRD260804001001">
+                <button type="button" class="icon-btn" id="openVehicleModalBtn" title="채권 검색">🔍</button>
               </div>
-            </div>
-
-            <div class="form-group">
-              <label for="contractNo">계약번호</label>
-              <input type="text" id="contractNo" placeholder="조회시 출력" readonly>
             </div>
 
             <button type="button" class="btn-search" id="searchBtn">조회</button>
@@ -195,22 +190,22 @@
     <div class="modal">
       <div class="modal-header">
         <div>
-          <div class="modal-title">차량 선택</div>
-          <div class="muted">선택하면 차량번호가 자동 입력됩니다.</div>
+          <div class="modal-title">채권 선택</div>
+          <div class="muted">선택하면 채권번호가 자동 입력됩니다.</div>
         </div>
         <button type="button" class="modal-close" id="closeVehicleModalBtn">✕</button>
       </div>
       <div class="modal-body">
         <div class="modal-search">
-          <input type="text" id="vehicleKw" placeholder="차량번호/차량관리번호 키워드">
+          <input type="text" id="vehicleKw" placeholder="채권번호 / 고객명 키워드">
           <button type="button" id="vehicleSearchBtn">검색</button>
         </div>
         <table class="pick-table">
           <thead>
             <tr>
-              <th style="width:200px;">차량관리번호</th>
-              <th style="width:160px;">차량번호</th>
-              <th>차종</th>
+              <th style="width:180px;">채권번호</th>
+              <th style="width:120px;">고객명</th>
+              <th>기간</th>
             </tr>
           </thead>
           <tbody id="vehiclePickBody">
@@ -342,18 +337,17 @@
     }
 
     async function searchVehicle(){
-      const vehicleNo = $('vehicleNo').value.trim();
-      if(!vehicleNo){
-        alert('차량번호를 입력해주세요.');
+      const contractNumber = $('contractNo').value.trim();
+      if(!contractNumber){
+        alert('채권번호를 입력해주세요.');
         return;
       }
 
       try{
-        const res = await fetch(`${BASE}/api/schedules/by-vehicle-no?vehicleNo=${encodeURIComponent(vehicleNo)}`);
+        const res = await fetch(`${BASE}/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(contractNumber)}`);
         await mustOk(res);
         const data = await res.json();
 
-        $('contractNo').value = data.contractNumber || '';
         currentContractNumber = data.contractNumber || null;
 
         originalSchedule = Array.isArray(data.schedule) ? data.schedule : [];
@@ -439,16 +433,16 @@
         return;
       }
       body.innerHTML = list.map(it=>`
-        <tr class="pick-row" data-veh="${escapeHtml(it.vehicleNo||'')}">
-          <td>${escapeHtml(it.vehicleMgmtNo||'-')}</td>
-          <td>${escapeHtml(it.vehicleNo||'-')}</td>
-          <td>${escapeHtml(it.carModel||'-')}</td>
+        <tr class="pick-row" data-cn="${escapeHtml(it.contractNumber||'')}">
+          <td>${escapeHtml(it.contractNumber||'-')}</td>
+          <td>${escapeHtml(it.customerName||'-')}</td>
+          <td>${escapeHtml(it.startDate||'-')} ~ ${escapeHtml(it.endDate||'-')}</td>
         </tr>
       `).join('');
 
       body.querySelectorAll('.pick-row').forEach(tr=>{
         tr.addEventListener('click', ()=>{
-          $('vehicleNo').value = tr.dataset.veh || '';
+          $('contractNo').value = tr.dataset.cn || '';
           closeVehicleModal();
         });
       });
@@ -458,7 +452,7 @@
       const body = $('vehiclePickBody');
       body.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">불러오는 중...</td></tr>`;
       try{
-        const res = await fetch(`${BASE}/api/vehicle-orders/search?kw=${encodeURIComponent(kw||'')}`);
+        const res = await fetch(`${BASE}/api/contracts/search?kw=${encodeURIComponent(kw||'')}`);
         await mustOk(res);
         const data = await res.json();
         renderVehicles(data);

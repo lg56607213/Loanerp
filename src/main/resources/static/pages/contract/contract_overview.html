@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>계약 총괄관리 | JDEND ERP</title>
+  <title>대출현황 | JDEND ERP</title>
   <link rel="stylesheet" href="../../assets/css/sidebar.css">
   <link rel="stylesheet" href="../../assets/css/pages.css">
   <style>
@@ -51,6 +51,11 @@
       display: inline-block; border-radius: 5px; padding: 3px 10px;
       font-size: 0.8rem; font-weight: 700;
     }
+    .st-정상 { background: #dcfce7; color: #15803d; }
+    .st-연체 { background: #fee2e2; color: #dc2626; }
+    .st-해지 { background: #ffedd5; color: #9a3412; }
+    .st-상각 { background: #e5e7eb; color: #374151; }
+    .st-종료 { background: #e0e7ff; color: #3730a3; }
     .st-진행중 { background: #dcfce7; color: #15803d; }
     .st-만기 { background: #fef3c7; color: #b45309; }
     .st-종료 { background: #f1f5f9; color: #475569; }
@@ -198,7 +203,7 @@
 <div id="sidebar-container"></div>
 <div class="content-wrapper">
   <div class="page-header">
-    <h1>계약 총괄관리</h1>
+    <h1>대출현황</h1>
     <p>계약관리 &gt; 계약등록 &gt; 관리</p>
   </div>
 
@@ -219,14 +224,14 @@
         <thead>
           <tr>
             <th style="width:44px;">번호</th>
-            <th>계약번호</th>
+            <th>채권번호</th>
             <th>고객명</th>
-            <th>차량번호</th>
-            <th>계약시작일</th>
-            <th>계약종료일</th>
+            <th>대출구분</th>
+            <th>대출금</th>
+            <th>시작일자</th>
+            <th>종료일자</th>
+            <th>잔여원금</th>
             <th>상태</th>
-            <th>스캔</th>
-            <th style="width:80px;">관리</th>
           </tr>
         </thead>
         <tbody id="contractListBody">
@@ -239,13 +244,8 @@
   <!-- 검색 -->
   <div class="search-card">
     <div class="sfg">
-      <label>계약번호</label>
-      <input type="text" id="searchContractNo" placeholder="예: R00001001" onkeydown="if(event.key==='Enter')doSearch()">
-    </div>
-    <span class="or-sep">또는</span>
-    <div class="sfg">
-      <label>차량번호</label>
-      <input type="text" id="searchVehicleNo" placeholder="예: 12가3456" onkeydown="if(event.key==='Enter')doSearch()">
+      <label>채권번호</label>
+      <input type="text" id="searchContractNo" placeholder="예: CRD260804001001" onkeydown="if(event.key==='Enter')doSearch()">
     </div>
     <button class="btn btn-primary" onclick="doSearch()">조회</button>
   </div>
@@ -258,21 +258,21 @@
         <span class="cn" id="ci_contractNumber">-</span>
         <span id="ci_statusBadge" class="status-badge st-other">-</span>
         <span class="customer" id="ci_customerName">-</span>
-        <span style="color:#6b7280; font-size:0.9rem;" id="ci_vehicleNo">-</span>
+        <span style="color:#6b7280; font-size:0.9rem;" id="ci_loanType">-</span>
       </div>
       <div class="info-grid">
-        <div class="info-item"><span class="lbl">계약유형</span><span class="val" id="ci_contractType">-</span></div>
-        <div class="info-item"><span class="lbl">계약일</span><span class="val" id="ci_startDate">-</span></div>
-        <div class="info-item"><span class="lbl">만기일</span><span class="val" id="ci_endDate">-</span></div>
-        <div class="info-item"><span class="lbl">월렌트료</span><span class="val accent" id="ci_monthlyRent">-</span></div>
-        <div class="info-item"><span class="lbl">총렌트료</span><span class="val" id="ci_totalRent">-</span></div>
-        <div class="info-item"><span class="lbl">보증금</span><span class="val" id="ci_deposit">-</span></div>
-        <div class="info-item"><span class="lbl">선급금</span><span class="val" id="ci_advancePayment">-</span></div>
-        <div class="info-item"><span class="lbl">약정 회수</span><span class="val" id="ci_billingCount">-</span></div>
-        <div class="info-item"><span class="lbl">납부일</span><span class="val" id="ci_billingDay">-</span></div>
-        <div class="info-item"><span class="lbl">청구일</span><span class="val" id="ci_taxInvoiceDay">-</span></div>
-        <div class="info-item"><span class="lbl">차량모델</span><span class="val" id="ci_vehicleModel">-</span></div>
-        <div class="info-item"><span class="lbl">만기처리</span><span class="val" id="ci_maturityOption">-</span></div>
+        <div class="info-item"><span class="lbl">대출금</span><span class="val accent" id="ci_loanAmount">-</span></div>
+        <div class="info-item"><span class="lbl">실행일</span><span class="val" id="ci_executeDate">-</span></div>
+        <div class="info-item"><span class="lbl">시작일자</span><span class="val" id="ci_startDate">-</span></div>
+        <div class="info-item"><span class="lbl">종료일자</span><span class="val" id="ci_endDate">-</span></div>
+        <div class="info-item"><span class="lbl">이자율</span><span class="val" id="ci_interestRate">-</span></div>
+        <div class="info-item"><span class="lbl">연체이율</span><span class="val" id="ci_overdueRate">-</span></div>
+        <div class="info-item"><span class="lbl">연체이자</span><span class="val" id="ci_overdueChargeYn">-</span></div>
+        <div class="info-item"><span class="lbl">상환방식</span><span class="val" id="ci_repaymentMethod">-</span></div>
+        <div class="info-item"><span class="lbl">월납입액</span><span class="val" id="ci_monthlyPayment">-</span></div>
+        <div class="info-item"><span class="lbl">납입일자</span><span class="val" id="ci_paymentDay">-</span></div>
+        <div class="info-item"><span class="lbl">회차수</span><span class="val" id="ci_installmentCount">-</span></div>
+        <div class="info-item"><span class="lbl">잔여원금</span><span class="val accent" id="ci_remainingPrincipal">-</span></div>
         <div class="info-item"><span class="lbl">연락처</span><span class="val" id="ci_customerPhone">-</span></div>
         <div class="info-item"><span class="lbl">비고</span><span class="val l" id="ci_remarks">-</span></div>
       </div>
@@ -283,9 +283,7 @@
       <button class="tab-btn active" onclick="switchTab('consult')">상담이력 <span class="cnt" id="cnt_consult">0</span></button>
       <button class="tab-btn" onclick="switchTab('schedule')">납부스케줄 <span class="cnt" id="cnt_schedule">0</span></button>
       <button class="tab-btn" onclick="switchTab('billing')">청구현황 <span class="cnt" id="cnt_billing">0</span></button>
-      <button class="tab-btn" onclick="switchTab('loan')">차입금현황 <span class="cnt" id="cnt_loan">0</span></button>
       <button class="tab-btn" onclick="switchTab('receivable')">미수현황 <span class="cnt" id="cnt_receivable">0</span></button>
-      <button class="tab-btn" onclick="switchTab('insurance')">보험현황 <span class="cnt" id="cnt_insurance">0</span></button>
     </div>
 
     <!-- ═ 상담이력 ═ -->
@@ -364,29 +362,6 @@
       </div>
     </div>
 
-    <!-- ═ 차입금현황 ═ -->
-    <div class="section-card tab-panel" id="tab_loan">
-      <div class="tbl-wrap scroll-limit">
-        <table>
-          <thead>
-            <tr>
-              <th>금융사</th>
-              <th>차입유형</th>
-              <th>차입원금</th>
-              <th>월상환액</th>
-              <th>잔여원금</th>
-              <th>상환방법</th>
-              <th>납입일</th>
-              <th>상태</th>
-            </tr>
-          </thead>
-          <tbody id="loanBody">
-            <tr class="empty-row"><td colspan="8">조회 중...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
     <!-- ═ 미수현황 ═ -->
     <div class="section-card tab-panel" id="tab_receivable">
       <div class="tbl-wrap scroll-limit">
@@ -407,76 +382,12 @@
       </div>
     </div>
 
-    <!-- ═ 보험현황 ═ -->
-    <div class="section-card tab-panel" id="tab_insurance">
-      <div class="tbl-wrap scroll-limit">
-        <table>
-          <thead>
-            <tr>
-              <th>보험시작일</th>
-              <th>보험종료일</th>
-              <th>대인</th>
-              <th>대물</th>
-              <th>자차</th>
-              <th>운전자연령</th>
-              <th>특약사항</th>
-              <th>보험료</th>
-            </tr>
-          </thead>
-          <tbody id="insuranceBody">
-            <tr class="empty-row"><td colspan="8">조회 중...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
   </div><!-- /resultArea -->
-</div>
-
-<!-- 계약서 스캔 파일 목록 모달 -->
-<div id="conScanListBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:12px;width:min(660px,96vw);max-height:80vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,.25);overflow:hidden;">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #eee;">
-      <span style="font-weight:700;font-size:1rem;" id="conScanListTitle">스캔 파일 목록</span>
-      <button onclick="closeConScanList()" style="border:1px solid #ddd;background:#fff;border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:18px;">✕</button>
-    </div>
-    <div style="flex:1;overflow-y:auto;padding:16px;">
-      <table style="width:100%;border-collapse:collapse;">
-        <thead><tr style="background:#f8fafc;">
-          <th style="padding:8px;font-size:0.8rem;font-weight:700;text-align:left;border-bottom:2px solid #e5e7eb;">#</th>
-          <th style="padding:8px;font-size:0.8rem;font-weight:700;text-align:left;border-bottom:2px solid #e5e7eb;">파일명</th>
-          <th style="padding:8px;font-size:0.8rem;font-weight:700;border-bottom:2px solid #e5e7eb;">크기</th>
-          <th style="padding:8px;font-size:0.8rem;font-weight:700;border-bottom:2px solid #e5e7eb;">업로드일시</th>
-          <th style="padding:8px;font-size:0.8rem;font-weight:700;border-bottom:2px solid #e5e7eb;">관리</th>
-        </tr></thead>
-        <tbody id="conScanListBody"><tr><td colspan="5" style="padding:24px;text-align:center;color:#9ca3af;">불러오는 중...</td></tr></tbody>
-      </table>
-    </div>
-    <div style="padding:12px 18px;border-top:1px solid #eee;display:flex;justify-content:flex-end;">
-      <button onclick="closeConScanList()" style="padding:8px 18px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:6px;font-weight:600;cursor:pointer;">닫기</button>
-    </div>
-  </div>
-</div>
-
-<!-- 계약서 스캔 업로드 모달 -->
-<div id="scanModalBackdrop">
-  <div class="scan-modal-box">
-    <h3>계약서 스캔 업로드</h3>
-    <p class="scan-modal-cn" id="scanModalContractNo"></p>
-    <input type="file" id="scanFileInput" accept=".pdf,.jpg,.jpeg,.png">
-    <div class="scan-modal-btns">
-      <button class="btn-cancel" onclick="closeScanModal()">취소</button>
-      <button class="btn-ok" onclick="submitScanUpload()">업로드</button>
-    </div>
-  </div>
 </div>
 
 <script src="../../assets/js/sidebar.js"></script>
 <script src="../../assets/js/config.js"></script>
 <script>
-  let currentContractNumber = null;
-  let currentVehicleNo = null;
-
   // ── 유틸 ──────────────────────────────────────────────────
   function esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -502,32 +413,16 @@
 
   // ── 검색 ──────────────────────────────────────────────────
   async function doSearch() {
-    const contractNo = document.getElementById('searchContractNo').value.trim().toUpperCase();
-    const vehicleNo  = document.getElementById('searchVehicleNo').value.trim();
+    const cn = document.getElementById('searchContractNo').value.trim().toUpperCase();
 
-    if (!contractNo && !vehicleNo) {
-      alert('계약번호 또는 차량번호를 입력하세요.');
+    if (!cn) {
+      alert('채권번호를 입력하세요.');
       return;
     }
 
-    let cn = contractNo;
-    let vn = vehicleNo;
-
     try {
-      if (!cn) {
-        // 차량번호로 계약 조회
-        const list = await fetchJson(`/api/contracts/status?vehicleNo=${encodeURIComponent(vn)}`);
-        if (!list || !list.length) { alert('해당 차량번호의 계약을 찾을 수 없습니다.'); return; }
-        cn = list[0].contractNumber || list[0].vehicleNumber;
-        // contractNumber로 재확인
-        const r2 = await fetchJson(`/api/contracts/status?vehicleNo=${encodeURIComponent(vn)}`);
-        cn = r2[0].contractNumber;
-      }
-
       const contract = await fetchJson(`/api/contracts/by-number/${encodeURIComponent(cn)}/full`);
-      vn = vn || contract.vehicleNo || '';
       currentContractNumber = cn;
-      currentVehicleNo = vn;
 
       renderContractInfo(contract);
 
@@ -540,11 +435,9 @@
 
       // 모든 섹션 병렬 로드
       loadConsultations(cn);
-      loadSchedule(vn);
+      loadSchedule(cn);
       loadBillings(cn);
-      loadLoans(vn, cn);
       loadReceivables(cn);
-      loadInsurances(cn, vn);
 
     } catch (e) {
       console.error(e);
@@ -556,26 +449,26 @@
   function renderContractInfo(c) {
     document.getElementById('ci_contractNumber').textContent = c.contractNumber || '-';
     document.getElementById('ci_customerName').textContent   = c.customerName || '-';
-    document.getElementById('ci_vehicleNo').textContent      = c.vehicleNo ? '[' + c.vehicleNo + ']' : '';
-    document.getElementById('ci_contractType').textContent   = dash(c.contractType);
-    document.getElementById('ci_startDate').textContent      = dash(c.startDate);
-    document.getElementById('ci_endDate').textContent        = dash(c.endDate);
-    document.getElementById('ci_monthlyRent').textContent    = c.monthlyRent ? fmt(c.monthlyRent) + ' 원' : '-';
-    document.getElementById('ci_totalRent').textContent      = c.totalRent ? fmt(c.totalRent) + ' 원' : '-';
-    document.getElementById('ci_deposit').textContent        = c.deposit != null ? fmt(c.deposit) + ' 원' : '-';
-    document.getElementById('ci_advancePayment').textContent = c.advancePayment != null ? fmt(c.advancePayment) + ' 원' : '-';
-    document.getElementById('ci_billingCount').textContent   = c.billingCount != null ? c.billingCount + ' 회' : '-';
-    document.getElementById('ci_billingDay').textContent     = c.billingDay != null ? c.billingDay + ' 일' : '-';
-    document.getElementById('ci_taxInvoiceDay').textContent  = c.taxInvoiceDay != null ? c.taxInvoiceDay + ' 일' : '-';
-    document.getElementById('ci_vehicleModel').textContent   = dash(c.vehicleModel);
-    document.getElementById('ci_maturityOption').textContent = dash(c.maturityOption);
+    document.getElementById('ci_loanType').textContent          = c.loanType ? '[' + c.loanType + ']' : '';
+    document.getElementById('ci_loanAmount').textContent        = c.loanAmount != null ? fmt(c.loanAmount) + ' 원' : '-';
+    document.getElementById('ci_executeDate').textContent       = dash(c.executeDate);
+    document.getElementById('ci_startDate').textContent         = dash(c.startDate);
+    document.getElementById('ci_endDate').textContent           = dash(c.endDate);
+    document.getElementById('ci_interestRate').textContent      = c.interestRate != null ? c.interestRate + ' %' : '-';
+    document.getElementById('ci_overdueRate').textContent       = c.overdueRate != null ? c.overdueRate + ' %' : '-';
+    document.getElementById('ci_overdueChargeYn').textContent   = c.overdueChargeYn === false ? '미부과' : '부과';
+    document.getElementById('ci_repaymentMethod').textContent   = dash(c.repaymentMethod);
+    document.getElementById('ci_monthlyPayment').textContent    = c.monthlyPayment != null ? fmt(c.monthlyPayment) + ' 원' : '-';
+    document.getElementById('ci_paymentDay').textContent        = c.paymentDay != null ? c.paymentDay + ' 일' : '-';
+    document.getElementById('ci_installmentCount').textContent  = c.installmentCount != null ? c.installmentCount + ' 회' : '-';
+    document.getElementById('ci_remainingPrincipal').textContent = c.remainingPrincipal != null ? fmt(c.remainingPrincipal) + ' 원' : '-';
     document.getElementById('ci_customerPhone').textContent  = dash(c.customerPhone);
     document.getElementById('ci_remarks').textContent        = dash(c.remarks);
 
     const statusBadge = document.getElementById('ci_statusBadge');
     const st = c.status || '';
     statusBadge.textContent = st || '-';
-    statusBadge.className = 'status-badge st-' + (['진행중','만기','종료','반납'].includes(st) ? st : 'other');
+    statusBadge.className = 'status-badge st-' + (['정상','연체','해지','상각','종료'].includes(st) ? st : 'other');
   }
 
   // ── 상담이력 ──────────────────────────────────────────────
@@ -629,15 +522,15 @@
   }
 
   // ── 납부스케줄 ────────────────────────────────────────────
-  async function loadSchedule(vn) {
+  async function loadSchedule(cn) {
     const tbody = document.getElementById('scheduleBody');
     tbody.innerHTML = '<tr class="empty-row"><td colspan="9">조회 중...</td></tr>';
     if (!vn) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">차량번호 정보가 없습니다.</td></tr>';
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">채권번호 정보가 없습니다.</td></tr>';
       return;
     }
     try {
-      const data = await fetchJson(`/api/schedules/by-vehicle-no?vehicleNo=${encodeURIComponent(vn)}`);
+      const data = await fetchJson(`/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(cn)}`);
       const rows = data.schedule || [];
       document.getElementById('cnt_schedule').textContent = rows.length;
       if (!rows.length) {
@@ -689,40 +582,6 @@
     }
   }
 
-  // ── 차입금현황 ────────────────────────────────────────────
-  async function loadLoans(vn, cn) {
-    const tbody = document.getElementById('loanBody');
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">조회 중...</td></tr>';
-    try {
-      const params = new URLSearchParams();
-      if (vn) params.set('vehicleNo', vn);
-      const list = await fetchJson(`/api/vehicle-loans?${params.toString()}`);
-      document.getElementById('cnt_loan').textContent = list.length;
-      if (!list.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">차입금 내역이 없습니다.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = list.map(l => `
-        <tr>
-          <td>${esc(l.financeName ?? '-')}</td>
-          <td>${esc(l.loanType ?? '-')}</td>
-          <td class="r">${fmt(l.loanPrincipal)}</td>
-          <td class="r">${fmt(l.monthlyPayment)}</td>
-          <td class="r" style="${l.remainingPrincipal > 0 ? 'color:#2563eb;font-weight:700;' : 'color:#15803d;'}">${fmt(l.remainingPrincipal)}</td>
-          <td>${esc(l.repaymentMethod ?? '-')}</td>
-          <td style="text-align:center;">${l.paymentDay != null ? l.paymentDay + '일' : '-'}</td>
-          <td style="text-align:center;">
-            ${l.terminated
-              ? '<span class="pay-badge py-완납">상환완료</span>'
-              : '<span class="pay-badge py-예정">상환중</span>'}
-          </td>
-        </tr>`).join('');
-    } catch (e) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">조회 실패</td></tr>';
-    }
-  }
-
-  // ── 미수현황 ──────────────────────────────────────────────
   async function loadReceivables(cn) {
     const tbody = document.getElementById('receivableBody');
     tbody.innerHTML = '<tr class="empty-row"><td colspan="5">조회 중...</td></tr>';
@@ -750,39 +609,6 @@
   }
 
   // ── 보험현황 ──────────────────────────────────────────────
-  async function loadInsurances(cn, vn) {
-    const tbody = document.getElementById('insuranceBody');
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="8">조회 중...</td></tr>';
-    try {
-      const params = new URLSearchParams();
-      if (cn) params.set('contractNumber', cn);
-      const list = await fetchJson(`/api/insurances?${params.toString()}`);
-      document.getElementById('cnt_insurance').textContent = list.length;
-      if (!list.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="8">보험 내역이 없습니다.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = list.map(ins => `
-        <tr>
-          <td style="text-align:center;">${esc(ins.insuranceStartDate ?? '-')}</td>
-          <td style="text-align:center;">${esc(ins.insuranceEndDate ?? '-')}</td>
-          <td style="text-align:center;">${esc(ins.bodilyInjury ?? '-')}</td>
-          <td style="text-align:center;">${esc(ins.propertyDamage ?? '-')}</td>
-          <td style="text-align:center;">${esc(ins.ownVehicle ?? '-')}</td>
-          <td style="text-align:center;">${esc(ins.ageRange ?? '-')}</td>
-          <td class="l">${esc(ins.specialTerms ?? '-')}</td>
-          <td class="r">${ins.insurancePremium ? fmt(ins.insurancePremium) + ' 원' : '-'}</td>
-        </tr>`).join('');
-    } catch (e) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="8">조회 실패</td></tr>';
-    }
-  }
-
-  // ── 계약 목록 ────────────────────────────────────────────
-  let allListContracts = [];
-  let scanContractNumbers = {}; // { contractNumber: true/false }
-  let uploadingContractNumber = null;
-
   async function loadContractList() {
     const tbody = document.getElementById('contractListBody');
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#9ca3af; padding:20px;">불러오는 중...</td></tr>';
@@ -791,15 +617,6 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       allListContracts = await res.json();
 
-      // 스캔 상태 일괄 조회
-      const numbers = allListContracts.map(c => c.contractNumber).filter(Boolean);
-      if (numbers.length > 0) {
-        try {
-          const qs = numbers.map(n => 'contractNumbers=' + encodeURIComponent(n)).join('&');
-          const sr = await fetch('/api/documents/contract-scan-status?' + qs, { credentials: 'include' });
-          if (sr.ok) scanContractNumbers = await sr.json();
-        } catch (e) { /* 스캔상태 조회 실패해도 목록은 표시 */ }
-      }
       renderContractList(allListContracts);
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#ef4444; padding:20px;">로드 실패: ${esc(e.message)}</td></tr>`;
@@ -826,116 +643,26 @@
       return;
     }
     tbody.innerHTML = list.map((c, i) => {
-      const hasScan = scanContractNumbers[c.contractNumber] === true;
-      const st = c.status || '';
-      const stClass = ['진행중','만기','종료','반납'].includes(st) ? 'st-' + st : 'st-other';
-      return `<tr style="cursor:pointer;" onclick="selectContract('${esc(c.contractNumber)}','${esc(c.vehicleNo||'')}')">
+      const st = c.status || '정상';
+      return `<tr style="cursor:pointer;" onclick="selectContract('${esc(c.contractNumber)}')">
         <td style="text-align:center;">${i + 1}</td>
         <td>${esc(c.contractNumber || '-')}</td>
         <td>${esc(c.customerName || '-')}</td>
-        <td>${esc(c.vehicleNo || '-')}</td>
+        <td>${esc(c.loanType || '-')}</td>
+        <td class="r">${fmt(c.loanAmount)}</td>
         <td style="text-align:center;">${esc(c.startDate || '-')}</td>
         <td style="text-align:center;">${esc(c.endDate || '-')}</td>
-        <td style="text-align:center;"><span class="status-badge ${stClass}">${esc(st || '-')}</span></td>
-        <td style="text-align:center;" onclick="event.stopPropagation()">
-          <span class="scan-badge ${hasScan ? 'scan-y' : 'scan-n'}">${hasScan ? '스캔 유' : '스캔 무'}</span>
-        </td>
-        <td onclick="event.stopPropagation()" style="white-space:nowrap;">
-          <button class="btn btn-sm btn-add" onclick="openScanModal('${esc(c.contractNumber)}')">업로드</button>
-          ${hasScan ? `<button class="btn btn-sm" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;margin-left:4px;" onclick="openConScanList('${esc(c.contractNumber)}')">파일</button>` : ''}
-        </td>
+        <td class="r">${fmt(c.remainingPrincipal)}</td>
+        <td style="text-align:center;"><span class="status-badge st-${esc(st)}">${esc(st)}</span></td>
       </tr>`;
     }).join('');
   }
 
-  async function selectContract(cn, vn) {
+  async function selectContract(cn) {
     document.getElementById('searchContractNo').value = cn;
-    document.getElementById('searchVehicleNo').value  = vn || '';
     await doSearch();
     document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
   }
-
-  /* ===== 계약서 스캔 파일 목록 ===== */
-  function _fmtSz(b){if(!b)return'-';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB';}
-  function _fmtDt(dt){return dt?String(dt).replace('T',' ').substring(0,16):'-';}
-
-  async function openConScanList(contractNumber) {
-    const bd = document.getElementById('conScanListBackdrop');
-    document.getElementById('conScanListTitle').textContent = '스캔 파일 목록 — ' + contractNumber;
-    document.getElementById('conScanListBody').innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:#9ca3af;">불러오는 중...</td></tr>';
-    bd.style.display = 'flex';
-    try {
-      const API = (typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : '').replace(/\/+$/,'');
-      const res = await fetch(`${API}/api/documents?documentType=계약서&contractNumber=${encodeURIComponent(contractNumber)}`, {credentials:'include'});
-      const list = res.ok ? await res.json() : [];
-      if (!list.length) {
-        document.getElementById('conScanListBody').innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:#9ca3af;">파일 없음</td></tr>';
-        return;
-      }
-      document.getElementById('conScanListBody').innerHTML = list.map((d,i)=>`
-        <tr>
-          <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${i+1}</td>
-          <td style="padding:8px;border-bottom:1px solid #f1f5f9;">${esc(d.fileName||'-')}</td>
-          <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;">${_fmtSz(d.fileSize)}</td>
-          <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;">${_fmtDt(d.uploadedAt)}</td>
-          <td style="padding:8px;border-bottom:1px solid #f1f5f9;text-align:center;">
-            <a href="${API}/api/documents/${d.id}/view" target="_blank" style="color:#15803d;font-weight:700;text-decoration:none;margin-right:6px;">보기</a>
-            <a href="${API}/api/documents/${d.id}/download" style="color:#1d4ed8;font-weight:700;text-decoration:none;">다운로드</a>
-          </td>
-        </tr>`).join('');
-    } catch(e) {
-      document.getElementById('conScanListBody').innerHTML = `<tr><td colspan="5" style="padding:24px;text-align:center;color:#ef4444;">오류: ${esc(e.message)}</td></tr>`;
-    }
-  }
-  function closeConScanList() { document.getElementById('conScanListBackdrop').style.display='none'; }
-  document.getElementById('conScanListBackdrop').addEventListener('click', e => {
-    if (e.target === document.getElementById('conScanListBackdrop')) closeConScanList();
-  });
-
-  function openScanModal(contractNumber) {
-    uploadingContractNumber = contractNumber;
-    document.getElementById('scanModalContractNo').textContent = '계약번호: ' + contractNumber;
-    document.getElementById('scanFileInput').value = '';
-    document.getElementById('scanModalBackdrop').classList.add('open');
-  }
-  function closeScanModal() {
-    document.getElementById('scanModalBackdrop').classList.remove('open');
-    uploadingContractNumber = null;
-  }
-  async function submitScanUpload() {
-    const file = document.getElementById('scanFileInput').files[0];
-    if (!file) { alert('파일을 선택하세요.'); return; }
-    const allowed = ['pdf','jpg','jpeg','png'];
-    const ext = file.name.split('.').pop().toLowerCase();
-    if (!allowed.includes(ext)) { alert('PDF, JPG, JPEG, PNG 파일만 업로드 가능합니다.'); return; }
-    if (file.size > 10 * 1024 * 1024) { alert('파일 크기는 최대 10MB까지 가능합니다.'); return; }
-
-    const form = new FormData();
-    form.append('documentType', '계약서');
-    form.append('contractNumber', uploadingContractNumber);
-    form.append('file', file);
-    try {
-      const res = await fetch('/api/documents/upload', { method: 'POST', body: form, credentials: 'include' });
-      if (!res.ok) {
-        let msg = 'HTTP ' + res.status;
-        try { const b = await res.json(); msg = b.message || b.error || msg; } catch(e) {}
-        throw new Error(msg);
-      }
-      alert('업로드 완료!');
-      closeScanModal();
-      await loadContractList();
-    } catch (e) {
-      alert('업로드 실패: ' + e.message);
-    }
-  }
-
-  // ESC 닫기
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeScanModal();
-  });
-  document.getElementById('scanModalBackdrop').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('scanModalBackdrop')) closeScanModal();
-  });
 
   loadContractList();
   loadSidebar();

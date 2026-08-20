@@ -118,16 +118,7 @@
                   <button type="button" class="icon-btn" id="contractSearchBtn" title="계약 검색">🔍</button>
                 </div>
                 <div style="margin-top:6px; font-size:12px; color:#777;">
-                  고객명: <span id="contractCustomerName">-</span> /
-                  차량번호: <span id="contractVehicleNo">-</span>
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label for="vehicleNo">차량번호</label>
-                <input type="text" id="vehicleNo" name="vehicleNo" placeholder="123소1234 (직접입력 가능)" />
-                <div style="margin-top:6px; font-size:12px; color:#777;">
-                  계약에서 선택하면 자동으로 들어가고, 필요하면 직접 수정 가능
+                  고객명: <span id="contractCustomerName">-</span>
                 </div>
               </div>
 
@@ -181,7 +172,7 @@
                   <tr class="total-row">
                     <td><strong>합계</strong></td>
                     <td><strong id="debitTotal">0</strong></td>
-                    <td colspan="2"></td>
+                    <td colspan="1"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -231,7 +222,7 @@
                   <tr class="total-row">
                     <td><strong>합계</strong></td>
                     <td><strong id="creditTotal">0</strong></td>
-                    <td colspan="2"></td>
+                    <td colspan="1"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -274,7 +265,7 @@
       </div>
       <div class="modal-body">
         <div class="modal-toolbar">
-          <input type="text" id="contractKw" placeholder="계약번호 / 고객명 / 차량번호로 검색" />
+          <input type="text" id="contractKw" placeholder="채권번호 / 고객명으로 검색" />
           <button type="button" class="btn btn-primary" id="contractDoSearchBtn">검색</button>
           <button type="button" class="btn btn-ghost" id="contractClearBtn">초기화</button>
           <div class="help-text">Enter로 검색</div>
@@ -287,7 +278,6 @@
             <tr>
               <th style="width: 18%;">계약번호</th>
               <th style="width: 18%;">고객명</th>
-              <th style="width: 16%;">차량번호</th>
               <th style="width: 16%;">구분</th>
               <th style="width: 22%;">기간</th>
               <th style="width: 10%;">선택</th>
@@ -597,16 +587,10 @@
       if (!c) {
         qs("#contractNumber").value = "";
         qs("#contractCustomerName").textContent = "-";
-        qs("#contractVehicleNo").textContent = "-";
         return;
       }
       qs("#contractNumber").value = c.contractNumber || "";
       qs("#contractCustomerName").textContent = c.customerName || "-";
-      qs("#contractVehicleNo").textContent = c.vehicleNo || "-";
-
-      if (c.vehicleNo) {
-        qs("#vehicleNo").value = c.vehicleNo;
-      }
     }
 
     function openContractModal() {
@@ -635,7 +619,6 @@
         tr.innerHTML = `
           <td><span class="pill">${escapeHtml(c.contractNumber)}</span></td>
           <td>${escapeHtml(c.customerName)}</td>
-          <td>${escapeHtml(c.vehicleNo)}</td>
           <td>${escapeHtml(c.contractType)}</td>
           <td>${escapeHtml(period)}</td>
           <td><button type="button" class="btn btn-primary">선택</button></td>
@@ -682,7 +665,6 @@
       const voucherDate = qs("#voucherDate").value;
       const voucherNo = qs("#voucherNumber").value;
       const contractNumber = qs("#contractNumber").value || "";
-      const vehicleNo = qs("#vehicleNo").value || "";
       const memo = qs("#memo").value || "";
 
       const { entries: debitEntries, total: debitSum } = collectEntries("debit");
@@ -705,7 +687,6 @@
         voucherNo,
         voucherDate,
         contractNumber: contractNumber.trim() ? contractNumber.trim() : null,
-        vehicleNo: vehicleNo.trim() ? vehicleNo.trim() : null,
         memo: finalMemo,
         debitEntries,
         creditEntries,

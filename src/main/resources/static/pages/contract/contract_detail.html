@@ -3,878 +3,291 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>계약 상세 | JDEND ERP</title>
-
+  <title>채권 상세 | JDEND ERP</title>
   <link rel="stylesheet" href="../../assets/css/sidebar.css" />
   <link rel="stylesheet" href="../../assets/css/pages.css" />
-  <link rel="stylesheet" href="../../assets/css/contract/contract_register.css" />
-
+  <link rel="stylesheet" href="../../assets/css/contract/contract_detail.css" />
   <style>
-    .hidden { display:none !important; }
-    .loading-box { padding:14px; border:1px solid #e5e5e5; border-radius:10px; background:#fff; }
-    .error-box { padding:14px; border:1px solid #ffcccc; border-radius:10px; background:#fff3f3; color:#b00020; }
-    .field-note { opacity:.7; font-size:12px; margin-top:6px; display:block; }
-    .highlight-value, .highlight-field { font-weight:700; }
-    .btn-toggle-group { display:flex; gap:8px; }
-    .btn-toggle { padding:8px 12px; border:1px solid #ddd; border-radius:8px; background:#fff; cursor:pointer; }
-    .btn-toggle.active { border-color:#333; font-weight:700; }
-    .detail-grid { display:grid; gap:12px; }
-    .detail-grid.grid-2 { grid-template-columns:repeat(2, minmax(0,1fr)); }
-    .detail-grid.grid-4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
-    .detail-grid.grid-5 { grid-template-columns:repeat(5, minmax(0,1fr)); }
-    .detail-item label { display:block; font-size:12px; opacity:.8; margin-bottom:6px; }
-    .detail-value { padding:10px 12px; border:1px solid #eee; border-radius:10px; background:#fafafa; min-height:40px; display:flex; align-items:center; }
-    .detail-item.full-width { grid-column:1 / -1; }
+    .hidden { display: none !important; }
+    .loading-box, .error-box { padding: 20px; text-align: center; color: #64748b; }
+    .error-box { color: #dc2626; }
 
-    .form-grid { display:grid; gap:12px; grid-template-columns:repeat(2, minmax(0,1fr)); }
-    .form-grid.grid-5 { grid-template-columns:repeat(5, minmax(0,1fr)); }
-    .form-grid.grid-4 { grid-template-columns:repeat(4, minmax(0,1fr)); }
-    .grid-full-width { grid-column:1 / -1; }
-
-    .form-group label { display:block; font-size:12px; opacity:.8; margin-bottom:6px; }
-    .form-group input, .form-group select, .form-group textarea {
-      width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; outline:none;
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px 20px;
     }
-    .input-with-unit { display:flex; align-items:center; gap:8px; }
-    .unit, .unit-prefix { opacity:.7; font-size:12px; white-space:nowrap; }
-    .form-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
-    .required::after { content:" *"; color:#d00; }
+    .detail-item .detail-label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .detail-item .detail-value { font-size: 14px; font-weight: 600; color: #111827; }
+    .highlight-value { color: #1d4ed8; font-size: 16px; }
+    .danger-value { color: #dc2626; }
+
+    .status-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+    .badge-정상 { background:#dcfce7; color:#15803d; }
+    .badge-연체 { background:#fee2e2; color:#dc2626; }
+    .badge-해지 { background:#ffedd5; color:#9a3412; }
+    .badge-상각 { background:#e5e7eb; color:#374151; }
+    .badge-종료 { background:#e0e7ff; color:#3730a3; }
+
+    .amount-cell { text-align: right; font-variant-numeric: tabular-nums; }
+    .sched-완납   { color: #15803d; font-weight: 600; }
+    .sched-부분수납 { color: #b45309; font-weight: 600; }
+    .sched-미납   { color: #dc2626; font-weight: 700; }
+    .sched-예정   { color: #6b7280; }
+
+    .notice {
+      margin-top: 8px; padding: 10px 12px; border-radius: 8px;
+      background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; font-size: 13px;
+    }
   </style>
 </head>
-
 <body>
 <div id="sidebar-container"></div>
 
 <div class="content-wrapper">
   <div class="page-header">
-    <h1>계약 상세</h1>
-    <p>계약관리 &gt; 계약등록 &gt; 상세보기</p>
+    <h1>채권 상세</h1>
+    <p>여신관리 &gt; 채권 상세</p>
   </div>
 
   <div id="loadingBox" class="loading-box">불러오는 중...</div>
   <div id="errorBox" class="error-box hidden"></div>
 
-  <!-- ✅ 상세 섹션 -->
   <div class="erp-card hidden" id="contractDetailSection">
     <div class="card-header">
-      <h2>계약 상세 정보</h2>
-      <div style="display:flex; gap:10px;">
-        <button type="button" class="btn btn-secondary" onclick="goBack()">목록으로</button>
-      </div>
-    </div>
-
-    <div class="card-body">
-      <!-- 계약 번호 -->
-      <div class="form-section">
-        <h3 class="section-title">계약 번호</h3>
-        <div class="detail-grid">
-          <div class="detail-item">
-            <label>계약번호</label>
-            <div class="detail-value" id="contractNumber">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 고객 정보 -->
-      <div class="form-section">
-        <h3 class="section-title">고객 정보</h3>
-        <div class="detail-grid grid-5">
-          <div class="detail-item">
-            <label>고객번호</label>
-            <div class="detail-value" id="customerNumber">-</div>
-          </div>
-          <div class="detail-item">
-            <label>고객명</label>
-            <div class="detail-value" id="customerName">-</div>
-          </div>
-          <div class="detail-item">
-            <label>고객연락처</label>
-            <div class="detail-value" id="customerPhone">-</div>
-          </div>
-          <div class="detail-item">
-            <label>주소</label>
-            <div class="detail-value" id="customerAddress">-</div>
-          </div>
-          <div class="detail-item">
-            <label>주민/사업자번호</label>
-            <div class="detail-value" id="customerRegistrationNumber">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 차량 정보 -->
-      <div class="form-section">
-        <h3 class="section-title">차량 정보</h3>
-        <div class="detail-grid grid-2">
-          <div class="detail-item">
-            <label>차량번호</label>
-            <div class="detail-value" id="vehicleNo">-</div>
-          </div>
-          <div class="detail-item">
-            <label>차종</label>
-            <div class="detail-value" id="vehicleModel">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 계약 정보 -->
-      <div class="form-section">
-        <h3 class="section-title">계약 정보</h3>
-        <div class="detail-grid grid-5">
-          <div class="detail-item">
-            <label>계약구분</label>
-            <div class="detail-value" id="contractType">-</div>
-          </div>
-          <div class="detail-item">
-            <label>계약유형</label>
-            <div class="detail-value" id="contractCategory">-</div>
-          </div>
-
-          <div class="detail-item">
-            <label>계약시작일</label>
-            <div class="detail-value" id="startDate">-</div>
-          </div>
-          <div class="detail-item">
-            <label>계약종료일</label>
-            <div class="detail-value" id="endDate">-</div>
-          </div>
-          <div class="detail-item">
-            <label>계약기간</label>
-            <div class="detail-value" id="contractPeriod">-</div>
-          </div>
-
-          <div class="detail-item">
-            <label>세금계산서발행일</label>
-            <div class="detail-value" id="taxInvoiceDay">-</div>
-          </div>
-          <div class="detail-item">
-            <label>납부일자</label>
-            <div class="detail-value" id="paymentDueDay">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 금액 -->
-      <div class="form-section">
-        <h3 class="section-title">금액 정보</h3>
-        <div class="detail-grid grid-5">
-          <div class="detail-item">
-            <label>선납금</label>
-            <div class="detail-value" id="advancePayment">-</div>
-          </div>
-          <div class="detail-item">
-            <label>월 렌트료</label>
-            <div class="detail-value" id="monthlyRent">-</div>
-          </div>
-          <div class="detail-item">
-            <label>청구일자</label>
-            <div class="detail-value" id="billingDay">-</div>
-          </div>
-          <div class="detail-item">
-            <label>청구횟수</label>
-            <div class="detail-value" id="billingCount">-</div>
-          </div>
-          <div class="detail-item">
-            <label>총 렌트료</label>
-            <div class="detail-value highlight-value" id="totalRent">-</div>
-          </div>
-
-          <div class="detail-item">
-            <label>보증금</label>
-            <div class="detail-value" id="deposit">-</div>
-          </div>
-          <div class="detail-item">
-            <label>만기옵션</label>
-            <div class="detail-value" id="maturityOption">-</div>
-          </div>
-          <div class="detail-item">
-            <label>잔존가액</label>
-            <div class="detail-value" id="residualValue">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 보험 -->
-      <div class="form-section">
-        <h3 class="section-title">보험 정보</h3>
-        <div class="detail-grid grid-4">
-          <div class="detail-item">
-            <label>자차보험</label>
-            <div class="detail-value" id="vehicleInsurance">-</div>
-          </div>
-          <div class="detail-item">
-            <label>보험가입연령</label>
-            <div class="detail-value" id="insuranceAge">-</div>
-          </div>
-          <div class="detail-item">
-            <label>자차한도</label>
-            <div class="detail-value" id="vehicleInsuranceLimit">-</div>
-          </div>
-          <div class="detail-item">
-            <label>자차면책금</label>
-            <div class="detail-value" id="vehicleDeductible">-</div>
-          </div>
-
-          <div class="detail-item">
-            <label>대물</label>
-            <div class="detail-value" id="propertyLiability">-</div>
-          </div>
-          <div class="detail-item">
-            <label>대물면책금(건당)</label>
-            <div class="detail-value" id="propertyDeductible">-</div>
-          </div>
-          <div class="detail-item">
-            <label>대인면책금(인당)</label>
-            <div class="detail-value" id="personalDeductible">-</div>
-          </div>
-          <div class="detail-item">
-            <label>자손면책금</label>
-            <div class="detail-value" id="passengerDeductible">-</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 비고 -->
-      <div class="form-section">
-        <h3 class="section-title">비고</h3>
-        <div class="detail-grid">
-          <div class="detail-item full-width">
-            <div class="detail-value" id="remarks">-</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="form-actions">
+      <h2>
+        <span id="headContractNumber">-</span>
+        <span class="status-badge badge-정상" id="headStatus" style="margin-left:8px;">정상</span>
+      </h2>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secondary" id="backBtn">목록</button>
         <button type="button" class="btn btn-primary" id="editContractBtn">수정하기</button>
       </div>
     </div>
-  </div>
-
-  <!-- ✅ 수정 섹션 -->
-  <div class="erp-card hidden" id="contractEditSection">
-    <div class="card-header">
-      <h2>계약 수정</h2>
-      <button type="button" class="btn btn-secondary" id="cancelEditBtn">취소</button>
-    </div>
 
     <div class="card-body">
-      <form id="contractEditForm">
 
-        <div class="form-section">
-          <h3 class="section-title">계약 번호</h3>
-          <div class="form-grid">
-            <div class="form-group">
-              <label>계약번호</label>
-              <input type="text" id="editContractNumber" disabled />
-              <small class="field-note">자동산출</small>
-            </div>
-          </div>
+      <div class="form-section">
+        <h3 class="section-title">고객 정보</h3>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">고객번호</div><div class="detail-value" id="customerNumber">-</div></div>
+          <div class="detail-item"><div class="detail-label">고객명</div><div class="detail-value" id="customerName">-</div></div>
+          <div class="detail-item"><div class="detail-label">고객구분</div><div class="detail-value" id="customerType">-</div></div>
+          <div class="detail-item"><div class="detail-label">연락처</div><div class="detail-value" id="customerPhone">-</div></div>
+          <div class="detail-item"><div class="detail-label">주소</div><div class="detail-value" id="customerAddress">-</div></div>
+          <div class="detail-item"><div class="detail-label">주민/사업자번호</div><div class="detail-value" id="customerRegistrationNumber">-</div></div>
         </div>
+      </div>
 
-        <div class="form-section">
-          <h3 class="section-title">고객 정보</h3>
-          <div class="form-grid grid-5">
-            <div class="form-group">
-              <label for="editCustomerNumber" class="required">고객번호</label>
-              <input type="text" id="editCustomerNumber" name="customerNumber" required />
-            </div>
-            <div class="form-group">
-              <label>고객명</label>
-              <input type="text" id="editCustomerName" disabled />
-            </div>
-            <div class="form-group">
-              <label>고객연락처</label>
-              <input type="text" id="editCustomerPhone" disabled />
-            </div>
-            <div class="form-group">
-              <label>주소</label>
-              <input type="text" id="editCustomerAddress" disabled />
-            </div>
-            <div class="form-group">
-              <label>주민/사업자번호</label>
-              <input type="text" id="editCustomerRegistrationNumber" disabled />
-            </div>
-          </div>
+      <div class="form-section">
+        <h3 class="section-title">여신 조건</h3>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">대출구분</div><div class="detail-value" id="loanType">-</div></div>
+          <div class="detail-item"><div class="detail-label">대출금</div><div class="detail-value highlight-value" id="loanAmount">-</div></div>
+          <div class="detail-item"><div class="detail-label">약정 이자율</div><div class="detail-value" id="interestRate">-</div></div>
+          <div class="detail-item"><div class="detail-label">연체이율</div><div class="detail-value" id="overdueRate">-</div></div>
+          <div class="detail-item"><div class="detail-label">연체이자 부과</div><div class="detail-value" id="overdueChargeYn">-</div></div>
+          <div class="detail-item"><div class="detail-label">상환방식</div><div class="detail-value" id="repaymentMethod">-</div></div>
         </div>
-
-        <div class="form-section">
-          <h3 class="section-title">차량 정보</h3>
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="editVehicleNo" class="required">차량번호</label>
-              <input type="text" id="editVehicleNo" name="vehicleNo" required />
-            </div>
-            <div class="form-group">
-              <label>차종</label>
-              <input type="text" id="editVehicleModel" disabled />
-            </div>
-          </div>
+        <div class="notice hidden" id="noChargeNotice">
+          이 채권은 <b>연체이자를 부과하지 않도록</b> 등록되어 있습니다. 연체가 발생해도 지연배상금이 산정되지 않습니다.
         </div>
+      </div>
 
-        <div class="form-section">
-          <h3 class="section-title">계약 정보</h3>
-          <div class="form-grid grid-5">
-            <div class="form-group">
-              <label for="editContractType" class="required">계약구분</label>
-              <select id="editContractType" name="contractType" required>
-                <option value="">선택</option>
-                <option value="장기">장기</option>
-                <option value="단기">단기</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="editContractCategory" class="required">계약유형</label>
-              <select id="editContractCategory" name="contractCategory" required>
-                <option value="">선택</option>
-                <option value="일반">일반</option>
-                <option value="정비">정비</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="editStartDate" class="required">계약시작일</label>
-              <input type="date" id="editStartDate" name="startDate" required />
-            </div>
-
-            <div class="form-group">
-              <label for="editEndDate" class="required">계약종료일</label>
-              <input type="date" id="editEndDate" name="endDate" required />
-            </div>
-
-            <div class="form-group">
-              <label>계약기간</label>
-              <input type="text" id="editContractPeriod" disabled />
-            </div>
-
-            <div class="form-group">
-              <label for="editTaxInvoiceDay">세금계산서발행일</label>
-              <div class="input-with-unit">
-                <input type="number" id="editTaxInvoiceDay" name="taxInvoiceDay" min="1" max="31" />
-                <span class="unit">일</span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="editPaymentDueDay">납부일자</label>
-              <select id="editPaymentDueDay" name="paymentDueDay">
-                <option value="">선택</option>
-                <option value="말일">말일</option>
-                <option value="25일">25일</option>
-                <option value="15일">15일</option>
-                <option value="10일">10일</option>
-                <option value="5일">5일</option>
-              </select>
-            </div>
-          </div>
+      <div class="form-section">
+        <h3 class="section-title">기간 · 상환</h3>
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-label">실행일</div><div class="detail-value" id="executeDate">-</div></div>
+          <div class="detail-item"><div class="detail-label">시작일자</div><div class="detail-value" id="startDate">-</div></div>
+          <div class="detail-item"><div class="detail-label">종료일자</div><div class="detail-value" id="endDate">-</div></div>
+          <div class="detail-item"><div class="detail-label">납입일자</div><div class="detail-value" id="paymentDay">-</div></div>
+          <div class="detail-item"><div class="detail-label">회차수</div><div class="detail-value" id="installmentCount">-</div></div>
+          <div class="detail-item"><div class="detail-label">월납입액</div><div class="detail-value" id="monthlyPayment">-</div></div>
+          <div class="detail-item"><div class="detail-label">잔여원금</div><div class="detail-value highlight-value" id="remainingPrincipal">-</div></div>
         </div>
+      </div>
 
-        <div class="form-section">
-          <h3 class="section-title">금액 정보</h3>
-          <div class="form-grid grid-5">
-            <div class="form-group">
-              <label for="editAdvancePayment">선납금</label>
-              <input type="text" id="editAdvancePayment" name="advancePayment" oninput="formatNumber(this)" />
-            </div>
-
-            <div class="form-group">
-              <label for="editMonthlyRent" class="required">월 렌트료</label>
-              <input type="text" id="editMonthlyRent" name="monthlyRent" oninput="formatNumber(this); calculateEditTotalRent();" required />
-            </div>
-
-            <div class="form-group">
-              <label for="editBillingDay">청구일자</label>
-              <div class="input-with-unit">
-                <span class="unit-prefix">매달</span>
-                <input type="number" id="editBillingDay" name="billingDay" min="1" max="31" />
-                <span class="unit">일</span>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="editBillingCount" class="required">청구횟수</label>
-              <input type="number" id="editBillingCount" name="billingCount" min="0" onchange="calculateEditTotalRent()" required />
-            </div>
-
-            <div class="form-group">
-              <label>총 렌트료</label>
-              <input type="text" id="editTotalRent" disabled class="highlight-field" />
-              <small class="field-note">월 렌트료 × 청구횟수</small>
-            </div>
-
-            <div class="form-group">
-              <label for="editDeposit">보증금</label>
-              <input type="text" id="editDeposit" name="deposit" oninput="formatNumber(this)" />
-            </div>
-
-            <div class="form-group">
-              <label for="editMaturityOption">만기옵션</label>
-              <select id="editMaturityOption" name="maturityOption">
-                <option value="">선택</option>
-                <option value="반납">반납</option>
-                <option value="반납및재렌트">반납 및 재렌트</option>
-                <option value="인수">인수</option>
-                <option value="인수및재렌트">인수 및 재렌트</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="editResidualValue">잔존가액</label>
-              <input type="text" id="editResidualValue" name="residualValue" oninput="formatNumber(this)" />
-            </div>
-          </div>
+      <div class="form-section">
+        <h3 class="section-title">상환스케줄</h3>
+        <div class="table-container" style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>회차</th>
+                <th>납입예정일</th>
+                <th class="amount-cell">납입액</th>
+                <th class="amount-cell">원금</th>
+                <th class="amount-cell">이자</th>
+                <th class="amount-cell">잔여원금</th>
+                <th class="amount-cell">수납</th>
+                <th class="amount-cell">미납</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleBody">
+              <tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">불러오는 중...</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="2">합계</th>
+                <th class="amount-cell" id="sumPay">-</th>
+                <th class="amount-cell" id="sumPrincipal">-</th>
+                <th class="amount-cell" id="sumInterest">-</th>
+                <th></th>
+                <th class="amount-cell" id="sumPaid">-</th>
+                <th class="amount-cell" id="sumUnpaid">-</th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
         </div>
+      </div>
 
-        <div class="form-section">
-          <h3 class="section-title">보험 정보</h3>
-          <div class="form-grid grid-4">
+      <div class="form-section">
+        <h3 class="section-title">비고</h3>
+        <div class="detail-value" id="remarks">-</div>
+      </div>
 
-            <div class="form-group">
-              <label>자차보험</label>
-              <div class="btn-toggle-group">
-                <button type="button" class="btn-toggle" data-val="가입" onclick="selectToggle(this,'editVehicleInsurance','가입')">가입</button>
-                <button type="button" class="btn-toggle" data-val="미가입" onclick="selectToggle(this,'editVehicleInsurance','미가입')">미가입</button>
-              </div>
-              <input type="hidden" id="editVehicleInsurance" name="vehicleInsurance" value="가입" />
-            </div>
-
-            <div class="form-group">
-              <label for="editInsuranceAge">보험가입연령</label>
-              <select id="editInsuranceAge" name="insuranceAge">
-                <option value="">선택</option>
-                <option value="만21세">만21세</option>
-                <option value="만24세">만24세</option>
-                <option value="만26세">만26세</option>
-                <option value="만30세">만30세</option>
-                <option value="만35세">만35세</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="editVehicleInsuranceLimit">자차한도</label>
-              <input type="text" id="editVehicleInsuranceLimit" name="vehicleInsuranceLimit" />
-            </div>
-
-            <div class="form-group">
-              <label for="editVehicleDeductible">자차면책금</label>
-              <input type="text" id="editVehicleDeductible" name="vehicleDeductible" />
-            </div>
-
-            <div class="form-group">
-              <label for="editPropertyLiability">대물</label>
-              <input type="text" id="editPropertyLiability" name="propertyLiability" />
-            </div>
-
-            <div class="form-group">
-              <label for="editPropertyDeductible">대물면책금(건당)</label>
-              <input type="text" id="editPropertyDeductible" name="propertyDeductible" />
-            </div>
-
-            <div class="form-group">
-              <label for="editPersonalDeductible">대인면책금(인당)</label>
-              <input type="text" id="editPersonalDeductible" name="personalDeductible" />
-            </div>
-
-            <div class="form-group">
-              <label for="editPassengerDeductible">자손면책금</label>
-              <input type="text" id="editPassengerDeductible" name="passengerDeductible" />
-            </div>
-
-          </div>
-        </div>
-
-        <div class="form-section">
-          <h3 class="section-title">비고</h3>
-          <div class="form-grid">
-            <div class="form-group grid-full-width">
-              <textarea id="editRemarks" name="remarks" rows="4"></textarea>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick="resetEditForm()">초기화</button>
-          <button type="submit" class="btn btn-primary">수정 완료</button>
-        </div>
-
-      </form>
     </div>
   </div>
-
 </div>
 
 <script src="../../assets/js/sidebar.js"></script>
 <script src="../../assets/js/config.js"></script>
-
+<script src="../../assets/js/html-escape.js"></script>
 <script>
-  // -----------------------------
-  // 유틸
-  // -----------------------------
+  const API = API_BASE_URL.replace(/\/$/, '');
+  const esc = typeof escHtml === 'function' ? escHtml : s => String(s ?? '');
   const $ = (id) => document.getElementById(id);
 
-  function showLoading(on) { $("loadingBox").classList.toggle("hidden", !on); }
-  function showError(msg) {
-    const box = $("errorBox");
-    box.textContent = msg || "오류가 발생했습니다.";
-    box.classList.remove("hidden");
-  }
-  function hideError() {
-    $("errorBox").classList.add("hidden");
-    $("errorBox").textContent = "";
-  }
+  const money = (v) => (v == null ? '-' : Number(v).toLocaleString() + '원');
+  const rate  = (v) => (v == null ? '-' : Number(v) + '%');
+  const txt   = (v) => (v == null || v === '' ? '-' : String(v));
 
-  function toInt(v) {
-    if (v === null || v === undefined) return null;
-    const n = parseInt(String(v).replace(/[^0-9-]/g, ""), 10);
-    return Number.isFinite(n) ? n : null;
-  }
-  function toMoneyText(v) {
-    const n = toInt(v);
-    return (n === null ? "-" : n.toLocaleString() + "원");
-  }
-  function setText(id, v, fallback="-") {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = (v === null || v === undefined || v === "") ? fallback : v;
+  let contractId = null;
+
+  function param(name) {
+    return new URLSearchParams(window.location.search).get(name);
   }
 
-  function calcPeriodText(startDate, endDate) {
-    if (!startDate || !endDate) return "-";
-    const s = new Date(startDate);
-    const e = new Date(endDate);
-    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "-";
-    let months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth());
-    if (months < 0) months = 0;
-    const diffDays = Math.max(0, Math.ceil((e - s) / (1000*60*60*24)));
-    return `${months}개월 ${diffDays}일`;
+  async function getJson(path) {
+    const res = await fetch(API + path, { credentials: 'include' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
   }
 
-  function formatNumber(input) {
-    let value = input.value.replace(/[^0-9]/g, "");
-    input.value = value ? parseInt(value, 10).toLocaleString() : "";
+  function fillContract(c) {
+    contractId = c.id;
+
+    $('headContractNumber').textContent = txt(c.contractNumber);
+    const st = c.status || '정상';
+    const badge = $('headStatus');
+    badge.textContent = st;
+    badge.className = 'status-badge badge-' + st;
+
+    $('customerNumber').textContent = txt(c.customerNumber);
+    $('customerName').textContent = txt(c.customerName);
+    $('customerType').textContent = txt(c.customerType);
+    $('customerPhone').textContent = txt(c.customerPhone);
+    $('customerAddress').textContent = txt(c.customerAddress);
+    $('customerRegistrationNumber').textContent = txt(c.customerRegistrationNumber);
+
+    $('loanType').textContent = txt(c.loanType);
+    $('loanAmount').textContent = money(c.loanAmount);
+    $('interestRate').textContent = rate(c.interestRate);
+    $('overdueRate').textContent = rate(c.overdueRate);
+    $('repaymentMethod').textContent = txt(c.repaymentMethod);
+
+    const charged = c.overdueChargeYn !== false;
+    $('overdueChargeYn').textContent = charged ? '부과' : '부과하지 않음';
+    $('overdueChargeYn').className = 'detail-value' + (charged ? '' : ' danger-value');
+    $('noChargeNotice').classList.toggle('hidden', charged);
+
+    $('executeDate').textContent = txt(c.executeDate);
+    $('startDate').textContent = txt(c.startDate);
+    $('endDate').textContent = txt(c.endDate);
+    $('paymentDay').textContent = c.paymentDay != null ? c.paymentDay + '일' : '-';
+    $('installmentCount').textContent = c.installmentCount != null ? c.installmentCount + '회' : '-';
+    $('monthlyPayment').textContent = money(c.monthlyPayment);
+    $('remainingPrincipal').textContent = money(c.remainingPrincipal);
+    $('remarks').textContent = txt(c.remarks);
   }
 
-  function selectToggle(btn, inputId, value) {
-    const group = btn.closest(".btn-toggle-group");
-    if (group) group.querySelectorAll(".btn-toggle").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    $(inputId).value = value;
+  function fillSchedule(rows) {
+    const tbody = $('scheduleBody');
+    if (!rows || !rows.length) {
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#64748b;padding:16px;">상환스케줄이 없습니다.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => {
+      const st = r.status || '예정';
+      return `
+      <tr>
+        <td>${txt(r.no)}</td>
+        <td>${txt(r.payDate)}</td>
+        <td class="amount-cell">${money(r.rent)}</td>
+        <td class="amount-cell">${money(r.principal)}</td>
+        <td class="amount-cell">${money(r.interest)}</td>
+        <td class="amount-cell">${money(r.balance)}</td>
+        <td class="amount-cell">${money(r.paid)}</td>
+        <td class="amount-cell">${money(r.unpaid)}</td>
+        <td class="sched-${esc(st)}">${esc(st)}</td>
+      </tr>`;
+    }).join('');
+
+    const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0);
+    $('sumPay').textContent = money(sum('rent'));
+    $('sumPrincipal').textContent = money(sum('principal'));
+    $('sumInterest').textContent = money(sum('interest'));
+    $('sumPaid').textContent = money(sum('paid'));
+    $('sumUnpaid').textContent = money(sum('unpaid'));
   }
 
-  // -----------------------------
-  // API
-  // -----------------------------
-  const BASE = (typeof API_BASE_URL !== "undefined" && API_BASE_URL)
-    ? String(API_BASE_URL).replace(/\/$/, "")
-    : "";
+  async function load() {
+    const key = param('id');
+    if (!key) {
+      $('loadingBox').classList.add('hidden');
+      $('errorBox').textContent = '채권번호가 지정되지 않았습니다.';
+      $('errorBox').classList.remove('hidden');
+      return;
+    }
 
-  async function apiFetch(path, opts = {}) {
-    if (!BASE) throw new Error("API_BASE_URL이 설정되지 않았습니다. ../../assets/js/config.js 확인하세요.");
+    try {
+      // 숫자면 내부 ID, 아니면 채권번호로 조회한다.
+      const path = /^\d+$/.test(key)
+        ? '/api/contracts/' + key + '/full'
+        : '/api/contracts/by-number/' + encodeURIComponent(key) + '/full';
 
-    const res = await fetch(BASE + path, {
-      headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
-      ...opts
-    });
+      const c = await getJson(path);
+      fillContract(c);
 
-    if (!res.ok) {
-      let msg = `HTTP ${res.status}`;
+      $('loadingBox').classList.add('hidden');
+      $('contractDetailSection').classList.remove('hidden');
+
       try {
-        const t = await res.text();
-        if (t) msg += ` - ${t}`;
-      } catch {}
-      throw new Error(msg);
-    }
-
-    const text = await res.text();
-    return text ? JSON.parse(text) : null;
-  }
-
-  // -----------------------------
-  // 파라미터 해석
-  // -----------------------------
-  const urlParams = new URLSearchParams(window.location.search);
-
-  // ✅ 네가 지금 쓰는 방식: ?id=R00001002 도 지원
-  const rawId = urlParams.get("id") || "";
-  const isNumericId = /^\d+$/.test(rawId);
-
-  // 계약번호는 ?contractNumber= 우선, 없으면 ?id=R... 를 계약번호로 취급
-  const contractNumber = urlParams.get("contractNumber") || (!isNumericId && rawId ? rawId : null);
-  const contractId = isNumericId ? rawId : null; // 숫자일 때만 PK로 사용
-
-  let contractData = null; // full 응답 저장 (여기에 id(PK) 있음)
-
-  // -----------------------------
-  // 렌더링
-  // -----------------------------
-  function renderDetail(data) {
-    $("contractDetailSection").classList.remove("hidden");
-
-    setText("contractNumber", data.contractNumber);
-
-    setText("customerNumber", data.customerNumber);
-    setText("customerName", data.customerName);
-    setText("customerPhone", data.customerPhone);
-    setText("customerAddress", data.customerAddress);
-    setText("customerRegistrationNumber", data.customerRegistrationNumber);
-
-    setText("vehicleNo", data.vehicleNo);
-    setText("vehicleModel", data.vehicleModel);
-
-    setText("contractType", data.contractType);
-    setText("contractCategory", data.contractCategory);
-
-    // 날짜: LocalDate는 JSON에서 "YYYY-MM-DD"
-    setText("startDate", data.startDate);
-    setText("endDate", data.endDate);
-    setText("contractPeriod", calcPeriodText(data.startDate, data.endDate));
-
-    setText("taxInvoiceDay", (data.taxInvoiceDay != null ? (data.taxInvoiceDay + "일") : "-"));
-    setText("paymentDueDay", data.paymentDueDay);
-
-    setText("advancePayment", toMoneyText(data.advancePayment));
-    setText("monthlyRent", toMoneyText(data.monthlyRent));
-    setText("billingDay", (data.billingDay != null ? ("매달 " + data.billingDay + "일") : "-"));
-    setText("billingCount", (data.billingCount != null ? (data.billingCount + "회") : "-"));
-    setText("totalRent", toMoneyText(data.totalRent));
-
-    setText("deposit", toMoneyText(data.deposit));
-    setText("maturityOption", data.maturityOption);
-    setText("residualValue", toMoneyText(data.residualValue));
-
-    setText("vehicleInsurance", data.vehicleInsurance);
-    setText("insuranceAge", data.insuranceAge);
-    setText("vehicleInsuranceLimit", data.vehicleInsuranceLimit);
-    setText("vehicleDeductible", data.vehicleDeductible);
-
-    setText("propertyLiability", data.propertyLiability);
-    setText("propertyDeductible", data.propertyDeductible);
-    setText("personalDeductible", data.personalDeductible);
-    setText("passengerDeductible", data.passengerDeductible);
-
-    setText("remarks", data.remarks, "-");
-  }
-
-  function fillEditForm(data) {
-    $("editContractNumber").value = data.contractNumber || "";
-
-    $("editCustomerNumber").value = data.customerNumber || "";
-    $("editCustomerName").value = data.customerName || "";
-    $("editCustomerPhone").value = data.customerPhone || "";
-    $("editCustomerAddress").value = data.customerAddress || "";
-    $("editCustomerRegistrationNumber").value = data.customerRegistrationNumber || "";
-
-    $("editVehicleNo").value = data.vehicleNo || "";
-    $("editVehicleModel").value = data.vehicleModel || "";
-
-    $("editContractType").value = data.contractType || "";
-    $("editContractCategory").value = data.contractCategory || "";
-
-    $("editStartDate").value = data.startDate || "";
-    $("editEndDate").value = data.endDate || "";
-    $("editContractPeriod").value = calcPeriodText(data.startDate, data.endDate);
-
-    $("editTaxInvoiceDay").value = (data.taxInvoiceDay ?? "");
-    $("editPaymentDueDay").value = (data.paymentDueDay ?? "");
-
-    $("editAdvancePayment").value = (toInt(data.advancePayment) ?? 0).toLocaleString();
-    $("editMonthlyRent").value = (toInt(data.monthlyRent) ?? 0).toLocaleString();
-    $("editBillingDay").value = (data.billingDay ?? "");
-    $("editBillingCount").value = (data.billingCount ?? 0);
-    $("editTotalRent").value = toMoneyText(data.totalRent);
-
-    $("editDeposit").value = (toInt(data.deposit) ?? 0).toLocaleString();
-    $("editMaturityOption").value = (data.maturityOption ?? "");
-    $("editResidualValue").value = (toInt(data.residualValue) ?? 0).toLocaleString();
-
-    $("editVehicleInsurance").value = (data.vehicleInsurance ?? "가입");
-    $("editInsuranceAge").value = (data.insuranceAge ?? "");
-    $("editVehicleInsuranceLimit").value = (data.vehicleInsuranceLimit ?? "");
-    $("editVehicleDeductible").value = (data.vehicleDeductible ?? "");
-    $("editPropertyLiability").value = (data.propertyLiability ?? "");
-    $("editPropertyDeductible").value = (data.propertyDeductible ?? "");
-    $("editPersonalDeductible").value = (data.personalDeductible ?? "");
-    $("editPassengerDeductible").value = (data.passengerDeductible ?? "");
-
-    $("editRemarks").value = (data.remarks ?? "");
-
-    // 토글 active
-    const toggles = document.querySelectorAll("#contractEditSection .btn-toggle-group .btn-toggle");
-    toggles.forEach(b => b.classList.remove("active"));
-    const cur = $("editVehicleInsurance").value || "가입";
-    const target = Array.from(toggles).find(b => b.dataset.val === cur);
-    if (target) target.classList.add("active");
-
-    calculateEditTotalRent();
-  }
-
-  function calculateEditTotalRent() {
-    const monthlyRent = toInt($("editMonthlyRent").value) || 0;
-    const billingCount = toInt($("editBillingCount").value) || 0;
-    const total = monthlyRent * billingCount;
-    $("editTotalRent").value = total.toLocaleString() + "원";
-  }
-
-  function calculateEditContractPeriod() {
-    const s = $("editStartDate").value;
-    const e = $("editEndDate").value;
-    $("editContractPeriod").value = calcPeriodText(s, e);
-
-    // 개월을 billingCount에 자동 세팅 (싫으면 지워)
-    if (s && e) {
-      const sd = new Date(s);
-      const ed = new Date(e);
-      if (!isNaN(sd.getTime()) && !isNaN(ed.getTime())) {
-        let months = (ed.getFullYear() - sd.getFullYear()) * 12 + (ed.getMonth() - sd.getMonth());
-        if (ed.getDate() >= sd.getDate()) months += 1;
-        if (months < 0) months = 0;
-        $("editBillingCount").value = months;
-        calculateEditTotalRent();
+        const sch = await getJson('/api/schedules/by-contract-number?contractNumber=' + encodeURIComponent(c.contractNumber));
+        fillSchedule(sch.schedule);
+      } catch (e) {
+        $('scheduleBody').innerHTML =
+          `<tr><td colspan="9" style="text-align:center;color:#dc2626;padding:16px;">상환스케줄 조회 실패: ${esc(e.message)}</td></tr>`;
       }
+    } catch (e) {
+      $('loadingBox').classList.add('hidden');
+      $('errorBox').textContent = '채권 조회 실패: ' + e.message;
+      $('errorBox').classList.remove('hidden');
     }
   }
 
-  // -----------------------------
-  // 섹션 토글
-  // -----------------------------
-  const contractDetailSection = $("contractDetailSection");
-  const contractEditSection = $("contractEditSection");
-
-  $("editContractBtn").addEventListener("click", () => {
-    fillEditForm(contractData || {});
-    contractDetailSection.classList.add("hidden");
-    contractEditSection.classList.remove("hidden");
+  $('editContractBtn').addEventListener('click', () => {
+    if (!contractId) return;
+    window.location.href = 'contract_register.html?edit=' + contractId;
+  });
+  $('backBtn').addEventListener('click', () => {
+    window.location.href = '../management/contract_status.html';
   });
 
-  $("cancelEditBtn").addEventListener("click", () => {
-    if (confirm("수정을 취소하시겠습니까?")) {
-      contractEditSection.classList.add("hidden");
-      contractDetailSection.classList.remove("hidden");
-    }
-  });
-
-  $("editStartDate").addEventListener("change", calculateEditContractPeriod);
-  $("editEndDate").addEventListener("change", calculateEditContractPeriod);
-
-  function resetEditForm() {
-    if (!contractData) return;
-    if (confirm("모든 입력 내용을 초기화하시겠습니까?")) fillEditForm(contractData);
-  }
-
-  function goBack() {
-    window.location.href = "/pages/management/contract_status.html";
-  }
-
-  // -----------------------------
-  // 조회: id(숫자) 또는 contractNumber(문자)
-  // -----------------------------
-  async function fetchContractFull() {
-    if (contractNumber) {
-      return await apiFetch(`/api/contracts/by-number/${encodeURIComponent(contractNumber)}/full`, { method: "GET" });
-    }
-    if (contractId) {
-      return await apiFetch(`/api/contracts/${contractId}/full`, { method: "GET" });
-    }
-    throw new Error("URL 파라미터가 없습니다. 예) ?id=1 또는 ?id=R00001002 또는 ?contractNumber=R00001002");
-  }
-
-  // -----------------------------
-  // 저장(PUT): PK id로만
-  // -----------------------------
-  $("contractEditForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    hideError();
-
-    if (!confirm("수정하시겠습니까?")) return;
-
-    // ✅ ContractRequest에 맞춰 payload 작성 (네 서비스 update 로직 기준)
-    const payload = {
-      customerNumber: $("editCustomerNumber").value.trim(),
-      vehicleNo: $("editVehicleNo").value.trim(),
-
-      contractType: $("editContractType").value,
-      contractCategory: $("editContractCategory").value,
-
-      startDate: $("editStartDate").value,
-      endDate: $("editEndDate").value,
-
-      taxInvoiceDay: toInt($("editTaxInvoiceDay").value),
-      paymentDueDay: $("editPaymentDueDay").value || null,
-
-      advancePayment: toInt($("editAdvancePayment").value) || 0,
-      monthlyRent: toInt($("editMonthlyRent").value) || 0,
-      billingDay: toInt($("editBillingDay").value),
-      billingCount: toInt($("editBillingCount").value) || 0,
-
-      // 서버에서 totalRent 없으면 monthlyRent*billingCount로 계산해주지만,
-      // 프론트에서도 보내도 됨
-      totalRent: toInt($("editTotalRent").value),
-
-      deposit: toInt($("editDeposit").value) || 0,
-      maturityOption: $("editMaturityOption").value || null,
-      residualValue: toInt($("editResidualValue").value) || 0,
-
-      vehicleInsurance: $("editVehicleInsurance").value || null,
-      insuranceAge: $("editInsuranceAge").value || null,
-      vehicleInsuranceLimit: $("editVehicleInsuranceLimit").value || null,
-      vehicleDeductible: $("editVehicleDeductible").value || null,
-
-      propertyLiability: $("editPropertyLiability").value || null,
-      propertyDeductible: $("editPropertyDeductible").value || null,
-      personalDeductible: $("editPersonalDeductible").value || null,
-      passengerDeductible: $("editPassengerDeductible").value || null,
-
-      remarks: $("editRemarks").value || null
-    };
-
-    try {
-      showLoading(true);
-
-      // ✅ PK(id) 확보 (full 응답에 id 있음)
-      const pk = contractData && contractData.id ? String(contractData.id) : "";
-      if (!/^\d+$/.test(pk)) throw new Error("저장 불가: contractData.id(PK)가 없습니다. full 응답에 id 포함되어야 합니다.");
-
-      await apiFetch(`/api/contracts/${pk}`, {
-        method: "PUT",
-        body: JSON.stringify(payload)
-      });
-
-      // 저장 후 재조회
-      contractData = await fetchContractFull();
-      renderDetail(contractData);
-
-      contractEditSection.classList.add("hidden");
-      contractDetailSection.classList.remove("hidden");
-
-      alert("수정했습니다");
-    } catch (err) {
-      console.error(err);
-      showError(String(err.message || err));
-    } finally {
-      showLoading(false);
-    }
-  });
-
-  // -----------------------------
-  // 최초 로드
-  // -----------------------------
-  (async function init() {
-    hideError();
-
-    try {
-      showLoading(true);
-
-      contractData = await fetchContractFull();
-      renderDetail(contractData);
-
-      $("contractDetailSection").classList.remove("hidden");
-    } catch (err) {
-      console.error(err);
-      showError(String(err.message || err));
-    } finally {
-      showLoading(false);
-    }
-  })();
+  load();
 </script>
 </body>
 </html>

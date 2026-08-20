@@ -637,8 +637,16 @@
     });
 
     loadSidebar();
-    loadContracts().catch(err => alert(err.message));
     validateRates();
+
+    // 채권 상세에서 "수정하기"로 넘어온 경우 바로 수정 폼을 연다.
+    (async () => {
+      try {
+        await loadContracts();
+        const editId = new URLSearchParams(window.location.search).get("edit");
+        if (editId) await editContract(editId);
+      } catch (err) { alert(err.message); }
+    })();
   </script>
 </body>
 </html>

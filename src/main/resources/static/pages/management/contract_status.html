@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>계약현황 | JDEND ERP</title>
+  <title>채권현황 | JDEND ERP</title>
   <link rel="stylesheet" href="../../assets/css/sidebar.css" />
   <link rel="stylesheet" href="../../assets/css/pages.css" />
   <link rel="stylesheet" href="../../assets/css/management/contract_status.css" />
@@ -13,6 +13,7 @@
       gap: 4px;
       margin-bottom: 16px;
       border-bottom: 2px solid #e5e7eb;
+      flex-wrap: wrap;
     }
     .tab-btn {
       padding: 10px 22px;
@@ -27,12 +28,9 @@
       border-radius: 6px 6px 0 0;
       transition: color .15s;
     }
-    .tab-btn.active {
-      color: #2563eb;
-      border-bottom-color: #2563eb;
-      background: #eff6ff;
-    }
+    .tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
     .tab-btn:hover:not(.active) { color: #374151; background: #f3f4f6; }
+    .tab-count { margin-left: 6px; font-size: 12px; opacity: .75; }
 
     .status-badge {
       display: inline-block;
@@ -41,16 +39,28 @@
       font-size: 12px;
       font-weight: 700;
     }
-    .badge-정상  { background: #dcfce7; color: #15803d; }
-    .badge-연체  { background: #fee2e2; color: #dc2626; }
-    .badge-종료  { background: #f3f4f6; color: #6b7280; }
+    .badge-정상 { background: #dcfce7; color: #15803d; }
+    .badge-연체 { background: #fee2e2; color: #dc2626; }
+    .badge-해지 { background: #ffedd5; color: #9a3412; }
+    .badge-상각 { background: #e5e7eb; color: #374151; }
+    .badge-종료 { background: #e0e7ff; color: #3730a3; }
 
-    .amount-cell   { text-align: right; font-variant-numeric: tabular-nums; }
+    .amount-cell     { text-align: right; font-variant-numeric: tabular-nums; }
     .receivable-cell { text-align: right; color: #dc2626; font-variant-numeric: tabular-nums; }
-    .advance-cell  { text-align: right; color: #2563eb; font-variant-numeric: tabular-nums; }
-    .deposit-cell  { text-align: right; color: #7c3aed; font-variant-numeric: tabular-nums; }
-    .clickable-row { cursor: pointer; }
+    .principal-cell  { text-align: right; color: #1d4ed8; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .rate-cell       { text-align: right; font-variant-numeric: tabular-nums; }
+    .clickable-row   { cursor: pointer; }
     .clickable-row:hover td { background: #f8fafc; }
+
+    .summary-bar {
+      display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+    }
+    .summary-item {
+      flex: 1; min-width: 150px; padding: 12px 14px;
+      border: 1px solid #e5e7eb; border-radius: 8px; background: #fff;
+    }
+    .summary-item .label { font-size: 12px; color: #64748b; }
+    .summary-item .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -58,44 +68,52 @@
 
 <div class="content-wrapper">
   <div class="page-header">
-    <h1>계약현황</h1>
-    <p>총괄관리 &gt; 계약현황</p>
+    <h1>채권현황</h1>
+    <p>채권관리 &gt; 채권현황</p>
   </div>
 
   <div class="erp-card">
     <div class="card-body">
 
-      <!-- 탭 -->
+      <!-- 상태별 탭 -->
       <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab('all',this)">계약현황</button>
-        <button class="tab-btn" onclick="switchTab('receivable',this)">미수금</button>
-        <button class="tab-btn" onclick="switchTab('advance',this)">선수금</button>
-        <button class="tab-btn" onclick="switchTab('deposit',this)">보증금</button>
+        <button class="tab-btn active" onclick="switchTab('all',this)">전체<span class="tab-count" id="cnt-all"></span></button>
+        <button class="tab-btn" onclick="switchTab('정상',this)">정상<span class="tab-count" id="cnt-정상"></span></button>
+        <button class="tab-btn" onclick="switchTab('연체',this)">연체<span class="tab-count" id="cnt-연체"></span></button>
+        <button class="tab-btn" onclick="switchTab('해지',this)">해지<span class="tab-count" id="cnt-해지"></span></button>
+        <button class="tab-btn" onclick="switchTab('상각',this)">상각<span class="tab-count" id="cnt-상각"></span></button>
+        <button class="tab-btn" onclick="switchTab('종료',this)">종료<span class="tab-count" id="cnt-종료"></span></button>
+      </div>
+
+      <div class="summary-bar">
+        <div class="summary-item">
+          <div class="label">채권 건수</div>
+          <div class="value" id="sumCount">0건</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">대출금 합계</div>
+          <div class="value" id="sumLoan">0원</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">잔여원금 합계</div>
+          <div class="value" id="sumPrincipal" style="color:#1d4ed8;">0원</div>
+        </div>
+        <div class="summary-item">
+          <div class="label">미수 합계</div>
+          <div class="value" id="sumReceivable" style="color:#dc2626;">0원</div>
+        </div>
       </div>
 
       <!-- 검색 -->
       <div class="search-section">
         <div class="search-grid">
           <div class="form-group">
-            <label for="searchContractNumber">계약번호</label>
-            <input type="text" id="searchContractNumber" placeholder="계약번호 검색" />
+            <label for="searchContractNumber">채권번호</label>
+            <input type="text" id="searchContractNumber" placeholder="채권번호 검색" />
           </div>
           <div class="form-group">
-            <label for="searchCustomer">거래처명</label>
-            <input type="text" id="searchCustomer" placeholder="거래처명 검색" />
-          </div>
-          <div class="form-group">
-            <label for="searchVehicle">차량번호</label>
-            <input type="text" id="searchVehicle" placeholder="차량번호 검색" />
-          </div>
-          <div class="form-group">
-            <label for="searchContractStatus">계약상태</label>
-            <select id="searchContractStatus">
-              <option value="">전체</option>
-              <option value="정상">정상</option>
-              <option value="연체">연체</option>
-              <option value="종료">종료</option>
-            </select>
+            <label for="searchCustomer">고객명</label>
+            <input type="text" id="searchCustomer" placeholder="고객명 검색" />
           </div>
           <div class="form-group">
             <label>&nbsp;</label>
@@ -103,7 +121,7 @@
           </div>
           <div class="form-group">
             <label>&nbsp;</label>
-            <button type="button" class="btn-excel" onclick="exportTableToExcel('contractTableBody', '계약현황')">엑셀 내보내기</button>
+            <button type="button" class="btn-excel" onclick="exportTableToExcel('contractTableBody', '채권현황')">엑셀 내보내기</button>
           </div>
         </div>
       </div>
@@ -124,119 +142,106 @@
 <script src="../../assets/js/config.js"></script>
 <script src="../../assets/js/html-escape.js"></script>
 <script>
+  /**
+   * 채권상태 5종.
+   * 해지/상각/종료는 기한이익상실·대손상각·완제 이벤트로 서버에 저장된 값이고,
+   * 정상/연체는 서버가 미납 스케줄로 조회 시점에 판정해 내려준다(D+1 기준).
+   */
+  const STATUSES = ['정상', '연체', '해지', '상각', '종료'];
+
   let currentTab = 'all';
   let allData = [];
 
+  const esc = typeof escHtml === 'function' ? escHtml : s => String(s ?? '');
+
   function fmtAmt(v) {
-    if (v == null) return "-";
+    if (v == null) return '-';
     const n = Number(v);
-    return Number.isFinite(n) ? n.toLocaleString() : "-";
+    return Number.isFinite(n) ? n.toLocaleString() : '-';
   }
-  function fmtDate(v) { return v ? String(v) : "-"; }
+  function fmtRate(v) { return v == null ? '-' : Number(v) + '%'; }
+  function fmtDate(v) { return v ? String(v) : '-'; }
+
+  const HEADERS = ['채권번호', '상태', '고객명', '대출구분', '시작일자', '종료일자',
+                   '대출금', '이자율', '월납입액', '잔여원금', '미수'];
 
   function switchTab(tab, btn) {
     currentTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    renderRows(allData);
+    render();
   }
 
-  function buildHead() {
-    const heads = {
-      all: ['차량번호','계약번호','계약상태','거래처명','계약시작일','계약종료일','월렌트료','총렌트료','미수금','선수금','보증금','차종'],
-      receivable: ['차량번호','계약번호','계약상태','거래처명','계약시작일','계약종료일','월렌트료','미수금'],
-      advance:    ['차량번호','계약번호','계약상태','거래처명','계약시작일','계약종료일','월렌트료','선수금'],
-      deposit:    ['차량번호','계약번호','계약상태','거래처명','계약시작일','계약종료일','보증금'],
-    };
-    const cols = heads[currentTab] || heads.all;
+  function visibleRows() {
+    return currentTab === 'all' ? allData : allData.filter(r => (r.contractStatus || '정상') === currentTab);
+  }
+
+  function updateCounts() {
+    document.getElementById('cnt-all').textContent = ' ' + allData.length;
+    for (const s of STATUSES) {
+      const n = allData.filter(r => (r.contractStatus || '정상') === s).length;
+      document.getElementById('cnt-' + s).textContent = ' ' + n;
+    }
+  }
+
+  function updateSummary(rows) {
+    const sum = (key) => rows.reduce((a, r) => a + (Number(r[key]) || 0), 0);
+    document.getElementById('sumCount').textContent = rows.length.toLocaleString() + '건';
+    document.getElementById('sumLoan').textContent = fmtAmt(sum('loanAmount')) + '원';
+    document.getElementById('sumPrincipal').textContent = fmtAmt(sum('remainingPrincipal')) + '원';
+    document.getElementById('sumReceivable').textContent = fmtAmt(sum('receivable')) + '원';
+  }
+
+  function render() {
     document.getElementById('tableHead').innerHTML =
-      '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr>';
-  }
+      '<tr>' + HEADERS.map(c => `<th>${c}</th>`).join('') + '</tr>';
 
-  function renderRows(list) {
-    buildHead();
+    const rows = visibleRows();
     const tbody = document.getElementById('contractTableBody');
 
-    let filtered = list;
-    if (currentTab === 'receivable') filtered = list.filter(r => r.receivable > 0);
-    if (currentTab === 'advance')    filtered = list.filter(r => r.advance > 0);
-    if (currentTab === 'deposit')    filtered = list.filter(r => r.deposit > 0);
+    updateCounts();
+    updateSummary(rows);
 
-    if (!filtered.length) {
-      const cols = { all: 12, receivable: 8, advance: 8, deposit: 7 };
-      tbody.innerHTML = `<tr><td colspan="${cols[currentTab]||12}" class="no-data">
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="${HEADERS.length}" class="no-data">
         <div class="no-data-icon">📋</div><div>검색 결과가 없습니다.</div></td></tr>`;
       return;
     }
 
-    const badge = s => `<span class="status-badge badge-${s||'정상'}">${s||'정상'}</span>`;
-    const esc = typeof escHtml === 'function' ? escHtml : s => String(s ?? '');
-
-    const rowMap = {
-      all: r => `
-        <td>${esc(r.vehicleNumber||'-')}</td>
-        <td>${esc(r.contractNumber||'-')}</td>
-        <td>${badge(r.contractStatus)}</td>
-        <td>${esc(r.customerName||'-')}</td>
+    tbody.innerHTML = rows.map(r => {
+      const st = r.contractStatus || '정상';
+      return `
+      <tr class="clickable-row" onclick="viewContractDetail('${esc(r.contractNumber || '')}')">
+        <td>${esc(r.contractNumber || '-')}</td>
+        <td><span class="status-badge badge-${esc(st)}">${esc(st)}</span></td>
+        <td>${esc(r.customerName || '-')}</td>
+        <td>${esc(r.loanType || '-')}</td>
         <td>${fmtDate(r.contractStart)}</td>
         <td>${fmtDate(r.contractEnd)}</td>
-        <td class="amount-cell">${fmtAmt(r.monthlyRent)}</td>
-        <td class="amount-cell">${fmtAmt(r.totalRent)}</td>
+        <td class="amount-cell">${fmtAmt(r.loanAmount)}</td>
+        <td class="rate-cell">${fmtRate(r.interestRate)}</td>
+        <td class="amount-cell">${fmtAmt(r.monthlyPayment)}</td>
+        <td class="principal-cell">${fmtAmt(r.remainingPrincipal)}</td>
         <td class="receivable-cell">${fmtAmt(r.receivable)}</td>
-        <td class="advance-cell">${fmtAmt(r.advance)}</td>
-        <td class="deposit-cell">${fmtAmt(r.deposit)}</td>
-        <td>${esc(r.vehicleType||'-')}</td>`,
-      receivable: r => `
-        <td>${esc(r.vehicleNumber||'-')}</td>
-        <td>${esc(r.contractNumber||'-')}</td>
-        <td>${badge(r.contractStatus)}</td>
-        <td>${esc(r.customerName||'-')}</td>
-        <td>${fmtDate(r.contractStart)}</td>
-        <td>${fmtDate(r.contractEnd)}</td>
-        <td class="amount-cell">${fmtAmt(r.monthlyRent)}</td>
-        <td class="receivable-cell">${fmtAmt(r.receivable)}</td>`,
-      advance: r => `
-        <td>${esc(r.vehicleNumber||'-')}</td>
-        <td>${esc(r.contractNumber||'-')}</td>
-        <td>${badge(r.contractStatus)}</td>
-        <td>${esc(r.customerName||'-')}</td>
-        <td>${fmtDate(r.contractStart)}</td>
-        <td>${fmtDate(r.contractEnd)}</td>
-        <td class="amount-cell">${fmtAmt(r.monthlyRent)}</td>
-        <td class="advance-cell">${fmtAmt(r.advance)}</td>`,
-      deposit: r => `
-        <td>${esc(r.vehicleNumber||'-')}</td>
-        <td>${esc(r.contractNumber||'-')}</td>
-        <td>${badge(r.contractStatus)}</td>
-        <td>${esc(r.customerName||'-')}</td>
-        <td>${fmtDate(r.contractStart)}</td>
-        <td>${fmtDate(r.contractEnd)}</td>
-        <td class="deposit-cell">${fmtAmt(r.deposit)}</td>`,
-    };
-
-    tbody.innerHTML = filtered.map(r => `
-      <tr class="clickable-row" onclick="viewContractDetail('${r.contractNumber||''}')">
-        ${rowMap[currentTab](r)}
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   }
 
   async function searchContracts() {
     try {
       const qs = new URLSearchParams({
-        contractNumber:  document.getElementById('searchContractNumber').value.trim(),
-        customerName:    document.getElementById('searchCustomer').value.trim(),
-        vehicleNo:       document.getElementById('searchVehicle').value.trim(),
-        contractStatus:  document.getElementById('searchContractStatus').value,
+        contractNumber: document.getElementById('searchContractNumber').value.trim(),
+        customerName:   document.getElementById('searchCustomer').value.trim(),
       });
       const url = API_BASE_URL.replace(/\/$/, '') + '/api/contracts/status?' + qs.toString();
       const res = await fetch(url, { credentials: 'include' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       allData = await res.json();
-      renderRows(allData);
+      render();
     } catch (e) {
       alert('조회 실패: ' + e.message);
       allData = [];
-      renderRows([]);
+      render();
     }
   }
 
