@@ -44,38 +44,6 @@
         </div>
       </div>
 
-      <!-- 선급관리 계정분류 -->
-      <div class="form-section">
-        <h3 class="section-title">선급관리 계정분류</h3>
-        <p class="section-note">계정을 선택하지 않으면 <b>차량운반구</b>(기본값)로 자동 저장됩니다.</p>
-
-        <!-- prepaid-item 들은 JS(renderPrepaidItems)가 재무제표 계정 목록으로 채웁니다.
-             항목명은 차량선급 입력화면(vehicle_advance.html)의 항목명과 반드시 일치해야 합니다. -->
-        <div class="prepaid-grid" id="prepaidAccountBody"></div>
-      </div>
-
-      <!-- 차량관리 실행 -->
-      <div class="form-section">
-        <h3 class="section-title">차량관리 실행</h3>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="vehicleDebitCode" placeholder="계정코드">
-              <select class="account-select" id="vehicleDebitAccount" data-default-name="차량운반구"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="vehicleCreditCode" placeholder="계정코드">
-              <select class="account-select" id="vehicleCreditAccount" data-default-name="미지급금"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 차입금상환 계정분류 -->
       <div class="form-section">
         <h3 class="section-title">차입금상환 계정분류</h3>
@@ -112,39 +80,6 @@
         </div>
       </div>
 
-      <!-- 정기검사관리 계정분류 -->
-      <div class="form-section">
-        <h3 class="section-title">정기검사관리 계정분류</h3>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <label class="sub-label">계정</label>
-              <input type="text" class="account-code" id="inspectionDebitCode" placeholder="계정코드">
-              <select class="account-select" id="inspectionDebitAccount" data-default-name="차량유지비"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="inspectionCreditCode" placeholder="계정코드">
-              <select class="account-select" id="inspectionCreditAccount" data-default-name="보통예금"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">계좌번호</label>
-              <select class="bank-select" id="inspectionBankAccount">
-                <option value="">선택하세요</option>
-                <option value="KB_6062">국민6062계좌</option>
-                <option value="KB_6065">국민6065계좌</option>
-                <option value="SH_202">신한202계좌</option>
-                <option value="WR_1002">우리1002계좌</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 차입금 개시 전표 -->
       <div class="form-section">
         <h3 class="section-title">차입금 개시 전표</h3>
@@ -163,29 +98,6 @@
             <div class="account-input-group">
               <input type="text" class="account-code" id="loanOpenCreditCode" placeholder="계정코드">
               <select class="account-select" id="loanOpenCreditAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 감가상각 전표 -->
-      <div class="form-section">
-        <h3 class="section-title">감가상각 전표</h3>
-        <p class="section-note">감가상각 실행 시 자동 발생하는 전표 계정을 설정합니다.</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="deprecDebitCode" placeholder="계정코드">
-              <select class="account-select" id="deprecDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="deprecCreditCode" placeholder="계정코드">
-              <select class="account-select" id="deprecCreditAccount"></select>
             </div>
           </div>
         </div>
@@ -285,29 +197,6 @@
         </div>
       </div>
 
-      <!-- 차량매각 전표 -->
-      <div class="form-section">
-        <h3 class="section-title">차량매각 전표</h3>
-        <p class="section-note">차량 매각 등록 시 자동 발생하는 전표 계정을 설정합니다. (차변: 매각대금 수취 계정 / 대변: 매각수익 계정)</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="saleDebitCode" placeholder="계정코드">
-              <select class="account-select" id="saleDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="saleCreditCode" placeholder="계정코드">
-              <select class="account-select" id="saleCreditAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 수납 전표 -->
       <div class="form-section">
         <h3 class="section-title">수납 전표</h3>
@@ -326,117 +215,6 @@
             <div class="account-input-group">
               <input type="text" class="account-code" id="paymentCreditCode" placeholder="계정코드">
               <select class="account-select" id="paymentCreditAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 정비 전표 -->
-      <div class="form-section">
-        <h3 class="section-title">정비 전표</h3>
-        <p class="section-note">차량 정비 등록 시 자동 발생하는 전표 계정을 설정합니다.</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <label class="sub-label">계정</label>
-              <input type="text" class="account-code" id="maintenanceDebitCode" placeholder="계정코드">
-              <select class="account-select" id="maintenanceDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변 (결제수단별)</label>
-            <div class="account-input-group">
-              <label class="sub-label">미지급금</label>
-              <input type="text" class="account-code" id="maintenanceCreditUnpaidCode" placeholder="계정코드">
-              <select class="account-select" id="maintenanceCreditUnpaidAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">법인카드</label>
-              <input type="text" class="account-code" id="maintenanceCreditCardCode" placeholder="계정코드">
-              <select class="account-select" id="maintenanceCreditCardAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">보통예금</label>
-              <input type="text" class="account-code" id="maintenanceCreditBankCode" placeholder="계정코드">
-              <select class="account-select" id="maintenanceCreditBankAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 차량매각 — 장부 계정 -->
-      <div class="form-section">
-        <h3 class="section-title">차량매각 — 장부 계정</h3>
-        <p class="section-note">매각 전표에서 장부 정리에 사용할 계정을 설정합니다. 미설정 항목은 해당 분개 라인이 생략됩니다. (주 차변/대변은 위의 차량매각 전표 섹션에서 설정)</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변 (장부가 제거)</label>
-            <div class="account-input-group">
-              <label class="sub-label">감가상각누계액</label>
-              <input type="text" class="account-code" id="saleAccumDeprecCode" placeholder="계정코드">
-              <select class="account-select" id="saleAccumDeprecAccount"></select>
-            </div>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">미상각잔액</label>
-              <input type="text" class="account-code" id="saleUndepreciatedCode" placeholder="계정코드">
-              <select class="account-select" id="saleUndepreciatedAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변 (장부가 제거)</label>
-            <div class="account-input-group" style="margin-top: 10px;">
-              <label class="sub-label">차량운반구</label>
-              <input type="text" class="account-code" id="saleVehicleAssetCode" placeholder="계정코드">
-              <select class="account-select" id="saleVehicleAssetAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 보험 신규/갱신 전표 -->
-      <div class="form-section">
-        <h3 class="section-title">보험 신규/갱신 전표</h3>
-        <p class="section-note">보험 등록·갱신·변경 추가납부 시 자동 발생하는 전표 계정을 설정합니다. (차변: 보험료 비용 계정 / 대변: 미지급 계정)</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="insuranceDebitCode" placeholder="계정코드">
-              <select class="account-select" id="insuranceDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="insuranceCreditCode" placeholder="계정코드">
-              <select class="account-select" id="insuranceCreditAccount"></select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 보험 변경 환급 전표 -->
-      <div class="form-section">
-        <h3 class="section-title">보험 변경 환급 전표</h3>
-        <p class="section-note">보험 변경 시 환급이 발생할 때 자동 발생하는 전표 계정을 설정합니다. (차변: 미수금 계정 / 대변: 보험료 비용 계정)</p>
-        <div class="mapping-row">
-          <div class="mapping-item">
-            <label>차변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="insuranceRefundDebitCode" placeholder="계정코드">
-              <select class="account-select" id="insuranceRefundDebitAccount"></select>
-            </div>
-          </div>
-          <div class="mapping-arrow">→</div>
-          <div class="mapping-item">
-            <label>대변</label>
-            <div class="account-input-group">
-              <input type="text" class="account-code" id="insuranceRefundCreditCode" placeholder="계정코드">
-              <select class="account-select" id="insuranceRefundCreditAccount"></select>
             </div>
           </div>
         </div>
@@ -543,22 +321,6 @@
   // =========================
   // ✅ 렌더링
   // =========================
-  function renderPrepaidItems() {
-    const box = document.getElementById("prepaidAccountBody");
-    box.innerHTML = "";
-    PREPAID_ITEMS.forEach(name => {
-      const item = document.createElement("div");
-      item.className = "prepaid-item";
-      item.setAttribute("data-key", name);
-      item.innerHTML =
-        `<label class="prepaid-label">${name}</label>` +
-        `<div class="prepaid-inputs">` +
-        `  <input type="text" class="account-code" placeholder="계정코드" />` +
-        `  <select class="account-select" data-default-name="차량운반구"></select>` +
-        `</div>`;
-      box.appendChild(item);
-    });
-  }
 
   function buildOptionsHtml(placeholder) {
     let html = `<option value="">${placeholder}</option>`;
@@ -638,40 +400,13 @@
       businessNumber:    (document.getElementById('companyBusinessNumber')?.value || "").trim()
     };
 
-    const prepaidAccounts = [];
-    document.querySelectorAll('#prepaidAccountBody .prepaid-item').forEach(item => {
-      const name = item.querySelector('.prepaid-label').textContent.trim();
-      const code = item.querySelector('.account-code').value.trim();
-      const account = item.querySelector('.account-select').value;
-      const accountName = item.querySelector('.account-select option:checked')?.textContent?.trim() || "";
-      prepaidAccounts.push({ name, code, account, accountName });
-    });
 
-    const vehicleMapping = {
-      debit: { code: inputVal('vehicleDebitCode'), account: selVal('vehicleDebitAccount'), accountName: selText('vehicleDebitAccount') },
-      credit: { code: inputVal('vehicleCreditCode'), account: selVal('vehicleCreditAccount'), accountName: selText('vehicleCreditAccount') }
-    };
-
-    const loanMapping = {
-      debit1: { code: inputVal('loanDebitCode1'), account: selVal('loanDebitAccount1'), accountName: selText('loanDebitAccount1') },
-      debit2: { code: inputVal('loanDebitCode2'), account: selVal('loanDebitAccount2'), accountName: selText('loanDebitAccount2') },
-      credit: { code: inputVal('loanCreditCode'), account: selVal('loanCreditAccount'), accountName: selText('loanCreditAccount'), bankAccount: selVal('loanBankAccount') }
-    };
-
-    const inspectionMapping = {
-      debit:    { code: inputVal('inspectionDebitCode'),       account: selVal('inspectionDebitAccount'),    accountName: selText('inspectionDebitAccount')    },
-      credit:   { code: inputVal('inspectionCreditCode'),      account: selVal('inspectionCreditAccount'),   accountName: selText('inspectionCreditAccount'),   bankAccount: selVal('inspectionBankAccount') }
-    };
 
     const loanOpenMapping = {
       debit:  { code: inputVal('loanOpenDebitCode'),  account: selVal('loanOpenDebitAccount'),  accountName: selText('loanOpenDebitAccount')  },
       credit: { code: inputVal('loanOpenCreditCode'), account: selVal('loanOpenCreditAccount'), accountName: selText('loanOpenCreditAccount') }
     };
 
-    const deprecMapping = {
-      debit:  { code: inputVal('deprecDebitCode'),  account: selVal('deprecDebitAccount'),  accountName: selText('deprecDebitAccount')  },
-      credit: { code: inputVal('deprecCreditCode'), account: selVal('deprecCreditAccount'), accountName: selText('deprecCreditAccount') }
-    };
 
     const earlyTermMapping = {
       unrealizedRent: {
@@ -694,32 +429,14 @@
       credit: { code: inputVal('legalCostCreditCode'), account: selVal('legalCostCreditAccount'), accountName: selText('legalCostCreditAccount') }
     };
 
-    const saleMapping = {
-      debit:  { code: inputVal('saleDebitCode'),  account: selVal('saleDebitAccount'),  accountName: selText('saleDebitAccount')  },
-      credit: { code: inputVal('saleCreditCode'), account: selVal('saleCreditAccount'), accountName: selText('saleCreditAccount') }
-    };
 
     const paymentMapping = {
       debit:     { code: inputVal('paymentDebitCode'),      account: selVal('paymentDebitAccount'),      accountName: selText('paymentDebitAccount')      },
       credit:    { code: inputVal('paymentCreditCode'),     account: selVal('paymentCreditAccount'),     accountName: selText('paymentCreditAccount')     },
     };
 
-    const insuranceMapping = {
-      debit:  { code: inputVal('insuranceDebitCode'),  account: selVal('insuranceDebitAccount'),  accountName: selText('insuranceDebitAccount')  },
-      credit: { code: inputVal('insuranceCreditCode'), account: selVal('insuranceCreditAccount'), accountName: selText('insuranceCreditAccount') }
-    };
 
-    const insuranceRefundMapping = {
-      debit:  { code: inputVal('insuranceRefundDebitCode'),  account: selVal('insuranceRefundDebitAccount'),  accountName: selText('insuranceRefundDebitAccount')  },
-      credit: { code: inputVal('insuranceRefundCreditCode'), account: selVal('insuranceRefundCreditAccount'), accountName: selText('insuranceRefundCreditAccount') }
-    };
 
-    const maintenanceMapping = {
-      debit:        { code: inputVal('maintenanceDebitCode'),        account: selVal('maintenanceDebitAccount'),        accountName: selText('maintenanceDebitAccount')        },
-      creditUnpaid: { code: inputVal('maintenanceCreditUnpaidCode'), account: selVal('maintenanceCreditUnpaidAccount'), accountName: selText('maintenanceCreditUnpaidAccount') },
-      creditCard:   { code: inputVal('maintenanceCreditCardCode'),   account: selVal('maintenanceCreditCardAccount'),   accountName: selText('maintenanceCreditCardAccount')   },
-      creditBank:   { code: inputVal('maintenanceCreditBankCode'),   account: selVal('maintenanceCreditBankAccount'),   accountName: selText('maintenanceCreditBankAccount')   }
-    };
 
 
     // 선수금 — 회계 기준은 계정코드(account). accountName 은 화면 표시용 참고값.
@@ -729,19 +446,11 @@
       credit:    { code: inputVal('prepaidCreditCode'),    account: selVal('prepaidCreditAccount'),    accountName: selText('prepaidCreditAccount')    },
     };
 
-    const saleDetailMapping = {
-      accumDeprec:   { code: inputVal('saleAccumDeprecCode'),   account: selVal('saleAccumDeprecAccount'),   accountName: selText('saleAccumDeprecAccount')   },
-      undepreciated: { code: inputVal('saleUndepreciatedCode'), account: selVal('saleUndepreciatedAccount'), accountName: selText('saleUndepreciatedAccount') },
-      vehicleAsset:  { code: inputVal('saleVehicleAssetCode'),  account: selVal('saleVehicleAssetAccount'),  accountName: selText('saleVehicleAssetAccount')  }
-    };
 
     return {
-      companyInfo,
-      prepaidAccounts, vehicleMapping, loanMapping, inspectionMapping,
-      loanOpenMapping, deprecMapping, earlyTermMapping,
-      legalCostMapping, saleMapping, paymentMapping,
-      insuranceMapping, insuranceRefundMapping,
-      maintenanceMapping, saleDetailMapping,
+      companyInfo,   loanMapping, 
+      loanOpenMapping,  earlyTermMapping,
+      legalCostMapping,  paymentMapping, 
       prepaidMapping
     };
   }
@@ -770,27 +479,7 @@
       if (b) b.value = ci.businessNumber || "";
     }
 
-    // 선급 분류 (항목명 기준 매칭)
-    if (Array.isArray(settings.prepaidAccounts)) {
-      const map = new Map(settings.prepaidAccounts.map(x => [x.name, x]));
-      document.querySelectorAll('#prepaidAccountBody .prepaid-item').forEach(item => {
-        const name = item.querySelector('.prepaid-label').textContent.trim();
-        const saved = map.get(name);
-        if (saved && saved.account) {
-          const sel = item.querySelector('.account-select');
-          if (sel.querySelector(`option[value="${saved.account}"]`)) {
-            sel.value = saved.account;
-            item.querySelector('.account-code').value = saved.account;
-          }
-        }
-      });
-    }
 
-    // 차량관리 실행
-    if (settings.vehicleMapping) {
-      applySelect('vehicleDebitAccount',  settings.vehicleMapping.debit?.account);
-      applySelect('vehicleCreditAccount', settings.vehicleMapping.credit?.account);
-    }
 
     // 차입금상환
     if (settings.loanMapping) {
@@ -802,12 +491,6 @@
     }
 
     // 정기검사
-    if (settings.inspectionMapping) {
-      applySelect('inspectionDebitAccount',    settings.inspectionMapping.debit?.account);
-      applySelect('inspectionCreditAccount',   settings.inspectionMapping.credit?.account);
-      const bank = document.getElementById('inspectionBankAccount');
-      if (bank) bank.value = settings.inspectionMapping.credit?.bankAccount ?? "";
-    }
 
     // 차입금 개시
     if (settings.loanOpenMapping) {
@@ -816,10 +499,6 @@
     }
 
     // 감가상각
-    if (settings.deprecMapping) {
-      applySelect('deprecDebitAccount',  settings.deprecMapping.debit?.account);
-      applySelect('deprecCreditAccount', settings.deprecMapping.credit?.account);
-    }
 
     // 중도해지 반납
     if (settings.earlyTermMapping) {
@@ -839,10 +518,6 @@
     }
 
     // 차량매각
-    if (settings.saleMapping) {
-      applySelect('saleDebitAccount',  settings.saleMapping.debit?.account);
-      applySelect('saleCreditAccount', settings.saleMapping.credit?.account);
-    }
 
     // 수납
     if (settings.paymentMapping) {
@@ -851,35 +526,16 @@
     }
 
     // 보험 신규/갱신
-    if (settings.insuranceMapping) {
-      applySelect('insuranceDebitAccount',  settings.insuranceMapping.debit?.account);
-      applySelect('insuranceCreditAccount', settings.insuranceMapping.credit?.account);
-    }
 
     // 보험 변경 환급
-    if (settings.insuranceRefundMapping) {
-      applySelect('insuranceRefundDebitAccount',  settings.insuranceRefundMapping.debit?.account);
-      applySelect('insuranceRefundCreditAccount', settings.insuranceRefundMapping.credit?.account);
-    }
 
     // 정비 전표
-    if (settings.maintenanceMapping) {
-      applySelect('maintenanceDebitAccount',        settings.maintenanceMapping.debit?.account);
-      applySelect('maintenanceCreditUnpaidAccount', settings.maintenanceMapping.creditUnpaid?.account);
-      applySelect('maintenanceCreditCardAccount',   settings.maintenanceMapping.creditCard?.account);
-      applySelect('maintenanceCreditBankAccount',   settings.maintenanceMapping.creditBank?.account);
-    }
 
     // 선수금 — 저장값이 없으면 기본 계정코드로 채워 둔다 (백엔드 기본값과 동일)
     applySelect('prepaidBankAccount',      settings.prepaidMapping?.bank?.account      || '100101');
     applySelect('prepaidDebitAccount',     settings.prepaidMapping?.debit?.account     || '200102');
     applySelect('prepaidCreditAccount',    settings.prepaidMapping?.credit?.account    || '400101');
 
-    if (settings.saleDetailMapping) {
-      applySelect('saleAccumDeprecAccount',   settings.saleDetailMapping.accumDeprec?.account);
-      applySelect('saleUndepreciatedAccount', settings.saleDetailMapping.undepreciated?.account);
-      applySelect('saleVehicleAssetAccount',  settings.saleDetailMapping.vehicleAsset?.account);
-    }
   }
 
   async function loadAccounts() {
@@ -909,7 +565,6 @@
   }
 
   window.addEventListener("load", async () => {
-    renderPrepaidItems();
     try {
       await loadAccounts();
     } catch (e) {

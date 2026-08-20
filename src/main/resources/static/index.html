@@ -69,6 +69,44 @@
       color: #94a3b8;
       margin-top: 4px;
     }
+
+    /* 여신 KPI */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .kpi-card {
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .kpi-label { font-size: 12.5px; color: #64748b; }
+    .kpi-value {
+      font-size: 24px; font-weight: 800; color: #1d4ed8;
+      margin-top: 6px; line-height: 1.2;
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-value.danger { color: #dc2626; }
+    .kpi-value.muted  { color: #6b7280; }
+    .kpi-sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+    .dist-bar {
+      height: 6px; border-radius: 3px; background: #e5e7eb; overflow: hidden; margin-top: 4px;
+    }
+    .dist-bar > span { display: block; height: 100%; }
+    .st-정상 { background: #16a34a; }
+    .st-연체 { background: #dc2626; }
+    .st-해지 { background: #ea580c; }
+    .st-상각 { background: #6b7280; }
+    .st-종료 { background: #4f46e5; }
+
+    .aging-note {
+      margin-top: 10px; padding: 10px 12px; border-radius: 8px;
+      background: #fff7ed; border: 1px solid #fed7aa;
+      color: #9a3412; font-size: 12.5px; line-height: 1.7;
+    }
+    .aging-note.hidden { display: none; }
   </style>
 </head>
 <body>
@@ -78,6 +116,73 @@
     <div class="page-header">
       <h1>대시보드</h1>
       <p>홈 &gt; 대시보드</p>
+    </div>
+
+    <!-- 여신 KPI -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">대출잔액 (잔여원금)</div>
+        <div class="kpi-value" id="kpiOutstanding">-</div>
+        <div class="kpi-sub" id="kpiActiveCount">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">연체잔액</div>
+        <div class="kpi-value danger" id="kpiOverdue">-</div>
+        <div class="kpi-sub" id="kpiOverdueCount">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">연체율</div>
+        <div class="kpi-value danger" id="kpiOverdueRatio">-</div>
+        <div class="kpi-sub">연체잔액 ÷ 대출잔액</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">이번 달 회수율</div>
+        <div class="kpi-value" id="kpiCollection">-</div>
+        <div class="kpi-sub" id="kpiCollectionSub">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">상각잔액</div>
+        <div class="kpi-value muted" id="kpiWrittenOff">-</div>
+        <div class="kpi-sub" id="kpiWrittenOffCount">-</div>
+      </div>
+    </div>
+
+    <!-- 채권 상태 분포 + 연체 경과기간 -->
+    <div class="dashboard-grid">
+      <div class="erp-card">
+        <div class="card-header">
+          <h2>채권 상태 분포</h2>
+          <a href="pages/management/contract_status.html" class="view-all-link">채권현황 →</a>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr><th>상태</th><th style="text-align:right;">건수</th><th style="text-align:right;">잔여원금</th><th>비중</th></tr>
+              </thead>
+              <tbody id="statusDistTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="erp-card">
+        <div class="card-header">
+          <h2>연체 경과기간</h2>
+          <a href="pages/payment/overdue_status.html" class="view-all-link">연체현황 →</a>
+        </div>
+        <div class="card-body">
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr><th>경과</th><th style="text-align:right;">건수</th><th style="text-align:right;">미납액</th><th>비중</th></tr>
+              </thead>
+              <tbody id="agingTbody"></tbody>
+            </table>
+          </div>
+          <div class="aging-note" id="agingNote"></div>
+        </div>
+      </div>
     </div>
 
     <!-- 상단: 보통예금 현황(좌) + 계약현황 차트(우) -->
@@ -225,6 +330,9 @@
       try {
         const base = (typeof API_BASE_URL !== 'undefined') ? API_BASE_URL : '';
 
+        await loadLoanPortfolio(base);
+        await loadOverdueAging(base);
+        await loadMonthlyDue(base);
         await loadBankSummary(base);
         await loadBankVoucherDiff(base);
         await loadPendingVouchers(base);
@@ -237,6 +345,79 @@
         alert('대시보드 데이터를 불러오지 못했습니다. (F12 콘솔 확인)');
       }
     });
+
+    const won = (v) => Number(v || 0).toLocaleString() + '원';
+
+    /** 여신 포트폴리오 KPI + 상태 분포 */
+    async function loadLoanPortfolio(base) {
+      const d = await getJson(`${base}/api/dashboard/loan-portfolio`);
+
+      document.getElementById('kpiOutstanding').textContent = won(d.outstandingPrincipal);
+      document.getElementById('kpiActiveCount').textContent = (d.activeCount || 0).toLocaleString() + '건 (상각·종료 제외)';
+      document.getElementById('kpiOverdue').textContent = won(d.overduePrincipal);
+      document.getElementById('kpiOverdueCount').textContent = (d.overdueCount || 0).toLocaleString() + '건 (연체 + 해지)';
+      document.getElementById('kpiOverdueRatio').textContent = (d.overdueRatio ?? 0) + '%';
+      document.getElementById('kpiWrittenOff').textContent = won(d.writtenOffAmount);
+      document.getElementById('kpiWrittenOffCount').textContent = (d.writtenOffCount || 0).toLocaleString() + '건';
+
+      const rows = d.byStatus || [];
+      const maxP = Math.max(1, ...rows.map(r => Number(r.principal) || 0));
+      const tbody = document.getElementById('statusDistTbody');
+
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#64748b;">등록된 채권 없음</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = rows.map(r => {
+        const pct = Math.round((Number(r.principal) || 0) / maxP * 100);
+        return `
+        <tr>
+          <td><b>${esc(r.status)}</b></td>
+          <td style="text-align:right;">${(r.count || 0).toLocaleString()}건</td>
+          <td style="text-align:right;">${won(r.principal)}</td>
+          <td style="width:110px;"><div class="dist-bar"><span class="st-${esc(r.status)}" style="width:${pct}%"></span></div></td>
+        </tr>`;
+      }).join('');
+    }
+
+    /** 연체 경과기간 분포 */
+    async function loadOverdueAging(base) {
+      const d = await getJson(`${base}/api/dashboard/overdue-aging`);
+      const tbody = document.getElementById('agingTbody');
+      const note = document.getElementById('agingNote');
+      const buckets = d.buckets || [];
+
+      if (!d.totalCount) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#64748b;">연체 채권 없음</td></tr>`;
+        note.className = 'aging-note hidden';
+        return;
+      }
+
+      tbody.innerHTML = buckets.map(b => `
+        <tr>
+          <td>${esc(b.label)}</td>
+          <td style="text-align:right;">${(b.count || 0).toLocaleString()}건</td>
+          <td style="text-align:right;">${won(b.amount)}</td>
+          <td style="width:110px;"><div class="dist-bar"><span class="st-연체" style="width:${Math.round(b.ratio || 0)}%"></span></div></td>
+        </tr>`).join('');
+
+      // 90일 초과는 회수율이 급격히 떨어지는 구간이라 따로 경고한다.
+      const long = buckets.find(b => b.label === '90일 초과');
+      if (long && long.count > 0) {
+        note.className = 'aging-note';
+        note.innerHTML = `<b>90일 초과 연체 ${long.count}건 (${won(long.amount)})</b> — 기한이익상실 또는 대손상각 검토가 필요합니다.`;
+      } else {
+        note.className = 'aging-note hidden';
+      }
+    }
+
+    /** 이번 달 회수 예정·실적 */
+    async function loadMonthlyDue(base) {
+      const d = await getJson(`${base}/api/dashboard/monthly-due`);
+      document.getElementById('kpiCollection').textContent = (d.collectionRate ?? 0) + '%';
+      document.getElementById('kpiCollectionSub').textContent =
+        won(d.paidAmount) + ' / ' + won(d.dueAmount) + ' (' + (d.count || 0) + '회차)';
+    }
 
     async function loadBankSummary(base) {
       const rows = await getJson(`${base}/api/dashboard/bank-summary`);
