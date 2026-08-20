@@ -107,12 +107,12 @@ public class OtherAccountSettingsService {
   public String getSaleCreditAccount()       { return nested("saleMapping",       "credit"); }
   /** 수납 차변 계정명 */
   public String getPaymentDebitAccount()     { return nested("paymentMapping",    "debit");     }
-  /** 수납 대변 계정명 (렌트수익 - 공급가액) */
+  /** 수납 대변 계정명 (이자수익) */
   public String getPaymentCreditAccount()    { return nested("paymentMapping",    "credit");    }
 
   /** 중도해지 미회수렌트료 차변 계정명 */
   public String getEarlyTermUnrealizedRentDebit()      { return nested3("earlyTermMapping","unrealizedRent","debit");     }
-  /** 중도해지 미회수렌트료 대변 계정명 (렌트수익 - 공급가액) */
+  /** 중도상환 미회수이자 대변 계정명 (이자수익) */
   public String getEarlyTermUnrealizedRentCredit()     { return nested3("earlyTermMapping","unrealizedRent","credit");    }
   /** 중도해지 수수료 차변 계정명 */
   public String getEarlyTermFeeDebit()             { return nested3("earlyTermMapping","terminationFee",   "debit");  }
@@ -146,14 +146,14 @@ public class OtherAccountSettingsService {
   public String getPrepaidBankAccountCode()   { return nestedCode("prepaidMapping", "bank",   DEFAULT_PREPAID_BANK_CODE);   }
   /** 선수금 계정코드 — 입금 시 대변, 적용 시 차변 (기본값: 200102 선수금) */
   public String getPrepaidDebitAccountCode()  { return nestedCode("prepaidMapping", "debit",  DEFAULT_PREPAID_LIAB_CODE);   }
-  /** 선수금 적용 시 대변(수익) 계정코드 (기본값: 400101 렌트수익) */
+  /** 선수금 적용 시 대변(수익) 계정코드 (기본값: 400101 이자수익) */
   public String getPrepaidCreditAccountCode() { return nestedCode("prepaidMapping", "credit", DEFAULT_PREPAID_REVENUE_CODE); }
 
   /** 선수금 입금 시 차변 계정코드 기본값 — 보통예금 */
   public static final String DEFAULT_PREPAID_BANK_CODE    = "100101";
   /** 선수금 계정코드 기본값 — 선수금(유동부채) */
   public static final String DEFAULT_PREPAID_LIAB_CODE    = "200102";
-  /** 선수금 적용 시 수익 계정코드 기본값 — 렌트수익 */
+  /** 선수금 적용 시 수익 계정코드 기본값 — 이자수익 */
   public static final String DEFAULT_PREPAID_REVENUE_CODE = "400101";
 
 

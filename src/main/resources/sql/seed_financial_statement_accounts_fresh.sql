@@ -38,7 +38,7 @@ INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level
 SELECT 'bs', 'EQUITY', 2, id, '3003', '이익잉여금', '이익잉여금', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '30';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 2, id, '4001', '매출', '매출', 1, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '40';
+SELECT 'is', 'REVENUE', 2, id, '4001', '영업수익', '영업수익', 1, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '40';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'REVENUE', 2, id, '4002', '영업외수익', '영업외수익', 2, '사용', '미사용' FROM financial_statement_accounts WHERE account_code = '40';
 
@@ -97,13 +97,13 @@ INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level
 SELECT 'bs', 'LIABILITY', 3, id, '200202', '보증금', '비유동부채', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2002';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 3, id, '400101', '렌트수익', '매출', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
+SELECT 'is', 'REVENUE', 3, id, '400101', '이자수익', '영업수익', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 3, id, '400102', '매각수익', '매출', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
+SELECT 'is', 'REVENUE', 3, id, '400102', '연체이자수익', '영업수익', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 3, id, '400103', '렌트료수익', '매출', 3, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
+SELECT 'is', 'REVENUE', 3, id, '400103', '상각채권추심이익', '영업수익', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 3, id, '400201', '이자수익', '영업외수익', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4002';
+SELECT 'is', 'REVENUE', 3, id, '400201', '예금이자수익', '영업외수익', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4002';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'REVENUE', 3, id, '400202', '기타수익', '영업외수익', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4002';
 
@@ -140,18 +140,42 @@ SELECT 'is', 'EXPENSE', 3, id, '500301', '이자비용', '영업외비용', 1, '
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500302', '기타비용', '영업외비용', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
 
--- 렌터카 업무에 필요한 추가 계정
+-- 대부업 업무에 필요한 추가 계정
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'REVENUE', 3, id, '400203', '해지수수료수익', '영업외수익', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4002';
+SELECT 'is', 'REVENUE', 3, id, '400104', '중도상환수수료수익', '영업수익', 4, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '4001';
+
+INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500215', '대손상각비', '판매비와관리비', 15, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
+INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500216', '사대보험료', '판매비와관리비', 16, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
+INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500217', '관리비', '판매비와관리비', 17, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
+
+INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'bs', 'LIABILITY', 3, id, '200105', '가수금', '유동부채', 5, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '2001';
 
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500303', '법무비용', '영업외비용', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
 
--- ========== 기존 계정 활성화: 렌터카 업무에 필수적인 계정 ==========
-UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100401'; -- 차량운반구
-UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '200104'; -- 미지급비용
-UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '500211'; -- 세금과공과
-UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '500212'; -- 지급수수료
+-- ========== 대부업 계정 활성화 ==========
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100301';   -- 단기대여금 (대출채권)
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100302';   -- 장기대여금 (대출채권)
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100501';   -- 가지급금
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '100502';   -- 임차보증금
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '200104';   -- 미지급비용
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '500211';   -- 세금과공과
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '500212';   -- 지급수수료
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '500213';   -- 임차료
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '10030101'; -- 단기대여금 대손충당금
+UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '10030201'; -- 장기대여금 대손충당금
+
+-- ========== 렌터카 전용 계정 비활성화 ==========
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100401'; -- 차량운반구
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100403'; -- 렌트자산
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100404'; -- 감가상각누계액
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500202'; -- 감가상각비
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500203'; -- 차량유지비
+UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500214'; -- 미상각잔액
 
 -- ========== 4) 소소분류 (대손충당금) ==========
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)

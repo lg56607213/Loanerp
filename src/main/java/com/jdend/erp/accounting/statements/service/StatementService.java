@@ -133,13 +133,46 @@ public class StatementService {
     StatementNodeResponse revenue = buildRootNode(all, byParent, "REVENUE", debit, credit);
     StatementNodeResponse expense = buildRootNode(all, byParent, "EXPENSE", debit, credit);
 
+    // 영업/영업외 구분 — 중분류 계정코드 기준
+    long operatingRevenue    = sumChildren(revenue, CODE_OPERATING_REVENUE);
+    long nonOperatingRevenue = sumChildren(revenue, CODE_NON_OPERATING_REVENUE);
+    long operatingExpense    = sumChildren(expense, CODE_COST_OF_SALES, CODE_SGA);
+    long nonOperatingExpense = sumChildren(expense, CODE_NON_OPERATING_EXPENSE);
+    long incomeTax           = sumChildren(expense, CODE_INCOME_TAX);
+
+    long operatingIncome = operatingRevenue - operatingExpense;
+
     return IncomeStatementResponse.builder()
         .revenue(revenue)
         .expense(expense)
         .totalRevenue(revenue.getAmount())
         .totalExpense(expense.getAmount())
+        .operatingRevenue(operatingRevenue)
+        .operatingExpense(operatingExpense)
+        .operatingIncome(operatingIncome)
+        .nonOperatingRevenue(nonOperatingRevenue)
+        .nonOperatingExpense(nonOperatingExpense)
+        .incomeTax(incomeTax)
         .netIncome(revenue.getAmount() - expense.getAmount())
         .build();
+  }
+
+  // 손익계산서 중분류 계정코드
+  private static final String CODE_OPERATING_REVENUE     = "4001"; // 영업수익
+  private static final String CODE_NON_OPERATING_REVENUE = "4002"; // 영업외수익
+  private static final String CODE_COST_OF_SALES         = "5001"; // 매출원가
+  private static final String CODE_SGA                   = "5002"; // 판매비와관리비
+  private static final String CODE_NON_OPERATING_EXPENSE = "5003"; // 영업외비용
+  private static final String CODE_INCOME_TAX            = "5004"; // 법인세
+
+  /** 대분류 노드의 직계 자식 중 지정한 계정코드들의 금액 합계 */
+  private static long sumChildren(StatementNodeResponse root, String... accountCodes) {
+    if (root == null || root.getChildren() == null) return 0L;
+    Set<String> targets = Set.of(accountCodes);
+    return root.getChildren().stream()
+        .filter(c -> c.getAccountCode() != null && targets.contains(c.getAccountCode()))
+        .mapToLong(c -> c.getAmount() == null ? 0L : c.getAmount())
+        .sum();
   }
 
   // ==========================

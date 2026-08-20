@@ -28,7 +28,7 @@ public interface PaymentSchedulesRepository extends JpaRepository<PaymentSchedul
                                                                        @Param("end") LocalDate end,
                                                                        @Param("contractNumbers") List<String> contractNumbers);
 
-  /** 수납일자 이전(포함) 미납 스케줄 — 렌트수익 분개 및 납부 처리용 */
+  /** 수납일자 이전(포함) 미납 스케줄 — 수익 분개 및 납부 처리용 */
   @Query("""
     select ps
     from PaymentSchedules ps

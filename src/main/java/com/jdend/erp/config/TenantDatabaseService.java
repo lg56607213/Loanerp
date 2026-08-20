@@ -187,17 +187,6 @@ public class TenantDatabaseService {
     private String buildDefaultSettingsJson() {
         return """
 {
-  "prepaidAccounts": [
-    {"name": "차량가격",   "account": "100401", "accountName": "차량운반구"},
-    {"name": "취득세",    "account": "500211", "accountName": "세금과공과"},
-    {"name": "등록대행비", "account": "500212", "accountName": "지급수수료"},
-    {"name": "탁송료",    "account": "500212", "accountName": "지급수수료"},
-    {"name": "기타비용",  "account": "500302", "accountName": "기타비용"}
-  ],
-  "vehicleMapping": {
-    "debit":  {"account": "100403", "accountName": "렌트자산"},
-    "credit": {"account": "200101", "accountName": "미지급금"}
-  },
   "loanOpenMapping": {
     "debit":  {"account": "100101", "accountName": "보통예금"},
     "credit": {"account": "200201", "accountName": "차입금"}
@@ -207,45 +196,14 @@ public class TenantDatabaseService {
     "debit2": {"account": "500301", "accountName": "이자비용"},
     "credit": {"account": "100101", "accountName": "보통예금"}
   },
-  "inspectionMapping": {
-    "debit":    {"account": "500203", "accountName": "차량유지비"},
-    "credit":   {"account": "100101", "accountName": "보통예금"}
-  },
-  "deprecMapping": {
-    "debit":  {"account": "500202", "accountName": "감가상각비"},
-    "credit": {"account": "100404", "accountName": "감가상각누계액"}
-  },
   "paymentMapping": {
     "debit":     {"account": "100101", "accountName": "보통예금"},
-    "credit":    {"account": "400101", "accountName": "렌트수익"}
+    "credit":    {"account": "400101", "accountName": "이자수익"}
   },
   "prepaidMapping": {
     "bank":      {"account": "100101", "accountName": "보통예금"},
     "debit":     {"account": "200102", "accountName": "선수금"},
-    "credit":    {"account": "400101", "accountName": "렌트수익"}
-  },
-  "saleMapping": {
-    "debit":  {"account": "100101", "accountName": "보통예금"},
-    "credit": {"account": "400102", "accountName": "매각수익"}
-  },
-  "saleDetailMapping": {
-    "accumDeprec":   {"account": "100404", "accountName": "감가상각누계액"},
-    "undepreciated": {"account": "500214", "accountName": "미상각잔액"},
-    "vehicleAsset":  {"account": "100401", "accountName": "차량운반구"}
-  },
-  "maintenanceMapping": {
-    "debit":       {"account": "500203", "accountName": "차량유지비"},
-    "creditUnpaid":{"account": "200101", "accountName": "미지급금"},
-    "creditCard":  {"account": "200104", "accountName": "미지급비용"},
-    "creditBank":  {"account": "100101", "accountName": "보통예금"}
-  },
-  "insuranceMapping": {
-    "debit":  {"account": "500204", "accountName": "보험료"},
-    "credit": {"account": "200101", "accountName": "미지급금"}
-  },
-  "insuranceRefundMapping": {
-    "debit":  {"account": "100503", "accountName": "미수금"},
-    "credit": {"account": "500204", "accountName": "보험료"}
+    "credit":    {"account": "400101", "accountName": "이자수익"}
   },
   "legalCostMapping": {
     "debit":  {"account": "500303", "accountName": "법무비용"},
@@ -254,11 +212,11 @@ public class TenantDatabaseService {
   "earlyTermMapping": {
     "unrealizedRent": {
       "debit":     {"account": "100503", "accountName": "미수금"},
-      "credit":    {"account": "400101", "accountName": "렌트수익"}
+      "credit":    {"account": "400101", "accountName": "이자수익"}
     },
     "terminationFee": {
       "debit":  {"account": "100101", "accountName": "보통예금"},
-      "credit": {"account": "400203", "accountName": "해지수수료수익"}
+      "credit": {"account": "400104", "accountName": "중도상환수수료수익"}
     },
     "terminationAmount": {
       "debit":  {"account": "100101", "accountName": "보통예금"},

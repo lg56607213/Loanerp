@@ -204,7 +204,7 @@ public class PaymentService {
 
   /**
    * BUG-03: 전표 생성 후 생성된 전표 ID를 반환한다.
-   * @param totalDue  미납 미수금 합계 (excess > 0 일 때 렌트수익 대변 금액)
+   * @param totalDue  미납 미수금 합계 (excess > 0 일 때 수익 대변 금액)
    * @param excess    초과 수납액 → 선수금 대변
    * @return 생성된 Voucher ID, 생성 조건 미충족 시 null
    */

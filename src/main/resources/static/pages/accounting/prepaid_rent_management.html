@@ -219,7 +219,7 @@
             <textarea id="applyMemo" placeholder="예: 2025년 3월 렌트료 수납"></textarea>
           </div>
           <div style="font-size:0.82rem;color:#6b7280;padding:8px 10px;background:#f8fafc;border-radius:5px;margin-bottom:14px;">
-            전표 자동 생성: 차변 선수금 / 대변 렌트수익
+            전표 자동 생성: 차변 선수금 / 대변 이자수익
           </div>
           <div class="form-actions">
             <button class="btn btn-secondary" onclick="closeDetailView()">취소</button>
@@ -526,7 +526,7 @@
         btn.textContent = '수납 등록';
         return;
       }
-      alert('선수금 수납이 완료되었습니다.\n전표(차변: 선수금 / 대변: 렌트수익)가 자동 생성되었습니다.');
+      alert('선수금 수납이 완료되었습니다.\n전표(차변: 선수금 / 대변: 이자수익)가 자동 생성되었습니다.');
       closeDetailView();
       await loadList();
     } catch (e) {

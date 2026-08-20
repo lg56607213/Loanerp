@@ -106,13 +106,17 @@
         </div>
 
         <div class="statement-section">
-          <div class="section-header tax">당기순이익</div>
+          <div class="section-header tax">손익 단계</div>
           <div class="section-content">
             <table class="statement-table">
               <tbody>
-                <tr><td>수익 총계</td><td id="netRevenueRow">0</td></tr>
-                <tr><td>비용 총계</td><td id="netExpenseRow">0</td></tr>
-                <tr class="final-profit-row"><td>당기순이익</td><td id="netIncome">0</td></tr>
+                <tr><td>영업수익</td><td id="operatingRevenue">0</td></tr>
+                <tr><td>영업비용 (매출원가 + 판매비와관리비)</td><td id="operatingExpense">0</td></tr>
+                <tr class="final-profit-row"><td><b>영업이익</b></td><td id="operatingIncome">0</td></tr>
+                <tr><td>영업외수익</td><td id="nonOperatingRevenue">0</td></tr>
+                <tr><td>영업외비용</td><td id="nonOperatingExpense">0</td></tr>
+                <tr><td>법인세</td><td id="incomeTax">0</td></tr>
+                <tr class="final-profit-row"><td><b>당기순이익</b></td><td id="netIncome">0</td></tr>
               </tbody>
             </table>
           </div>
@@ -122,12 +126,12 @@
           <div class="summary-title">손익 요약</div>
           <div class="summary-grid">
             <div class="summary-item">
-              <div class="summary-label">총 수익</div>
+              <div class="summary-label">영업수익</div>
               <div class="summary-value" id="summaryRevenue">0 원</div>
             </div>
             <div class="summary-item">
-              <div class="summary-label">총 비용</div>
-              <div class="summary-value" id="summaryExpense">0 원</div>
+              <div class="summary-label">영업이익</div>
+              <div class="summary-value" id="summaryOperatingIncome">0 원</div>
             </div>
             <div class="summary-item">
               <div class="summary-label">당기순이익</div>
@@ -222,6 +226,7 @@
       const totalRevenue = document.getElementById('totalRevenue').textContent;
       const totalExpense = document.getElementById('totalExpense').textContent;
       const netIncome = document.getElementById('netIncome').textContent;
+      const operatingIncome = document.getElementById('operatingIncome').textContent;
 
       const win = window.open('', '', 'width=900,height=700');
       win.document.write(`<!DOCTYPE html>
@@ -249,6 +254,7 @@
 <tbody>${expenseHtml}</tbody>
 <tfoot><tr class="total-row"><td>비용 총계</td><td>${totalExpense}</td></tr></tfoot></table>
 <table><tbody>
+<tr class="net-row"><td>영업이익</td><td>${operatingIncome}</td></tr>
 <tr class="net-row"><td>당기순이익</td><td>${netIncome}</td></tr>
 </tbody></table>
 <script>window.onload=function(){window.print();}<\/script>
@@ -325,13 +331,17 @@
       document.getElementById('totalRevenue').textContent = formatNumber(data.totalRevenue);
       document.getElementById('totalExpense').textContent = formatNumber(data.totalExpense);
 
-      document.getElementById('netRevenueRow').textContent = formatNumber(data.totalRevenue);
-      document.getElementById('netExpenseRow').textContent = formatNumber(data.totalExpense);
-      document.getElementById('netIncome').textContent = formatNumber(data.netIncome);
+      document.getElementById('operatingRevenue').textContent    = formatNumber(data.operatingRevenue);
+      document.getElementById('operatingExpense').textContent    = formatNumber(data.operatingExpense);
+      document.getElementById('operatingIncome').textContent     = formatNumber(data.operatingIncome);
+      document.getElementById('nonOperatingRevenue').textContent = formatNumber(data.nonOperatingRevenue);
+      document.getElementById('nonOperatingExpense').textContent = formatNumber(data.nonOperatingExpense);
+      document.getElementById('incomeTax').textContent           = formatNumber(data.incomeTax);
+      document.getElementById('netIncome').textContent           = formatNumber(data.netIncome);
 
-      document.getElementById('summaryRevenue').textContent = formatNumber(data.totalRevenue) + ' 원';
-      document.getElementById('summaryExpense').textContent = formatNumber(data.totalExpense) + ' 원';
-      document.getElementById('summaryNetIncome').textContent = formatNumber(data.netIncome) + ' 원';
+      document.getElementById('summaryRevenue').textContent        = formatNumber(data.operatingRevenue) + ' 원';
+      document.getElementById('summaryOperatingIncome').textContent = formatNumber(data.operatingIncome) + ' 원';
+      document.getElementById('summaryNetIncome').textContent      = formatNumber(data.netIncome) + ' 원';
     }
 
     async function openDetailModal(accountCode, accountName) {
