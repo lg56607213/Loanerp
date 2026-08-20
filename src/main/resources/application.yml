@@ -39,6 +39,10 @@ codef:
   base-url: https://api.codef.io
   oauth-url: https://oauth.codef.io
 
+# 구독결제 알림 수신 주소. 미지정 시 문의 수신 주소를 쓴다.
+admin:
+  email: ${ADMIN_EMAIL:${MAIL_USERNAME:}}
+
 app:
   contact:
     recipient-email: ${MAIL_USERNAME}

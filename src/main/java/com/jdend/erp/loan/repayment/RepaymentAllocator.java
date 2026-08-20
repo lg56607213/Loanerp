@@ -42,6 +42,18 @@ public class RepaymentAllocator {
    */
   public RepaymentAllocation allocate(Contract contract, List<PaymentSchedule> schedules,
                                       long amount, LocalDate paymentDate, long outstandingCost) {
+    return allocate(contract, schedules, amount, paymentDate, outstandingCost,
+        ContractStatus.WRITTEN_OFF.equals(contract.getStatus()));
+  }
+
+  /**
+   * @param writeOffOrder 상각 순서(법적비용 -> 원금 -> 이자)를 쓸지 여부.
+   *   수납 시점 기준으로 정해야 한다. 상각 등록 이전에 받은 수납까지 상각 순서로
+   *   다시 계산하면 이미 발행된 전표(이자수익)와 스케줄 충당이 어긋난다.
+   */
+  public RepaymentAllocation allocate(Contract contract, List<PaymentSchedule> schedules,
+                                      long amount, LocalDate paymentDate, long outstandingCost,
+                                      boolean writeOffOrder) {
     RepaymentAllocation result = new RepaymentAllocation();
     if (amount <= 0) return result;
 
@@ -55,8 +67,7 @@ public class RepaymentAllocator {
         .toList();
 
     long remain = amount;
-    List<Step> order = ContractStatus.WRITTEN_OFF.equals(contract.getStatus())
-        ? ORDER_WRITTEN_OFF : ORDER_GENERAL;
+    List<Step> order = writeOffOrder ? ORDER_WRITTEN_OFF : ORDER_GENERAL;
 
     for (Step step : order) {
       if (remain <= 0) break;

@@ -2,6 +2,7 @@ package com.jdend.erp.loan.repayment;
 
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.repository.ContractRepository;
+import com.jdend.erp.loan.writeoff.repository.WriteOffRepository;
 import com.jdend.erp.payment.payment.entity.Payment;
 import com.jdend.erp.payment.payment.repository.PaymentRepository;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
@@ -31,6 +32,7 @@ public class RepaymentPostingService {
   private final PaymentRepository paymentRepo;
   private final ContractRepository contractRepo;
   private final RepaymentAllocator allocator;
+  private final WriteOffRepository writeOffRepo;
 
   /**
    * 채권의 충당 실적을 전부 다시 계산하고 잔여원금을 갱신한다.
@@ -47,12 +49,19 @@ public class RepaymentPostingService {
     List<PaymentSchedule> schedules = scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contractNumber);
     resetAllocations(schedules);
 
+    // 상각일 이후 수납만 상각 순서(원금 우선)를 쓴다. 상각 전에 받은 수납은
+    // 그때 일반 순서로 전표가 발행됐으므로 재계산해도 같은 결과가 나와야 한다.
+    LocalDate writeOffDate = writeOffRepo.findFirstByContractNumberOrderByIdDesc(contractNumber)
+        .map(w -> w.getWriteOffDate())
+        .orElse(null);
+
     List<Payment> payments = paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber);
     for (Payment p : payments) {
       long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
       if (amount <= 0) continue;
       LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
-      last = allocator.allocate(c, schedules, amount, date, 0L);
+      boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
+      last = allocator.allocate(c, schedules, amount, date, 0L, writeOffOrder);
     }
 
     scheduleRepo.saveAll(schedules);
