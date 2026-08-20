@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>계약등록 | JDEND ERP</title>
+  <title>대출등록 | JDEND ERP</title>
   <link rel="stylesheet" href="../../assets/css/sidebar.css">
   <link rel="stylesheet" href="../../assets/css/pages.css">
   <link rel="stylesheet" href="../../assets/css/contract/contract_register.css">
@@ -17,96 +17,68 @@
       display:inline-flex; align-items:center; justify-content:center;
     }
     .btn-icon:hover{background:#f7f7f7;}
-    .btn-icon:disabled{opacity:.5; cursor:not-allowed;}
-
-    .modal-backdrop{
-      display:none; position:fixed; inset:0;
-      background:rgba(0,0,0,.5); z-index:9999;
-      padding:30px 12px; overflow:auto;
-    }
-    .modal{
-      background:#fff; width:100%; max-width:980px;
-      margin:0 auto; border-radius:10px;
-      padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);
-    }
-    .modal-header{
-      display:flex; justify-content:space-between; align-items:center;
-      gap:10px; margin-bottom:10px;
-    }
-    .modal-title{font-size:18px; font-weight:700;}
-    .modal-close{border:0; background:transparent; font-size:22px; cursor:pointer; line-height:1;}
-    .modal-body .row{display:flex; gap:8px; margin:10px 0 12px; align-items:center;}
-    .modal-body input[type="text"]{
-      flex:1; height:38px; padding:0 10px;
-      border:1px solid #ddd; border-radius:6px;
-    }
-    .modal-body .btn{
-      height:38px; padding:0 12px; border-radius:6px;
-      border:1px solid #ddd; background:#fff; cursor:pointer;
-    }
-    .modal-body .btn-primary{background:#2f6fed; border-color:#2f6fed; color:#fff;}
-    .modal-body table{width:100%; border-collapse:collapse;}
-    .modal-body th,.modal-body td{border:1px solid #eee; padding:10px; text-align:left; font-size:14px;}
-    .modal-body tr:hover{background:#fafafa;}
-    .modal-body .select-btn{
-      padding:6px 10px; border-radius:6px;
-      border:1px solid #ddd; background:#fff; cursor:pointer; font-size:13px;
-    }
-
+    .hidden{display:none !important;}
     .badge-edit{
-      display:inline-block;
-      padding:4px 8px;
-      border-radius:999px;
-      background:#fff7e6;
-      border:1px solid #ffd59a;
-      color:#9a5b00;
-      font-size:12px;
-      margin-left:8px;
+      margin-left:8px; padding:2px 8px; border-radius:10px;
+      background:#fff3cd; color:#856404; font-size:12px; font-weight:600;
     }
+    .field-hint{ font-size:12px; color:#64748b; margin-top:4px; }
+    .field-error{ font-size:12px; color:#dc2626; margin-top:4px; }
+    .rate-cap{ font-weight:600; }
+    .calc-box{
+      margin-top:10px; padding:12px 14px; border:1px solid #dbeafe;
+      background:#f0f6ff; border-radius:8px; font-size:13px; line-height:1.9;
+    }
+    .calc-box b{ color:#1d4ed8; }
+    .status-badge{ padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; }
+    .st-정상{ background:#dcfce7; color:#166534; }
+    .st-연체{ background:#fee2e2; color:#991b1b; }
+    .st-해지{ background:#ffedd5; color:#9a3412; }
+    .st-상각{ background:#e5e7eb; color:#374151; }
+    .st-종료{ background:#e0e7ff; color:#3730a3; }
   </style>
 </head>
-
 <body>
   <div id="sidebar-container"></div>
 
   <div class="content-wrapper">
     <div class="page-header">
-      <h1>계약등록</h1>
-      <p>계약관리 &gt; 계약등록 &gt; 등록</p>
+      <h1>대출등록</h1>
+      <p>여신관리 &gt; 대출등록</p>
     </div>
 
+    <!-- 목록 -->
     <div class="erp-card" id="contractListSection">
       <div class="card-header">
-        <h2>계약 목록</h2>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <span style="font-size:13px; color:#666; white-space:nowrap;">계약시작일</span>
+        <h2>채권 목록</h2>
+        <div style="display:flex; gap:8px; align-items:center;">
           <input type="date" id="exportStartDate" style="height:34px; border:1px solid #ddd; border-radius:6px; padding:0 8px; font-size:13px;">
-          <span style="font-size:13px; color:#666;">~</span>
+          <span>~</span>
           <input type="date" id="exportEndDate" style="height:34px; border:1px solid #ddd; border-radius:6px; padding:0 8px; font-size:13px;">
           <button type="button" class="btn btn-primary" id="searchBtn">조회</button>
           <button type="button" class="btn btn-secondary" id="excelDownloadBtn">엑셀 다운로드</button>
           <button type="button" class="btn btn-secondary" id="excelUploadBtn">엑셀 업로드</button>
-          <button type="button" class="btn btn-primary" id="addContractBtn"><span>+ 계약 추가</span></button>
+          <button type="button" class="btn btn-primary" id="addContractBtn"><span>+ 대출 추가</span></button>
         </div>
       </div>
 
       <div class="card-body">
         <div class="table-container">
-          <table class="data-table">
+          <table>
             <thead>
               <tr>
-                <th>번호</th>
-                <th>계약번호</th>
+                <th>채권번호</th>
                 <th>고객명</th>
-                <th>차량번호</th>
-                <th>차종</th>
-                <th>계약구분</th>
-                <th>계약유형</th>
+                <th>대출구분</th>
+                <th class="amount-cell">대출금</th>
+                <th>이자율</th>
+                <th>상환방식</th>
+                <th>시작일자</th>
+                <th>종료일자</th>
+                <th>납입일</th>
+                <th class="amount-cell">월납입액</th>
+                <th class="amount-cell">잔여원금</th>
                 <th>상태</th>
-                <th>계약시작일</th>
-                <th>계약종료일</th>
-                <th>청구횟수</th>
-                <th>월렌트료</th>
                 <th>관리</th>
               </tr>
             </thead>
@@ -122,10 +94,11 @@
       </div>
     </div>
 
+    <!-- 등록/수정 폼 -->
     <div class="erp-card hidden" id="contractFormSection">
       <div class="card-header">
         <h2>
-          계약 등록
+          <span id="formTitle">대출 등록</span>
           <span class="badge-edit hidden" id="editBadge">수정모드</span>
         </h2>
         <button type="button" class="btn btn-secondary" id="cancelFormBtn">취소</button>
@@ -136,19 +109,19 @@
           <input type="hidden" id="editingId" value="">
 
           <div class="form-section">
-            <h3 class="section-title">계약 번호</h3>
+            <h3 class="section-title">채권 번호</h3>
             <div class="form-grid">
               <div class="form-group">
-                <label>계약번호</label>
+                <label>채권번호</label>
                 <input type="text" id="contractNumber" value="" disabled>
-                <small class="field-note">자동산출</small>
+                <div class="field-hint">등록 시 자동 채번됩니다.</div>
               </div>
             </div>
           </div>
 
           <div class="form-section">
             <h3 class="section-title">고객 정보</h3>
-            <div class="form-grid grid-5">
+            <div class="form-grid">
               <div class="form-group">
                 <label for="customerCode" class="required">고객번호</label>
                 <div class="input-group">
@@ -161,270 +134,120 @@
                 <input type="text" id="customerName" placeholder="자동입력" disabled>
               </div>
               <div class="form-group">
-                <label>고객연락처</label>
+                <label>연락처</label>
                 <input type="text" id="customerPhone" placeholder="자동입력" disabled>
               </div>
               <div class="form-group">
-                <label>주소</label>
-                <input type="text" id="address" placeholder="자동입력" disabled>
-              </div>
-              <div class="form-group">
-                <label>주민등록번호/사업자등록번호</label>
+                <label>주민등록번호 / 사업자등록번호</label>
                 <input type="text" id="idNumber" placeholder="자동입력" disabled>
               </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3 class="section-title">차량 정보</h3>
-            <div class="form-grid grid-2">
               <div class="form-group">
-                <label for="vehicleNumber" class="required">차량번호</label>
-                <div class="input-group">
-                  <input type="text" id="vehicleNumber" placeholder="차량번호 입력" required>
-                  <button type="button" class="btn-icon" id="btnVehicleSearch" title="차량 조회">🔍</button>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>차종</label>
-                <input type="text" id="vehicleModel" placeholder="자동입력" disabled>
+                <label class="required">고객구분</label>
+                <select id="customerType" required>
+                  <option value="개인">개인</option>
+                  <option value="법인">법인</option>
+                </select>
+                <div class="field-hint">금소법상 개인 고객은 연체이자 부과가 제한될 수 있습니다.</div>
               </div>
             </div>
           </div>
 
           <div class="form-section">
-            <h3 class="section-title">계약 정보</h3>
-            <div class="form-grid grid-5">
+            <h3 class="section-title">여신 조건</h3>
+            <div class="form-grid">
               <div class="form-group">
-                <label class="required">계약구분</label>
-                <select id="contractType" required>
-                  <option value="">선택</option>
-                  <option value="장기">장기</option>
-                  <option value="단기">단기</option>
+                <label class="required">대출구분</label>
+                <select id="loanType" required>
+                  <option value="신용대출">신용대출</option>
+                  <option value="담보대출">담보대출</option>
+                  <option value="사업자대출">사업자대출</option>
                 </select>
               </div>
-
               <div class="form-group">
-                <label class="required">계약유형</label>
-                <select id="contractCategory" required>
-                  <option value="">선택</option>
-                  <option value="일반">일반</option>
-                  <option value="정비">정비</option>
+                <label class="required">대출금</label>
+                <input type="text" id="loanAmount" placeholder="0" inputmode="numeric" required>
+              </div>
+              <div class="form-group">
+                <label class="required">이자율 (연 %)</label>
+                <input type="number" id="interestRate" step="0.01" min="0" max="20" placeholder="예) 19.9" required>
+                <div class="field-hint">대부업법상 <span class="rate-cap">연 20%</span>를 초과할 수 없습니다.</div>
+                <div class="field-error hidden" id="interestRateError"></div>
+              </div>
+              <div class="form-group">
+                <label class="required">연체이자 부과</label>
+                <select id="overdueChargeYn" required>
+                  <option value="true">부과</option>
+                  <option value="false">부과하지 않음</option>
+                </select>
+                <div class="field-hint">개인 고객 3천만원 이하 등 미부과 대상은 &lsquo;부과하지 않음&rsquo;으로 등록하세요.</div>
+              </div>
+              <div class="form-group">
+                <label>연체이율 (연 %)</label>
+                <input type="number" id="overdueRate" step="0.01" min="0" max="20" placeholder="예) 20">
+                <div class="field-hint">상한: <span class="rate-cap" id="overdueCapHint">약정이율 + 3%p (최대 20%)</span></div>
+                <div class="field-error hidden" id="overdueRateError"></div>
+              </div>
+              <div class="form-group">
+                <label class="required">상환방식</label>
+                <select id="repaymentMethod" required>
+                  <option value="원리금균등">원리금균등</option>
+                  <option value="원금균등">원금균등</option>
+                  <option value="만기일시">만기일시 (이자만 납입)</option>
                 </select>
               </div>
+            </div>
+          </div>
 
+          <div class="form-section">
+            <h3 class="section-title">기간 · 상환</h3>
+            <div class="form-grid">
               <div class="form-group">
-                <label class="required">계약시작일</label>
+                <label>실행일</label>
+                <input type="date" id="executeDate">
+                <div class="field-hint">미입력 시 시작일자로 등록됩니다.</div>
+              </div>
+              <div class="form-group">
+                <label class="required">시작일자</label>
                 <input type="date" id="startDate" required>
               </div>
-
               <div class="form-group">
-                <label class="required">계약종료일</label>
+                <label class="required">종료일자</label>
                 <input type="date" id="endDate" required>
               </div>
-
               <div class="form-group">
-                <label>계약기간</label>
-                <input type="text" id="contractPeriod" placeholder="자동계산" disabled>
+                <label class="required">납입일자</label>
+                <input type="number" id="paymentDay" min="1" max="31" value="25" required>
+                <div class="field-hint">말일이 없는 달은 그 달의 마지막 날로 처리됩니다.</div>
               </div>
-
               <div class="form-group">
-                <label>세금계산서발행일</label>
-                <div class="input-with-unit">
-                  <input type="number" id="taxInvoiceDay" value="25" min="1" max="31">
-                  <span class="unit">일</span>
-                </div>
+                <label>회차수</label>
+                <input type="number" id="installmentCount" min="1" placeholder="자동계산">
+                <div class="field-hint">미입력 시 시작일자~종료일자 개월수로 계산합니다.</div>
               </div>
-
               <div class="form-group">
-                <label>납부일자</label>
-                <select id="paymentDueDay">
-                  <option value="말일" selected>말일</option>
-                  <option value="25일">25일</option>
-                  <option value="15일">15일</option>
-                  <option value="10일">10일</option>
-                  <option value="5일">5일</option>
-                </select>
+                <label>월납입액</label>
+                <input type="text" id="monthlyPayment" placeholder="자동계산" inputmode="numeric">
+                <div class="field-hint">비워두면 상환방식에 따라 자동 산출됩니다.</div>
               </div>
             </div>
-          </div>
 
-          <div class="form-section">
-            <h3 class="section-title">금액 정보</h3>
-            <div class="form-grid grid-5">
-              <div class="form-group">
-                <label>선납금</label>
-                <input type="text" id="advancePayment" placeholder="0" inputmode="numeric">
-              </div>
-              <div class="form-group">
-                <label class="required">월 렌트료</label>
-                <input type="text" id="monthlyRent" placeholder="0" inputmode="numeric" required>
-              </div>
-              <div class="form-group">
-                <label>청구일자</label>
-                <div class="input-with-unit">
-                  <span class="unit-prefix">매달</span>
-                  <input type="number" id="billingDay" value="25" min="1" max="31">
-                  <span class="unit">일</span>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="required">청구횟수</label>
-                <input type="number" id="billingCount" placeholder="0">
-              </div>
-              <div class="form-group">
-                <label>총 렌트료</label>
-                <input type="text" id="totalRent" placeholder="자동산출" disabled class="highlight-field">
-                <small class="field-note">월 렌트료 × 청구횟수</small>
-              </div>
-
-              <div class="form-group">
-                <label>보증금</label>
-                <input type="text" id="deposit" placeholder="0" inputmode="numeric">
-              </div>
-              <div class="form-group">
-                <label>만기옵션</label>
-                <select id="maturityOption">
-                  <option value="반납" selected>반납</option>
-                  <option value="반납및재렌트">반납 및 재렌트</option>
-                  <option value="인수">인수</option>
-                  <option value="인수및재렌트">인수 및 재렌트</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>잔존가액</label>
-                <input type="text" id="residualValue" placeholder="0" value="0" inputmode="numeric">
-              </div>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <h3 class="section-title">보험 정보</h3>
-            <div class="form-grid grid-4">
-              <div class="form-group">
-                <label>대인</label>
-                <input type="text" id="personalLiability" value="무한" disabled>
-              </div>
-              <div class="form-group">
-                <label>대물</label>
-                <input type="text" id="propertyLiability" value="2억">
-              </div>
-
-              <div class="form-group">
-                <label>자차보험</label>
-                <div class="btn-toggle-group">
-                  <button type="button" class="btn-toggle active" data-target="vehicleInsurance" data-value="가입">가입</button>
-                  <button type="button" class="btn-toggle" data-target="vehicleInsurance" data-value="미가입">미가입</button>
-                </div>
-                <input type="hidden" id="vehicleInsurance" value="가입">
-              </div>
-
-              <div class="form-group">
-                <label>보험가입연령</label>
-                <select id="insuranceAge">
-                  <option value="만21세">만21세</option>
-                  <option value="만24세">만24세</option>
-                  <option value="만26세" selected>만26세</option>
-                  <option value="만30세">만30세</option>
-                  <option value="만35세">만35세</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label>자차한도</label>
-                <input type="text" id="vehicleInsuranceLimit" value="3천만원">
-              </div>
-              <div class="form-group">
-                <label>자차면책금</label>
-                <input type="text" id="vehicleDeductible" value="50만원">
-              </div>
-
-              <div class="form-group">
-                <label>대물면책금(건당)</label>
-                <input type="text" id="propertyDeductible" value="50만원">
-              </div>
-              <div class="form-group">
-                <label>대인면책금(인당)</label>
-                <input type="text" id="personalDeductible" value="50만원">
-              </div>
-              <div class="form-group">
-                <label>자손면책금</label>
-                <input type="text" id="passengerDeductible" value="50만원">
-              </div>
+            <div class="calc-box" id="calcBox">
+              상환 시뮬레이션 — 대출금·이자율·기간을 입력하면 자동으로 계산됩니다.
             </div>
           </div>
 
           <div class="form-section">
             <h3 class="section-title">비고</h3>
-            <div class="form-grid">
-              <div class="form-group grid-full-width">
-                <textarea id="remarks" rows="4" placeholder="비고 사항을 입력하세요"></textarea>
-              </div>
+            <div class="form-group" style="grid-column:1 / -1;">
+              <textarea id="remarks" rows="3" placeholder="특이사항을 입력하세요"></textarea>
             </div>
           </div>
 
           <div class="form-actions">
-            <button type="button" class="btn btn-secondary" id="btnReset">초기화</button>
-            <button type="submit" class="btn btn-primary" id="submitBtn">계약등록</button>
+            <button type="button" class="btn btn-secondary" id="resetBtn">초기화</button>
+            <button type="submit" class="btn btn-primary" id="submitBtn">등록</button>
           </div>
         </form>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="customerModalBackdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">고객 조회 (전체 고객 조회)</div>
-        <button type="button" class="modal-close" id="closeCustomerModal">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          <input type="text" id="customerSearchKeyword" placeholder="고객번호/고객명/연락처 검색">
-          <button type="button" class="btn btn-primary" id="customerSearchBtn">검색</button>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:120px;">고객번호</th>
-                <th style="width:160px;">고객명</th>
-                <th style="width:160px;">연락처</th>
-                <th>주소</th>
-                <th style="width:90px;">선택</th>
-              </tr>
-            </thead>
-            <tbody id="customerSearchTbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal-backdrop" id="vehicleModalBackdrop">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">차량 조회 (미계약 차량만)</div>
-        <button type="button" class="modal-close" id="closeVehicleModal">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="row">
-          <input type="text" id="vehicleSearchKeyword" placeholder="차량번호/차종/관리번호 검색">
-          <button type="button" class="btn btn-primary" id="vehicleSearchBtn">검색</button>
-        </div>
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th style="width:140px;">차량번호</th>
-                <th style="width:220px;">차종</th>
-                <th style="width:180px;">차량관리번호</th>
-                <th style="width:90px;">선택</th>
-              </tr>
-            </thead>
-            <tbody id="vehicleSearchTbody"></tbody>
-          </table>
-        </div>
       </div>
     </div>
   </div>
@@ -434,619 +257,388 @@
   <script src="../../assets/js/html-escape.js"></script>
   <script src="../../assets/js/excel-upload.js"></script>
   <script src="../../assets/js/role.js"></script>
+
   <script>
-    document.getElementById('excelDownloadBtn').addEventListener('click', () => {
+    const API_BASE = `${API_BASE_URL}/api`;
+
+    /** 대부업법 최고이자율 — 서버(LoanRateValidator.MAX_RATE)와 같은 값을 쓴다. */
+    const MAX_RATE = 20.0;
+    /** 연체이율은 약정이율 + 이 값을 넘을 수 없다. */
+    const OVERDUE_SPREAD_CAP = 3.0;
+
+    const listSection = document.getElementById('contractListSection');
+    const formSection = document.getElementById('contractFormSection');
+
+    const itemsPerPage = 15;
+    let currentPage = 1;
+    let allContracts = [];
+    let filtered = [];
+
+    const $ = (id) => document.getElementById(id);
+    const money = (n) => Number(n || 0).toLocaleString();
+    const onlyDigits = (s) => String(s || '').replace(/[^0-9]/g, '');
+    const numVal = (id) => { const v = onlyDigits($(id).value); return v === '' ? null : Number(v); };
+    const strVal = (id) => { const v = $(id).value; return v && v.trim() ? v.trim() : null; };
+
+    async function api(path, method, body) {
+      const opt = { method: method || 'GET' };
+      if (body !== undefined) {
+        opt.headers = { 'Content-Type': 'application/json' };
+        opt.body = JSON.stringify(body);
+      }
+      const res = await fetch(API_BASE + path, opt);
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        let msg = txt;
+        try { msg = JSON.parse(txt).message || txt; } catch (e) {}
+        throw new Error(msg || (method + ' 실패 ' + res.status));
+      }
+      return res.status === 204 ? null : res.json().catch(() => null);
+    }
+
+    // ── 이율 상한 검증 (서버와 동일 규칙) ───────────────────────
+
+    function overdueCap(interestRate) {
+      if (interestRate === null || isNaN(interestRate)) return MAX_RATE;
+      return Math.min(interestRate + OVERDUE_SPREAD_CAP, MAX_RATE);
+    }
+
+    function validateRates() {
+      const ir = $('interestRate').value === '' ? null : Number($('interestRate').value);
+      const or = $('overdueRate').value === '' ? null : Number($('overdueRate').value);
+
+      const irErr = $('interestRateError');
+      const orErr = $('overdueRateError');
+      let ok = true;
+
+      irErr.classList.add('hidden');
+      orErr.classList.add('hidden');
+
+      if (ir !== null && ir > MAX_RATE) {
+        irErr.textContent = `법정 최고이자율(연 ${MAX_RATE}%)을 초과합니다.`;
+        irErr.classList.remove('hidden');
+        ok = false;
+      }
+      if (ir !== null && ir < 0) {
+        irErr.textContent = '이자율은 0% 미만일 수 없습니다.';
+        irErr.classList.remove('hidden');
+        ok = false;
+      }
+
+      const cap = overdueCap(ir);
+      $('overdueCapHint').textContent = `연 ${cap}% (약정이율 + 3%p, 최대 ${MAX_RATE}%)`;
+
+      if (or !== null && or > cap) {
+        orErr.textContent = `연체이율 상한(연 ${cap}%)을 초과합니다.`;
+        orErr.classList.remove('hidden');
+        ok = false;
+      }
+      return ok;
+    }
+
+    // ── 상환 시뮬레이션 (서버 AmortizationCalculator와 동일 공식) ──
+
+    function calcInstallments() {
+      const given = $('installmentCount').value;
+      if (given && Number(given) > 0) return Number(given);
+      const s = $('startDate').value, e = $('endDate').value;
+      if (!s || !e) return 0;
+      const sd = new Date(s), ed = new Date(e);
+      return (ed.getFullYear() - sd.getFullYear()) * 12 + (ed.getMonth() - sd.getMonth());
+    }
+
+    function calcMonthlyPayment(method, principal, annualRate, months) {
+      if (!principal || !months) return 0;
+      const r = (annualRate || 0) / 100 / 12;
+      if (method === '만기일시') return Math.round(principal * r);
+      if (method === '원금균등') return Math.round(principal / months) + Math.round(principal * r);
+      if (r === 0) return Math.round(principal / months);
+      const pow = Math.pow(1 + r, months);
+      return Math.round(principal * r * pow / (pow - 1));
+    }
+
+    function refreshSimulation() {
+      const principal = numVal('loanAmount') || 0;
+      const rate = $('interestRate').value === '' ? 0 : Number($('interestRate').value);
+      const months = calcInstallments();
+      const method = $('repaymentMethod').value;
+      const box = $('calcBox');
+
+      if (!principal || !months) {
+        box.innerHTML = '상환 시뮬레이션 — 대출금·이자율·기간을 입력하면 자동으로 계산됩니다.';
+        return;
+      }
+
+      const pay = calcMonthlyPayment(method, principal, rate, months);
+      const totalPay = method === '만기일시' ? (pay * months + principal) : pay * months;
+      const totalInterest = totalPay - principal;
+
+      const label = method === '원금균등' ? '1회차 납입액(이후 체감)'
+                  : method === '만기일시' ? '월 이자'
+                  : '월납입액';
+
+      box.innerHTML =
+        `상환방식 <b>${method}</b> · 회차수 <b>${months}회</b><br>` +
+        `${label} <b>${money(pay)}원</b><br>` +
+        `총 상환액 <b>${money(totalPay)}원</b> (원금 ${money(principal)}원 + 이자 ${money(totalInterest)}원)` +
+        (method === '만기일시' ? '<br><span style="color:#9a3412;">만기에 원금 전액을 상환합니다.</span>' : '');
+    }
+
+    // ── 목록 ────────────────────────────────────────────────────
+
+    async function loadContracts() {
+      allContracts = await api('/contracts');
+      applyFilter();
+    }
+
+    function applyFilter() {
+      const s = $('exportStartDate').value ? new Date($('exportStartDate').value) : null;
+      const e = $('exportEndDate').value ? new Date($('exportEndDate').value) : null;
+      filtered = allContracts.filter(c => {
+        if (!c.startDate) return !s && !e;
+        const d = new Date(c.startDate);
+        if (s && d < s) return false;
+        if (e && d > e) return false;
+        return true;
+      });
+      renderPage(1);
+    }
+
+    function renderPage(page) {
+      currentPage = page;
+      const tbody = $('contractTableBody');
+      const start = (page - 1) * itemsPerPage;
+      const rows = filtered.slice(start, start + itemsPerPage);
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:#64748b;padding:24px;">등록된 채권이 없습니다.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.map(c => `
+          <tr>
+            <td>${escHtml(c.contractNumber)}</td>
+            <td>${escHtml(c.customerName || '-')}</td>
+            <td>${escHtml(c.loanType || '-')}</td>
+            <td class="amount-cell">${money(c.loanAmount)}</td>
+            <td>${c.interestRate != null ? c.interestRate + '%' : '-'}</td>
+            <td>${escHtml(c.repaymentMethod || '-')}</td>
+            <td>${c.startDate || '-'}</td>
+            <td>${c.endDate || '-'}</td>
+            <td>${c.paymentDay != null ? c.paymentDay + '일' : '-'}</td>
+            <td class="amount-cell">${money(c.monthlyPayment)}</td>
+            <td class="amount-cell">${money(c.remainingPrincipal)}</td>
+            <td><span class="status-badge st-${escHtml(c.status || '정상')}">${escHtml(c.status || '정상')}</span></td>
+            <td>
+              <button type="button" class="btn btn-sm btn-secondary" data-edit="${c.id}">수정</button>
+              <button type="button" class="btn btn-sm btn-danger" data-del="${c.id}">삭제</button>
+            </td>
+          </tr>`).join('');
+      }
+      renderPagination();
+    }
+
+    function renderPagination() {
+      const total = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+      $('prevBtn').disabled = currentPage <= 1;
+      $('nextBtn').disabled = currentPage >= total;
+      const nums = [];
+      for (let i = 1; i <= total; i++) {
+        nums.push(`<button type="button" class="pagination-btn${i === currentPage ? ' active' : ''}" data-page="${i}">${i}</button>`);
+      }
+      $('pageNumbers').innerHTML = nums.join('');
+    }
+
+    // ── 폼 ──────────────────────────────────────────────────────
+
+    function showForm(show) {
+      listSection.classList.toggle('hidden', show);
+      formSection.classList.toggle('hidden', !show);
+    }
+
+    function resetForm() {
+      $('contractForm').reset();
+      $('editingId').value = '';
+      $('contractNumber').value = '';
+      $('customerName').value = '';
+      $('customerPhone').value = '';
+      $('idNumber').value = '';
+      $('paymentDay').value = '25';
+      $('editBadge').classList.add('hidden');
+      $('formTitle').textContent = '대출 등록';
+      $('submitBtn').textContent = '등록';
+      validateRates();
+      refreshSimulation();
+    }
+
+    async function fillCustomer(customerNumber) {
+      if (!customerNumber) return;
+      try {
+        const c = await api('/customers/lookup?customerNumber=' + encodeURIComponent(customerNumber));
+        if (!c) return;
+        $('customerName').value = c.customerName || '';
+        $('customerPhone').value = c.phone || '';
+        $('idNumber').value = c.registrationNumber || '';
+      } catch (e) {
+        $('customerName').value = '';
+        $('customerPhone').value = '';
+        $('idNumber').value = '';
+      }
+    }
+
+    function buildPayload() {
+      return {
+        customerNumber: strVal('customerCode'),
+        customerType: strVal('customerType'),
+        loanType: strVal('loanType'),
+        loanAmount: numVal('loanAmount'),
+        interestRate: $('interestRate').value === '' ? null : Number($('interestRate').value),
+        overdueRate: $('overdueRate').value === '' ? null : Number($('overdueRate').value),
+        overdueChargeYn: $('overdueChargeYn').value === 'true',
+        repaymentMethod: strVal('repaymentMethod'),
+        executeDate: strVal('executeDate'),
+        startDate: strVal('startDate'),
+        endDate: strVal('endDate'),
+        paymentDay: $('paymentDay').value === '' ? null : Number($('paymentDay').value),
+        installmentCount: $('installmentCount').value === '' ? null : Number($('installmentCount').value),
+        monthlyPayment: numVal('monthlyPayment'),
+        remarks: strVal('remarks'),
+      };
+    }
+
+    async function editContract(id) {
+      const c = await api('/contracts/' + id + '/full');
+      $('editingId').value = id;
+      $('contractNumber').value = c.contractNumber || '';
+      $('customerCode').value = c.customerNumber || '';
+      $('customerName').value = c.customerName || '';
+      $('customerPhone').value = c.customerPhone || '';
+      $('idNumber').value = c.customerRegistrationNumber || '';
+      $('customerType').value = c.customerType || '개인';
+      $('loanType').value = c.loanType || '신용대출';
+      $('loanAmount').value = money(c.loanAmount);
+      $('interestRate').value = c.interestRate != null ? c.interestRate : '';
+      $('overdueRate').value = c.overdueRate != null ? c.overdueRate : '';
+      $('overdueChargeYn').value = c.overdueChargeYn === false ? 'false' : 'true';
+      $('repaymentMethod').value = c.repaymentMethod || '원리금균등';
+      $('executeDate').value = c.executeDate || '';
+      $('startDate').value = c.startDate || '';
+      $('endDate').value = c.endDate || '';
+      $('paymentDay').value = c.paymentDay != null ? c.paymentDay : '';
+      $('installmentCount').value = c.installmentCount != null ? c.installmentCount : '';
+      $('monthlyPayment').value = money(c.monthlyPayment);
+      $('remarks').value = c.remarks || '';
+
+      $('editBadge').classList.remove('hidden');
+      $('formTitle').textContent = '대출 수정';
+      $('submitBtn').textContent = '수정';
+      validateRates();
+      refreshSimulation();
+      showForm(true);
+    }
+
+    // ── 이벤트 ──────────────────────────────────────────────────
+
+    $('addContractBtn').addEventListener('click', async () => {
+      resetForm();
+      try {
+        const r = await api('/contracts/next-number?loanType=' + encodeURIComponent($('loanType').value));
+        $('contractNumber').value = r.contractNumber || '';
+      } catch (e) {}
+      showForm(true);
+    });
+
+    $('cancelFormBtn').addEventListener('click', () => { resetForm(); showForm(false); });
+    $('resetBtn').addEventListener('click', resetForm);
+    $('searchBtn').addEventListener('click', applyFilter);
+
+    $('loanType').addEventListener('change', async () => {
+      if ($('editingId').value) return;
+      try {
+        const r = await api('/contracts/next-number?loanType=' + encodeURIComponent($('loanType').value));
+        $('contractNumber').value = r.contractNumber || '';
+      } catch (e) {}
+    });
+
+    $('customerCode').addEventListener('change', () => fillCustomer($('customerCode').value.trim()));
+    $('btnCustomerSearch').addEventListener('click', () => {
+      const v = prompt('고객번호를 입력하세요 (예: C001)');
+      if (v) { $('customerCode').value = v.trim(); fillCustomer(v.trim()); }
+    });
+
+    ['loanAmount', 'monthlyPayment'].forEach(id => {
+      $(id).addEventListener('input', (e) => {
+        const d = onlyDigits(e.target.value);
+        e.target.value = d ? Number(d).toLocaleString() : '';
+        if (id === 'loanAmount') refreshSimulation();
+      });
+    });
+
+    ['interestRate', 'overdueRate'].forEach(id => {
+      $(id).addEventListener('input', () => { validateRates(); refreshSimulation(); });
+    });
+    ['startDate', 'endDate', 'installmentCount', 'repaymentMethod'].forEach(id => {
+      $(id).addEventListener('change', refreshSimulation);
+    });
+
+    $('contractTableBody').addEventListener('click', async (e) => {
+      const editId = e.target.getAttribute('data-edit');
+      const delId = e.target.getAttribute('data-del');
+      try {
+        if (editId) await editContract(editId);
+        if (delId) {
+          if (!confirm('이 채권을 삭제하시겠습니까? 연결된 상환스케줄도 함께 정리해야 합니다.')) return;
+          await api('/contracts/' + delId, 'DELETE');
+          await loadContracts();
+        }
+      } catch (err) { alert(err.message); }
+    });
+
+    $('pageNumbers').addEventListener('click', (e) => {
+      const p = e.target.getAttribute('data-page');
+      if (p) renderPage(Number(p));
+    });
+    $('prevBtn').addEventListener('click', () => renderPage(currentPage - 1));
+    $('nextBtn').addEventListener('click', () => renderPage(currentPage + 1));
+
+    $('contractForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!validateRates()) {
+        alert('이자율 입력을 확인해주세요.');
+        return;
+      }
+      const payload = buildPayload();
+      const id = $('editingId').value;
+      try {
+        if (id) await api('/contracts/' + id, 'PUT', payload);
+        else await api('/contracts', 'POST', payload);
+        alert(id ? '수정되었습니다.' : '등록되었습니다. 상환스케줄이 자동 생성되었습니다.');
+        resetForm();
+        showForm(false);
+        await loadContracts();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    $('excelDownloadBtn').addEventListener('click', () => {
       const params = new URLSearchParams();
-      const s = document.getElementById('exportStartDate').value;
-      const e = document.getElementById('exportEndDate').value;
-      if (s) params.set('startDate', s);
-      if (e) params.set('endDate', e);
+      if ($('exportStartDate').value) params.set('startDate', $('exportStartDate').value);
+      if ($('exportEndDate').value) params.set('endDate', $('exportEndDate').value);
       const qs = params.toString();
       window.location.href = '/api/contracts/export' + (qs ? '?' + qs : '');
     });
 
-    document.getElementById('excelUploadBtn').addEventListener('click', () => {
+    $('excelUploadBtn').addEventListener('click', () => {
       openExcelUploadModal({
-        title: '계약 엑셀 업로드',
+        title: '대출 엑셀 업로드',
         templateUrl: '/api/contracts/bulk-upload/template',
         uploadUrl: '/api/contracts/bulk-upload',
         onSuccess: () => loadContracts(),
       });
     });
-  </script>
 
-  <script>
-    const API_BASE = `${API_BASE_URL}/api`;
-
-    const contractListSection = document.getElementById('contractListSection');
-    const contractFormSection = document.getElementById('contractFormSection');
-    const addContractBtn = document.getElementById('addContractBtn');
-    const cancelFormBtn = document.getElementById('cancelFormBtn');
-
-    const itemsPerPage = 15;
-    let currentPage = 1;
-    let allContracts = [];
-    let filteredContracts = [];
-
-    function money(n){ return Number(n||0).toLocaleString() + '원'; }
-    function onlyDigits(str){ return String(str||'').replace(/[^0-9]/g,''); }
-
-    async function apiGet(path){
-      const res = await fetch(API_BASE + path);
-      if(!res.ok) throw new Error('GET 실패 ' + res.status);
-      return res.json();
-    }
-
-    async function apiPost(path, body){
-      const res = await fetch(API_BASE + path, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(body)
-      });
-      if(!res.ok){
-        const txt = await res.text().catch(()=> '');
-        throw new Error('POST 실패 ' + res.status + ' ' + txt);
-      }
-      return res.json();
-    }
-
-    async function apiPut(path, body){
-      const res = await fetch(API_BASE + path, {
-        method:'PUT',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(body)
-      });
-      if(!res.ok){
-        const txt = await res.text().catch(()=> '');
-        throw new Error('PUT 실패 ' + res.status + ' ' + txt);
-      }
-      return res.json();
-    }
-
-    async function apiDelete(path){
-      const res = await fetch(API_BASE + path, { method:'DELETE' });
-      if(!res.ok) throw new Error('DELETE 실패 ' + res.status);
-    }
-
-    async function loadContracts(){
-      allContracts = await apiGet('/contracts');
-      filteredContracts = [...allContracts];
-      renderContractPage(1);
-    }
-
-    function applyContractFilter() {
-      const startStr = document.getElementById('exportStartDate').value;
-      const endStr = document.getElementById('exportEndDate').value;
-      const startDate = startStr ? new Date(startStr) : null;
-      const endDate = endStr ? new Date(endStr) : null;
-
-      filteredContracts = allContracts.filter(c => {
-        if (!startDate && !endDate) return true;
-        if (!c.startDate) return false;
-        const d = new Date(c.startDate);
-        if (startDate && d < startDate) return false;
-        if (endDate && d > endDate) return false;
-        return true;
-      });
-      renderContractPage(1);
-    }
-
-    document.getElementById('searchBtn').addEventListener('click', applyContractFilter);
-
-    function renderContractPage(page){
-      currentPage = page;
-      const tbody = document.getElementById('contractTableBody');
-      tbody.innerHTML = '';
-
-      const total = filteredContracts.length;
-      const totalPages = Math.ceil(total / itemsPerPage);
-      const start = (page - 1) * itemsPerPage;
-      const end = start + itemsPerPage;
-
-      filteredContracts.slice(start, end).forEach((c, idx) => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${start + idx + 1}</td>
-          <td>${escHtml(c.contractNumber || '')}</td>
-          <td>${escHtml(c.customerName || '')}</td>
-          <td>${escHtml(c.vehicleNo || '')}</td>
-          <td>${escHtml(c.vehicleModel || '')}</td>
-          <td>${escHtml(c.contractType || '')}</td>
-          <td>${escHtml(c.contractCategory || '')}</td>
-          <td>${escHtml(c.status || '')}</td>
-          <td>${c.startDate || ''}</td>
-          <td>${c.endDate || ''}</td>
-          <td>${c.billingCount ?? ''}</td>
-          <td>${money(c.monthlyRent)}</td>
-          <td>
-            <button class="btn-small btn-edit" data-id="${c.id}">수정</button>
-            <button class="btn-small btn-delete" data-id="${c.id}">삭제</button>
-            <button class="btn-small btn-print" data-id="${c.id}">출력</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-
-      tbody.querySelectorAll('.btn-edit').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          await openEdit(btn.dataset.id);
-        });
-      });
-
-      tbody.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          if(!confirm('정말로 이 계약을 삭제하시겠습니까?')) return;
-          try {
-            await apiDelete('/contracts/' + id);
-            alert('삭제되었습니다.');
-            await loadContracts();
-          } catch (err) {
-            alert('삭제 실패: ' + err.message);
-          }
-        });
-      });
-
-      disableForStaff(tbody.querySelectorAll('.btn-edit, .btn-delete'), '책임자만 계약을 수정/삭제할 수 있습니다.');
-
-      tbody.querySelectorAll('.btn-print').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          window.open(`contract_print.html?id=${id}`, '_blank');
-        });
-      });
-
-      const pageNumbersDiv = document.getElementById('pageNumbers');
-      const prevBtn = document.getElementById('prevBtn');
-      const nextBtn = document.getElementById('nextBtn');
-
-      pageNumbersDiv.innerHTML = '';
-      for(let i = 1; i <= totalPages; i++){
-        const b = document.createElement('button');
-        b.textContent = i;
-        b.className = 'pagination-number' + (i === currentPage ? ' active' : '');
-        b.addEventListener('click', () => renderContractPage(i));
-        pageNumbersDiv.appendChild(b);
-      }
-
-      prevBtn.disabled = (currentPage === 1);
-      nextBtn.disabled = (currentPage === totalPages || totalPages === 0);
-    }
-
-    document.getElementById('prevBtn').addEventListener('click', () => {
-      if(currentPage > 1) renderContractPage(currentPage - 1);
-    });
-
-    document.getElementById('nextBtn').addEventListener('click', () => {
-      const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
-      if(currentPage < totalPages) renderContractPage(currentPage + 1);
-    });
-
-    function setModeCreate(){
-      document.getElementById('editingId').value = '';
-      document.getElementById('editBadge').classList.add('hidden');
-      document.getElementById('submitBtn').textContent = '계약등록';
-    }
-
-    function setModeEdit(){
-      document.getElementById('editBadge').classList.remove('hidden');
-      document.getElementById('submitBtn').textContent = '수정저장';
-    }
-
-    addContractBtn.addEventListener('click', async () => {
-      setModeCreate();
-      contractListSection.classList.add('hidden');
-      contractFormSection.classList.remove('hidden');
-      document.getElementById('contractForm').reset();
-      clearFormFields();
-
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('startDate').value = today;
-
-      try {
-        const next = await apiGet('/contracts/next-number');
-        document.getElementById('contractNumber').value = next.contractNumber || '';
-      } catch (e) {
-        document.getElementById('contractNumber').value = '';
-      }
-    });
-
-    async function openEdit(id){
-      setModeEdit();
-      contractListSection.classList.add('hidden');
-      contractFormSection.classList.remove('hidden');
-      document.getElementById('contractForm').reset();
-      clearFormFields();
-
-      const detail = await apiGet('/contracts/' + id + '/full');
-
-      document.getElementById('editingId').value = detail.id;
-      document.getElementById('contractNumber').value = detail.contractNumber || '';
-
-      document.getElementById('customerCode').value = detail.customerNumber || '';
-      document.getElementById('customerName').value = detail.customerName || '';
-      document.getElementById('customerPhone').value = detail.customerPhone || '';
-      document.getElementById('address').value = detail.customerAddress || '';
-      document.getElementById('idNumber').value = detail.customerRegistrationNumber || '';
-
-      document.getElementById('vehicleNumber').value = detail.vehicleNo || '';
-      document.getElementById('vehicleModel').value = detail.vehicleModel || '';
-
-      document.getElementById('contractType').value = detail.contractType || '';
-      document.getElementById('contractCategory').value = detail.contractCategory || '';
-
-      document.getElementById('startDate').value = detail.startDate || '';
-      document.getElementById('endDate').value = detail.endDate || '';
-      calculateContractPeriod();
-
-      document.getElementById('taxInvoiceDay').value = detail.taxInvoiceDay ?? 25;
-      document.getElementById('paymentDueDay').value = detail.paymentDueDay ?? '말일';
-
-      document.getElementById('advancePayment').value = (detail.advancePayment || 0).toLocaleString();
-      document.getElementById('monthlyRent').value = (detail.monthlyRent || 0).toLocaleString();
-      document.getElementById('billingDay').value = detail.billingDay ?? 25;
-      document.getElementById('billingCount').value = detail.billingCount ?? 0;
-      document.getElementById('totalRent').value = (detail.totalRent || 0) ? (detail.totalRent.toLocaleString() + '원') : '';
-
-      document.getElementById('deposit').value = (detail.deposit || 0).toLocaleString();
-      document.getElementById('maturityOption').value = detail.maturityOption ?? '반납';
-      document.getElementById('residualValue').value = (detail.residualValue || 0).toLocaleString();
-
-      const vin = detail.vehicleInsurance ?? '가입';
-      document.getElementById('vehicleInsurance').value = vin;
-      document.querySelectorAll('.btn-toggle-group .btn-toggle').forEach(b => {
-        b.classList.toggle('active', b.dataset.value === vin);
-      });
-
-      document.getElementById('insuranceAge').value = detail.insuranceAge ?? '만26세';
-      document.getElementById('vehicleInsuranceLimit').value = detail.vehicleInsuranceLimit ?? '3천만원';
-      document.getElementById('vehicleDeductible').value = detail.vehicleDeductible ?? '50만원';
-
-      document.getElementById('propertyLiability').value = detail.propertyLiability ?? '2억';
-      document.getElementById('propertyDeductible').value = detail.propertyDeductible ?? '50만원';
-      document.getElementById('personalDeductible').value = detail.personalDeductible ?? '50만원';
-      document.getElementById('passengerDeductible').value = detail.passengerDeductible ?? '50만원';
-
-      document.getElementById('remarks').value = detail.remarks ?? '';
-    }
-
-    cancelFormBtn.addEventListener('click', () => {
-      if(!confirm('작성 중인 내용이 있습니다. 취소하시겠습니까?')) return;
-      document.getElementById('contractForm').reset();
-      clearFormFields();
-      contractFormSection.classList.add('hidden');
-      contractListSection.classList.remove('hidden');
-    });
-
-    function clearFormFields(){
-      document.getElementById('customerName').value = '';
-      document.getElementById('customerPhone').value = '';
-      document.getElementById('address').value = '';
-      document.getElementById('idNumber').value = '';
-      document.getElementById('vehicleModel').value = '';
-      document.getElementById('contractPeriod').value = '';
-      document.getElementById('totalRent').value = '';
-
-      document.querySelectorAll('.btn-toggle-group').forEach(group => {
-        const buttons = group.querySelectorAll('.btn-toggle');
-        buttons.forEach(b => b.classList.remove('active'));
-        buttons[0].classList.add('active');
-        document.getElementById('vehicleInsurance').value = buttons[0].dataset.value;
-      });
-    }
-
-    function bindMoneyInput(id){
-      const el = document.getElementById(id);
-      el.addEventListener('input', () => {
-        const digits = onlyDigits(el.value);
-        el.value = digits ? Number(digits).toLocaleString() : '';
-        calculateTotalRent();
-      });
-    }
-
-    bindMoneyInput('advancePayment');
-    bindMoneyInput('monthlyRent');
-    bindMoneyInput('deposit');
-    bindMoneyInput('residualValue');
-
-    document.getElementById('billingCount').addEventListener('input', calculateTotalRent);
-
-    function calculateTotalRent(){
-      const monthlyRent = Number(onlyDigits(document.getElementById('monthlyRent').value) || 0);
-      const billingCount = Number(document.getElementById('billingCount').value || 0);
-      const totalRent = monthlyRent * billingCount;
-      document.getElementById('totalRent').value = totalRent ? totalRent.toLocaleString() + '원' : '';
-    }
-
-    function calculateContractPeriod(){
-      const s = document.getElementById('startDate').value;
-      const e = document.getElementById('endDate').value;
-      if(!s || !e) return;
-
-      const start = new Date(s);
-      const end = new Date(e);
-
-      if(end < start){
-        document.getElementById('contractPeriod').value = '';
-        return;
-      }
-
-      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
-      if(end.getDate() >= start.getDate()) months += 1;
-      const diffDays = Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24));
-      document.getElementById('contractPeriod').value = `${months}개월 ${diffDays}일`;
-
-      if(!document.getElementById('editingId').value){
-        document.getElementById('billingCount').value = months;
-      }
-      calculateTotalRent();
-    }
-
-    document.getElementById('startDate').addEventListener('change', calculateContractPeriod);
-    document.getElementById('endDate').addEventListener('change', calculateContractPeriod);
-
-    document.querySelectorAll('.btn-toggle').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const group = btn.closest('.btn-toggle-group');
-        group.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.getElementById(btn.dataset.target).value = btn.dataset.value;
-      });
-    });
-
-    document.getElementById('customerCode').addEventListener('blur', async function(){
-      const code = this.value.trim();
-      if(!code) return;
-
-      try{
-        const c = await apiGet('/customers/lookup?customerNumber=' + encodeURIComponent(code));
-        fillCustomer(c);
-      }catch(e){
-        clearCustomerOnly();
-        alert('해당 고객번호를 찾을 수 없습니다.');
-      }
-    });
-
-    function fillCustomer(c){
-      document.getElementById('customerCode').value = c.customerNumber || '';
-      document.getElementById('customerName').value = c.customerName || '';
-      document.getElementById('customerPhone').value = c.phone || '';
-      document.getElementById('address').value = c.address || '';
-      document.getElementById('idNumber').value = c.registrationNumber || '';
-    }
-
-    function clearCustomerOnly(){
-      document.getElementById('customerName').value = '';
-      document.getElementById('customerPhone').value = '';
-      document.getElementById('address').value = '';
-      document.getElementById('idNumber').value = '';
-    }
-
-    document.getElementById('vehicleNumber').addEventListener('blur', async function(){
-      const no = this.value.trim();
-      if(!no) return;
-
-      try{
-        const isEdit = !!document.getElementById('editingId').value;
-        if(isEdit){
-          const v = await apiGet('/vehicle-orders/lookup?vehicleNo=' + encodeURIComponent(no));
-          document.getElementById('vehicleModel').value = v.vehicleModel || '';
-        }else{
-          const list = await apiGet('/vehicle-orders/available?keyword=' + encodeURIComponent(no));
-          const exact = (list || []).find(v => String(v.vehicleNo) === no);
-          if(!exact) throw new Error('not found');
-          fillVehicle(exact);
-        }
-      }catch(e){
-        document.getElementById('vehicleModel').value = '';
-        alert('해당 차량번호를 찾을 수 없거나(또는 이미 계약된 차량) 입니다.');
-      }
-    });
-
-    function fillVehicle(v){
-      document.getElementById('vehicleNumber').value = v.vehicleNo || '';
-      document.getElementById('vehicleModel').value = v.vehicleModel || '';
-    }
-
-    document.getElementById('btnReset').addEventListener('click', () => {
-      if(!confirm('모든 입력 내용을 초기화하시겠습니까?')) return;
-      document.getElementById('contractForm').reset();
-      clearFormFields();
-
-      document.getElementById('taxInvoiceDay').value = '25';
-      document.getElementById('billingDay').value = '25';
-      document.getElementById('vehicleInsuranceLimit').value = '3천만원';
-      document.getElementById('vehicleDeductible').value = '50만원';
-      document.getElementById('propertyDeductible').value = '50만원';
-      document.getElementById('personalDeductible').value = '50만원';
-      document.getElementById('passengerDeductible').value = '50만원';
-      document.getElementById('propertyLiability').value = '2억';
-      document.getElementById('residualValue').value = '0';
-    });
-
-    document.getElementById('contractForm').addEventListener('submit', async function(e){
-      e.preventDefault();
-
-      const isEdit = !!document.getElementById('editingId').value;
-      if(!confirm(isEdit ? '계약을 수정하시겠습니까?' : '계약을 등록하시겠습니까?')) return;
-
-      const payload = {
-        customerNumber: document.getElementById('customerCode').value.trim(),
-        vehicleNo: document.getElementById('vehicleNumber').value.trim(),
-        vehicleModel: document.getElementById('vehicleModel').value.trim(),
-
-        contractType: document.getElementById('contractType').value,
-        contractCategory: document.getElementById('contractCategory').value,
-        status: '진행중',
-
-        startDate: document.getElementById('startDate').value,
-        endDate: document.getElementById('endDate').value,
-
-        taxInvoiceDay: Number(document.getElementById('taxInvoiceDay').value || 0),
-        paymentDueDay: document.getElementById('paymentDueDay').value,
-
-        advancePayment: Number(onlyDigits(document.getElementById('advancePayment').value) || 0),
-        monthlyRent: Number(onlyDigits(document.getElementById('monthlyRent').value) || 0),
-        billingDay: Number(document.getElementById('billingDay').value || 0),
-        billingCount: Number(document.getElementById('billingCount').value || 0),
-        totalRent: Number(onlyDigits(document.getElementById('totalRent').value) || 0),
-
-        deposit: Number(onlyDigits(document.getElementById('deposit').value) || 0),
-        maturityOption: document.getElementById('maturityOption').value,
-        residualValue: Number(onlyDigits(document.getElementById('residualValue').value) || 0),
-
-        vehicleInsurance: document.getElementById('vehicleInsurance').value,
-        insuranceAge: document.getElementById('insuranceAge').value,
-        vehicleInsuranceLimit: document.getElementById('vehicleInsuranceLimit').value,
-        vehicleDeductible: document.getElementById('vehicleDeductible').value,
-
-        propertyLiability: document.getElementById('propertyLiability').value,
-        propertyDeductible: document.getElementById('propertyDeductible').value,
-        personalDeductible: document.getElementById('personalDeductible').value,
-        passengerDeductible: document.getElementById('passengerDeductible').value,
-
-        remarks: document.getElementById('remarks').value
-      };
-
-      try{
-        if(isEdit){
-          const id = document.getElementById('editingId').value;
-          await apiPut('/contracts/' + id, payload);
-          alert('수정되었습니다.');
-        }else{
-          const created = await apiPost('/contracts', payload);
-          alert('계약이 성공적으로 등록되었습니다!\n계약번호: ' + (created.contractNumber || ''));
-        }
-
-        this.reset();
-        clearFormFields();
-        contractFormSection.classList.add('hidden');
-        contractListSection.classList.remove('hidden');
-        await loadContracts();
-      }catch(err){
-        alert((isEdit ? '수정' : '등록') + ' 실패: ' + err.message);
-      }
-    });
-
-    const customerModal = document.getElementById('customerModalBackdrop');
-
-    document.getElementById('btnCustomerSearch').addEventListener('click', async () => {
-      customerModal.style.display = 'block';
-      document.getElementById('customerSearchKeyword').value = '';
-      document.getElementById('customerSearchTbody').innerHTML = '';
-      document.getElementById('customerSearchKeyword').focus();
-      await searchCustomers();
-    });
-
-    document.getElementById('closeCustomerModal').addEventListener('click', () => customerModal.style.display = 'none');
-    customerModal.addEventListener('click', (e) => {
-      if(e.target === customerModal) customerModal.style.display = 'none';
-    });
-
-    document.getElementById('customerSearchBtn').addEventListener('click', searchCustomers);
-    document.getElementById('customerSearchKeyword').addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        searchCustomers();
-      }
-    });
-
-    async function searchCustomers(){
-      const kw = document.getElementById('customerSearchKeyword').value.trim();
-      const tbody = document.getElementById('customerSearchTbody');
-
-      try{
-        const list = await apiGet('/customers/search?keyword=' + encodeURIComponent(kw));
-        tbody.innerHTML = '';
-
-        (list || []).forEach(c => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${escHtml(c.customerNumber || '')}</td>
-            <td>${escHtml(c.customerName || '')}</td>
-            <td>${escHtml(c.phone || '')}</td>
-            <td>${escHtml(c.address || '')}</td>
-            <td><button type="button" class="select-btn">선택</button></td>
-          `;
-          tr.querySelector('.select-btn').addEventListener('click', () => {
-            fillCustomer(c);
-            customerModal.style.display = 'none';
-          });
-          tbody.appendChild(tr);
-        });
-
-        if(!list || list.length === 0){
-          tbody.innerHTML = `<tr><td colspan="5">검색 결과가 없습니다.</td></tr>`;
-        }
-      }catch(e){
-        alert('고객 검색 실패: ' + e.message);
-      }
-    }
-
-    const vehicleModal = document.getElementById('vehicleModalBackdrop');
-
-    document.getElementById('btnVehicleSearch').addEventListener('click', () => {
-      vehicleModal.style.display = 'block';
-      document.getElementById('vehicleSearchKeyword').value = '';
-      document.getElementById('vehicleSearchTbody').innerHTML = '';
-      document.getElementById('vehicleSearchKeyword').focus();
-      searchVehicles();
-    });
-
-    document.getElementById('closeVehicleModal').addEventListener('click', () => vehicleModal.style.display = 'none');
-    vehicleModal.addEventListener('click', (e) => {
-      if(e.target === vehicleModal) vehicleModal.style.display = 'none';
-    });
-
-    document.getElementById('vehicleSearchBtn').addEventListener('click', searchVehicles);
-    document.getElementById('vehicleSearchKeyword').addEventListener('keydown', (e) => {
-      if(e.key === 'Enter'){
-        e.preventDefault();
-        searchVehicles();
-      }
-    });
-
-    async function searchVehicles(){
-      const kw = document.getElementById('vehicleSearchKeyword').value.trim();
-      const tbody = document.getElementById('vehicleSearchTbody');
-
-      try{
-        const list = await apiGet('/vehicle-orders/available?keyword=' + encodeURIComponent(kw));
-        tbody.innerHTML = '';
-
-        (list || []).forEach(v => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${escHtml(v.vehicleNo || '')}</td>
-            <td>${escHtml(v.vehicleModel || '')}</td>
-            <td>${escHtml(v.vehicleMgmtNo || '')}</td>
-            <td><button type="button" class="select-btn">선택</button></td>
-          `;
-          tr.querySelector('.select-btn').addEventListener('click', () => {
-            fillVehicle(v);
-            vehicleModal.style.display = 'none';
-          });
-          tbody.appendChild(tr);
-        });
-
-        if(!list || list.length === 0){
-          tbody.innerHTML = `<tr><td colspan="4">검색 결과가 없습니다.</td></tr>`;
-        }
-      }catch(e){
-        alert('차량 검색 실패: ' + e.message);
-      }
-    }
-
-    (async function init(){
-      try{
-        await loadContracts();
-      }catch(e){
-        alert('계약 목록 로딩 실패: ' + e.message);
-      }
-    })();
+    loadSidebar();
+    loadContracts().catch(err => alert(err.message));
+    validateRates();
   </script>
 </body>
 </html>

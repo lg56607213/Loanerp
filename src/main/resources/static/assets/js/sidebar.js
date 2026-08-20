@@ -33,42 +33,40 @@ function loadSidebar() {
             </ul>
           </li>
           <li class="has-sub">
-            <span class="menu-label">계약관리</span>
+            <span class="menu-label">여신관리</span>
             <ul>
-              <li class="has-sub">
-                <span class="menu-label">계약등록</span>
-                <ul>
-                  <li><a href="${basePath}pages/contract/contract_register.html">등록</a></li>
-                  <li><a href="${basePath}pages/contract/contract_overview.html">관리</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">중도상환</span>
-                <ul>
-                  <li><a href="${basePath}pages/contract/early_termination.html">반납</a></li>
-                </ul>
-              </li>
+              <li><a href="${basePath}pages/contract/contract_register.html">대출등록</a></li>
+              <li><a href="${basePath}pages/contract/contract_overview.html">대출현황</a></li>
+              <li><a href="${basePath}pages/payment/schedule_management.html">상환스케줄</a></li>
+              <li><a href="${basePath}pages/contract/early_termination.html">중도상환</a></li>
               <li class="has-sub">
                 <span class="menu-label">만기관리</span>
                 <ul>
-                  <li><a href="${basePath}pages/contract/maturity_management.html">재계약</a></li>
-                  <li><a href="${basePath}pages/contract/maturity_termination.html">종료</a></li>
+                  <li><a href="${basePath}pages/contract/maturity_management.html">만기연장</a></li>
+                  <li><a href="${basePath}pages/contract/maturity_termination.html">만기종료</a></li>
                 </ul>
               </li>
-              <li>
-                <a href="${basePath}pages/contract/legal_proceeding.html">법적절차</a>
+            </ul>
+          </li>
+          <li class="has-sub">
+            <span class="menu-label">채권관리</span>
+            <ul>
+              <li><a href="${basePath}pages/payment/overdue_status.html">연체현황</a></li>
+              <li><a href="${basePath}pages/management/contract_status.html">채권현황</a></li>
+              <li class="has-sub">
+                <span class="menu-label">미수관리</span>
+                <ul>
+                  <li><a href="${basePath}pages/payment/receivable_register.html">미수금등록</a></li>
+                  <li><a href="${basePath}pages/payment/receivable_status.html">미수현황</a></li>
+                </ul>
               </li>
+              <li><a href="${basePath}pages/contract/legal_proceeding.html">법적절차</a></li>
+              <li><a href="${basePath}pages/payment/consultation_register.html">상담등록</a></li>
             </ul>
           </li>
           <li class="has-sub">
             <span class="menu-label">수납관리</span>
             <ul>
-              <li class="has-sub">
-                <span class="menu-label">스케줄관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/payment/schedule_management.html">스케줄변경</a></li>
-                </ul>
-              </li>
               <li class="has-sub">
                 <span class="menu-label">청구관리</span>
                 <ul>
@@ -80,22 +78,6 @@ function loadSidebar() {
                 <span class="menu-label">수납관리</span>
                 <ul>
                   <li><a href="${basePath}pages/payment/payment_register.html">수납등록</a></li>
-                </ul>
-              </li>
-              <li>
-                <a href="${basePath}pages/payment/overdue_status.html">연체현황</a>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">미수관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/payment/receivable_register.html">미수금등록</a></li>
-                  <li><a href="${basePath}pages/payment/receivable_status.html">미수현황</a></li>
-                </ul>
-              </li>
-              <li class="has-sub">
-                <span class="menu-label">상담관리</span>
-                <ul>
-                  <li><a href="${basePath}pages/payment/consultation_register.html">상담등록</a></li>
                 </ul>
               </li>
               <li class="has-sub">
@@ -150,7 +132,6 @@ function loadSidebar() {
           <li class="has-sub">
             <span class="menu-label">총괄관리</span>
             <ul>
-              <li><a href="${basePath}pages/management/contract_status.html">계약현황</a></li>
               <li class="has-sub">
                 <span class="menu-label">회계계정관리</span>
                 <ul>
