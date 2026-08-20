@@ -8,6 +8,5 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class VehicleLookupRowResponse {
-    private String vehicleNo;
     private String carModel;
 }

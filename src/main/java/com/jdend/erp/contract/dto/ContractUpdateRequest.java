@@ -1,40 +1,34 @@
 package com.jdend.erp.contract.dto;
 
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/** 여신계약 수정 요청 — null 인 항목은 변경하지 않는다. */
 @Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 @Builder
 public class ContractUpdateRequest {
 
   private String customerNumber;
-  private String vehicleNo;
+  private String customerType;
+  private String loanType;
 
-  private String contractType;
-  private String contractCategory;
+  private Long loanAmount;
+  private LocalDate executeDate;
+
+  private BigDecimal interestRate;
+  private BigDecimal overdueRate;
+  private Boolean overdueChargeYn;
+
+  private String repaymentMethod;
+
   private LocalDate startDate;
   private LocalDate endDate;
-  private Integer taxInvoiceDay;
-  private String paymentDueDay;
-
-  private Long advancePayment;
-  private Long monthlyRent;
-  private Integer billingDay;
-  private Integer billingCount;
-  private Long deposit;
-  private String maturityOption;
-  private Long residualValue;
-
-  private String vehicleInsurance;
-  private String insuranceAge;
-  private String vehicleInsuranceLimit;
-  private String vehicleDeductible;
-  private String propertyLiability;
-  private String propertyDeductible;
-  private String personalDeductible;
-  private String passengerDeductible;
+  private Integer paymentDay;
+  private Integer installmentCount;
+  private Long monthlyPayment;
 
   private String remarks;
 }

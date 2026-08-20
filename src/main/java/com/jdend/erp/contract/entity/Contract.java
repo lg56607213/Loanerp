@@ -6,9 +6,16 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * 여신계약(대출채권).
+ *
+ * 렌터카 ERP의 렌트계약을 대부업 여신계약으로 전환한 엔티티다.
+ * 테이블명(contracts)은 수납·청구·전표·미수·법적절차가 모두 contract_number로 물려 있어 그대로 둔다.
+ */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -20,6 +27,7 @@ public class Contract {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
+  /** 채권번호 */
   @Column(name="contract_number", nullable=false, unique=true, length=30)
   private String contractNumber;
 
@@ -30,21 +38,42 @@ public class Contract {
   @Column(name="customer_number", nullable=false, length=30)
   private String customerNumber;
 
-  @Column(name="vehicle_no", nullable=false, length=30)
-  private String vehicleNo;
+  /** 개인 / 법인 — 금소법상 연체이자 부과 제한 판단에 사용 */
+  @Column(name="customer_type", length=10)
+  private String customerType;
 
-  @Column(name="vehicle_model", length=50)
-  private String vehicleModel;
+  /** 신용대출 / 담보대출 / 사업자대출 */
+  @Column(name="loan_type", length=20)
+  private String loanType;
 
-  @Column(name="contract_type", nullable=false, length=20)
-  private String contractType;
+  // ── 여신 조건 ───────────────────────────────────────────────
 
-  @Column(name="contract_category", nullable=false, length=20)
-  private String contractCategory;
+  /** 대출금(원금) */
+  @Column(name="loan_amount", nullable=false)
+  private Long loanAmount;
 
-  // ✅✅ DB에 실제로 추가한 상태 컬럼
-  @Column(name="status", nullable=false, length=20)
-  private String status;
+  /** 실행일 */
+  @Column(name="execute_date")
+  private LocalDate executeDate;
+
+  /** 약정 연이율(%) — 대부업법상 20% 초과 불가 */
+  @Column(name="interest_rate", precision=5, scale=2)
+  private BigDecimal interestRate;
+
+  /** 연체이율(%) — min(약정이율 + 3, 20) 초과 불가 */
+  @Column(name="overdue_rate", precision=5, scale=2)
+  private BigDecimal overdueRate;
+
+  /**
+   * 연체이자 부과 여부.
+   * 금소법상 개인 3천만원 이하 등 미부과 대상 채권은 false로 두고 지연배상금을 산정하지 않는다.
+   */
+  @Column(name="overdue_charge_yn", nullable=false)
+  private Boolean overdueChargeYn;
+
+  /** 원리금균등 / 원금균등 / 만기일시 */
+  @Column(name="repayment_method", nullable=false, length=20)
+  private String repaymentMethod;
 
   @Column(name="start_date", nullable=false)
   private LocalDate startDate;
@@ -52,64 +81,34 @@ public class Contract {
   @Column(name="end_date", nullable=false)
   private LocalDate endDate;
 
-  @Column(name="tax_invoice_day")
-  private Integer taxInvoiceDay;
+  /** 납입일자 (1~31, 말일 클램핑) */
+  @Column(name="payment_day")
+  private Integer paymentDay;
 
-  @Column(name="payment_due_day", length=20)
-  private String paymentDueDay;
+  /** 총 회차수 */
+  @Column(name="installment_count", nullable=false)
+  private Integer installmentCount;
 
-  @Column(name="advance_payment", nullable=false)
-  private Long advancePayment;
+  /** 월납입액 — 원리금균등은 PMT 공식으로 자동 산출 */
+  @Column(name="monthly_payment", nullable=false)
+  private Long monthlyPayment;
 
-  @Column(name="monthly_rent", nullable=false)
-  private Long monthlyRent;
+  // ── 채권 상태 ───────────────────────────────────────────────
 
-  @Column(name="billing_day")
-  private Integer billingDay;
+  /**
+   * 정상 / 연체 / 해지 / 상각 / 종료.
+   * 해지·상각·종료만 이벤트 시점에 저장하고, 정상·연체는 미납 스케줄로 조회 시점에 파생 판정한다.
+   */
+  @Column(name="status", nullable=false, length=20)
+  private String status;
 
-  @Column(name="billing_count", nullable=false)
-  private Integer billingCount;
-
-  @Column(name="total_rent", nullable=false)
-  private Long totalRent;
-
-  @Column(name="deposit", nullable=false)
-  private Long deposit;
-
-  @Column(name="maturity_option", length=30)
-  private String maturityOption;
-
-  @Column(name="residual_value", nullable=false)
-  private Long residualValue;
-
-  @Column(name="vehicle_insurance", length=10)
-  private String vehicleInsurance;
-
-  @Column(name="insurance_age", length=20)
-  private String insuranceAge;
-
-  @Column(name="vehicle_insurance_limit", length=50)
-  private String vehicleInsuranceLimit;
-
-  @Column(name="vehicle_deductible", length=50)
-  private String vehicleDeductible;
-
-  @Column(name="property_liability", length=50)
-  private String propertyLiability;
-
-  @Column(name="property_deductible", length=50)
-  private String propertyDeductible;
-
-  @Column(name="personal_deductible", length=50)
-  private String personalDeductible;
-
-  @Column(name="passenger_deductible", length=50)
-  private String passengerDeductible;
+  /** 잔여원금 — 수납 충당 시 갱신 */
+  @Column(name="remaining_principal")
+  private Long remainingPrincipal;
 
   @Column(name="remarks", columnDefinition = "TEXT")
   private String remarks;
 
-  // BUG-04 수정: insertable=false 제거 → Hibernate가 INSERT/UPDATE 시점에 자동 설정
   @CreationTimestamp
   @Column(name="created_at", updatable = false)
   private LocalDateTime createdAt;
@@ -120,14 +119,12 @@ public class Contract {
 
   @PrePersist
   public void prePersist() {
-    // ✅ status 기본값
-    if (status == null || status.isBlank()) status = "진행중";
-
-    if (advancePayment == null) advancePayment = 0L;
-    if (monthlyRent == null) monthlyRent = 0L;
-    if (billingCount == null) billingCount = 0;
-    if (totalRent == null) totalRent = 0L;
-    if (deposit == null) deposit = 0L;
-    if (residualValue == null) residualValue = 0L;
+    if (status == null || status.isBlank()) status = ContractStatus.NORMAL;
+    if (overdueChargeYn == null) overdueChargeYn = Boolean.TRUE;
+    if (repaymentMethod == null || repaymentMethod.isBlank()) repaymentMethod = RepaymentMethod.EQUAL_PAYMENT;
+    if (loanAmount == null) loanAmount = 0L;
+    if (monthlyPayment == null) monthlyPayment = 0L;
+    if (installmentCount == null) installmentCount = 0;
+    if (remainingPrincipal == null) remainingPrincipal = loanAmount;
   }
 }

@@ -3,9 +3,7 @@ package com.jdend.erp.accounting.monthlyvoucher.service;
 import com.jdend.erp.accounting.monthlyvoucher.dto.MonthlyVoucherRuleCreateRequest;
 import com.jdend.erp.accounting.monthlyvoucher.dto.MonthlyVoucherRuleCreateResponse;
 import com.jdend.erp.accounting.monthlyvoucher.dto.MonthlyVoucherRuleListResponse;
-import com.jdend.erp.accounting.monthlyvoucher.entity.VehicleOrderMini;
 import com.jdend.erp.accounting.monthlyvoucher.repository.MonthlyVoucherRuleRepository;
-import com.jdend.erp.accounting.monthlyvoucher.repository.VehicleOrderMiniRepository;
 
 // ✅ 기존 엔티티 사용
 import com.jdend.erp.accounting.voucher.entity.MonthlyVoucherRule;
@@ -22,7 +20,6 @@ import java.util.List;
 public class MonthlyVoucherRuleService {
 
   private final MonthlyVoucherRuleRepository ruleRepo;
-  private final VehicleOrderMiniRepository vehicleOrderRepo;
 
   @Transactional
   public MonthlyVoucherRuleCreateResponse create(MonthlyVoucherRuleCreateRequest req) {
@@ -47,15 +44,6 @@ public class MonthlyVoucherRuleService {
       throw new IllegalArgumentException("차변/대변 금액이 일치하지 않습니다.");
     }
 
-    // 차량관리번호 -> 차량번호(vehicle_no)
-    String vehicleNo = null;
-    if (req.getVehicleManagementId() != null && !req.getVehicleManagementId().isBlank()) {
-      VehicleOrderMini vo = vehicleOrderRepo.findTop1ByVehicleMgmtNo(req.getVehicleManagementId().trim())
-          .orElseThrow(() -> new IllegalArgumentException(
-              "해당 차량관리번호를 vehicle_orders에서 찾을 수 없습니다: " + req.getVehicleManagementId()
-          ));
-      vehicleNo = vo.getVehicleNo();
-    }
 
     LocalDate today = LocalDate.now();
     LocalDate nextRun = calcNextRunDate(today, req.getMonthlyDate());
@@ -67,7 +55,6 @@ public class MonthlyVoucherRuleService {
     MonthlyVoucherRule rule = MonthlyVoucherRule.builder()
         .active(true)
         .contractNumber(blankToNull(req.getContractNumber()))
-        .vehicleNo(blankToNull(vehicleNo))
         .monthlyDay(req.getMonthlyDate())
         .nextRunDate(nextRun)
         .lastRunDate(null)
@@ -89,7 +76,6 @@ public class MonthlyVoucherRuleService {
         .id(saved.getId())
         .isActive(saved.isActive())
         .contractNumber(saved.getContractNumber())
-        .vehicleNo(saved.getVehicleNo())
         .monthlyDay(saved.getMonthlyDay())
         .nextRunDate(saved.getNextRunDate())
         .debitAccount(saved.getDebitAccount())
@@ -112,10 +98,9 @@ public class MonthlyVoucherRuleService {
     return monthFirst.withDayOfMonth(Math.min(day, last));
   }
 
-  public List<MonthlyVoucherRuleListResponse> list(Boolean activeOnly, String contractNumber, String vehicleNo) {
+  public List<MonthlyVoucherRuleListResponse> list(Boolean activeOnly, String contractNumber) {
     String cn = (contractNumber == null || contractNumber.isBlank()) ? null : contractNumber.trim();
-    String vn = (vehicleNo == null || vehicleNo.isBlank()) ? null : vehicleNo.trim();
-    return ruleRepo.search(activeOnly, cn, vn)
+    return ruleRepo.search(activeOnly, cn)
         .stream()
         .map(MonthlyVoucherRuleListResponse::from)
         .toList();

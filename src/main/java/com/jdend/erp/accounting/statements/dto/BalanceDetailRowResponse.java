@@ -18,7 +18,6 @@ public class BalanceDetailRowResponse {
   private Long amount;
   private String description;
   private String contractNumber;
-  private String vehicleNo;
   private String memo;
   private String status;
 }

@@ -140,9 +140,8 @@ function loadSidebar() {
                 </ul>
               </li>
               <li class="has-sub">
-                <span class="menu-label">보증금/선수금관리</span>
+                <span class="menu-label">선수금관리</span>
                 <ul>
-                  <li><a href="${basePath}pages/accounting/deposit_management.html">보증금/선수금관리</a></li>
                   <li><a href="${basePath}pages/accounting/prepaid_rent_management.html">선수금관리</a></li>
                 </ul>
               </li>

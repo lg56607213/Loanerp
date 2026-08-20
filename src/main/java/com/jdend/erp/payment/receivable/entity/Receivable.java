@@ -31,9 +31,6 @@ public class Receivable {
   @Column(name = "customer_name", length = 100)
   private String customerName;
 
-  @Column(name = "vehicle_no", length = 30)
-  private String vehicleNo;
-
   @Column(name = "receivable_amount", nullable = false)
   private Long receivableAmount;
 

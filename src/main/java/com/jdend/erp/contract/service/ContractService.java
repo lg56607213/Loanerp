@@ -2,7 +2,11 @@ package com.jdend.erp.contract.service;
 
 import com.jdend.erp.contract.dto.*;
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.ContractStatus;
+import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
+import com.jdend.erp.contract.support.AmortizationCalculator;
+import com.jdend.erp.contract.support.LoanRateValidator;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
 import com.jdend.erp.payment.schedule.service.PaymentScheduleAutoGeneratorService;
@@ -10,15 +14,22 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+/** 여신계약(대출채권) 등록·수정·조회 */
 @Service
 @RequiredArgsConstructor
 public class ContractService {
+
+  public static final String LOAN_TYPE_CREDIT   = "신용대출";
+  public static final String LOAN_TYPE_SECURED  = "담보대출";
+  public static final String LOAN_TYPE_BUSINESS = "사업자대출";
 
   private final ContractRepository contractRepo;
   private final CustomerRepository customerRepo;
@@ -33,89 +44,78 @@ public class ContractService {
 
   @Transactional(readOnly = true)
   public ContractResponse detail(Long id) {
-    Contract c = contractRepo.findById(id)
-        .orElseThrow(() -> new RuntimeException("계약 없음 id=" + id));
-    return toResponse(c);
-  }
-
-  @Transactional(readOnly = true)
-  public ContractFullResponse detailFullByNumber(String contractNumber) {
-    if (contractNumber == null || contractNumber.isBlank()) {
-      throw new RuntimeException("계약번호(contractNumber) 필수");
-    }
-
-    Contract c = contractRepo.findWithCustomerByContractNumber(contractNumber.trim())
-        .orElseThrow(() -> new RuntimeException("계약 없음 contractNumber=" + contractNumber));
-
-    return toFullResponse(c);
+    return toResponse(findById(id));
   }
 
   @Transactional(readOnly = true)
   public ContractFullResponse detailFull(Long id) {
-    Contract c = contractRepo.findById(id)
-        .orElseThrow(() -> new RuntimeException("계약 없음 id=" + id));
+    return toFullResponse(findById(id));
+  }
+
+  @Transactional(readOnly = true)
+  public ContractFullResponse detailFullByNumber(String contractNumber) {
+    if (isBlank(contractNumber)) {
+      throw new RuntimeException("채권번호(contractNumber) 필수");
+    }
+    Contract c = contractRepo.findWithCustomerByContractNumber(contractNumber.trim())
+        .orElseThrow(() -> new RuntimeException("채권 없음 contractNumber=" + contractNumber));
     return toFullResponse(c);
   }
 
-  /**
-   * 계약번호 미리보기. contractType 미지정 시 "장기" 기준으로 채번한다.
-   */
-  public String nextNumberPreview(String contractType) {
-    return generateNextContractNumber(contractType != null ? contractType : "장기");
+  // ── 채권번호 채번 ─────────────────────────────────────────────
+
+  /** 채권번호 미리보기. loanType 미지정 시 신용대출 기준으로 채번한다. */
+  public String nextNumberPreview(String loanType) {
+    return generateNextContractNumber(loanType != null ? loanType : LOAN_TYPE_CREDIT);
   }
 
   /**
-   * 신규 계약번호 채번.
-   * - 장기: LTC + YYMMDD(6) + 순번(3) + 회차(3) = 15자리
-   * - 단기: STC + YYMMDD(6) + 순번(3) + 회차(3) = 15자리
-   * 신규 계약의 회차는 항상 001. 재렌트는 {@link #generateRerentContractNumber} 사용.
+   * 신규 채권번호 채번.
+   *   신용대출 CRD / 담보대출 SEC / 사업자대출 BIZ
+   *   + YYMMDD(6) + 순번(3) + 회차(3) = 15자리
+   * 신규 채권의 회차는 항상 001이며, 만기연장·재약정만 회차를 올린다.
    */
-  public synchronized String generateNextContractNumber(String contractType) {
-    String prefix = "장기".equals(contractType) ? "LTC" : "STC";
+  public synchronized String generateNextContractNumber(String loanType) {
+    String prefix = switch (loanType == null ? "" : loanType) {
+      case LOAN_TYPE_SECURED  -> "SEC";
+      case LOAN_TYPE_BUSINESS -> "BIZ";
+      default                 -> "CRD";
+    };
     String yymmdd = LocalDate.now().format(DateTimeFormatter.ofPattern("yyMMdd"));
-    String datePrefix = prefix + yymmdd; // 예: LTC260804
+    String datePrefix = prefix + yymmdd;
 
     Optional<String> maxOpt = contractRepo.findMaxContractNumberByPrefix(datePrefix);
 
     int nextSeq = 1;
     if (maxOpt.isPresent()) {
-      String max = maxOpt.get(); // 예: LTC260804003002
       try {
-        // LTC(3)+YYMMDD(6) = 9자리 이후 순번(3자리)
-        String seqStr = max.substring(9, 12);
-        nextSeq = Integer.parseInt(seqStr) + 1;
+        nextSeq = Integer.parseInt(maxOpt.get().substring(9, 12)) + 1;
       } catch (Exception ignored) {}
     }
-
-    // 신규 계약: 회차 001
     return String.format("%s%03d001", datePrefix, nextSeq);
   }
 
   /**
-   * 재렌트 계약번호 채번. 기존 계약번호의 base(앞 12자리)를 유지하고 회차만 증가.
-   * 예) LTC260804001001 → LTC260804001002
+   * 만기연장·재약정 채권번호 채번. 기존 번호의 base(앞 12자리)를 유지하고 회차만 올린다.
+   * 예) CRD260804001001 → CRD260804001002
    */
   public synchronized String generateRerentContractNumber(String existingContractNo) {
     if (existingContractNo == null || existingContractNo.length() < 12) {
-      throw new IllegalArgumentException("기존 계약번호가 올바르지 않습니다: " + existingContractNo);
+      throw new IllegalArgumentException("기존 채권번호가 올바르지 않습니다: " + existingContractNo);
     }
-    // base = prefix(3) + YYMMDD(6) + 순번(3) = 앞 12자리
     String base = existingContractNo.substring(0, 12);
-
     Optional<String> maxOpt = contractRepo.findMaxContractNumberByPrefix(base);
 
     int nextRound = 1;
     if (maxOpt.isPresent()) {
-      String max = maxOpt.get(); // 예: LTC260804001001
       try {
-        // 마지막 3자리가 회차
-        String roundStr = max.substring(12, 15);
-        nextRound = Integer.parseInt(roundStr) + 1;
+        nextRound = Integer.parseInt(maxOpt.get().substring(12, 15)) + 1;
       } catch (Exception ignored) {}
     }
-
     return String.format("%s%03d", base, nextRound);
   }
+
+  // ── 등록 / 수정 / 삭제 ───────────────────────────────────────
 
   @Transactional
   public ContractResponse create(ContractRequest req) {
@@ -123,240 +123,240 @@ public class ContractService {
 
     Customer customer = customerRepo.findByCustomerNumber(req.customerNumber).orElse(null);
 
-    Long monthlyRent = nvl(req.monthlyRent);
-    Integer billingCount = (req.billingCount == null ? 0 : req.billingCount);
-    Long totalRent = (req.totalRent != null ? req.totalRent : monthlyRent * billingCount);
+    String method = normalizeRepaymentMethod(req.repaymentMethod);
+    int installments = resolveInstallmentCount(req.installmentCount, req.startDate, req.endDate);
+    long monthlyPayment = resolveMonthlyPayment(
+        req.monthlyPayment, method, req.loanAmount, req.interestRate, installments);
 
     Contract c = Contract.builder()
-        .contractNumber(generateNextContractNumber(req.contractType))
+        .contractNumber(generateNextContractNumber(req.loanType))
         .customer(customer)
         .customerNumber(req.customerNumber)
-        .vehicleNo(req.vehicleNo)
-        .vehicleModel(req.vehicleModel)
-        .contractType(req.contractType)
-        .contractCategory(req.contractCategory)
-        .status(normalizeStatus(req.status))
+        .customerType(req.customerType)
+        .loanType(req.loanType)
+        .loanAmount(nvl(req.loanAmount))
+        .executeDate(req.executeDate != null ? req.executeDate : req.startDate)
+        .interestRate(req.interestRate)
+        .overdueRate(req.overdueRate)
+        .overdueChargeYn(req.overdueChargeYn == null ? Boolean.TRUE : req.overdueChargeYn)
+        .repaymentMethod(method)
         .startDate(req.startDate)
         .endDate(req.endDate)
-        .taxInvoiceDay(req.taxInvoiceDay)
-        .paymentDueDay(req.paymentDueDay)
-        .advancePayment(nvl(req.advancePayment))
-        .monthlyRent(monthlyRent)
-        .billingDay(req.billingDay)
-        .billingCount(billingCount)
-        .totalRent(totalRent)
-        .deposit(nvl(req.deposit))
-        .maturityOption(req.maturityOption)
-        .residualValue(nvl(req.residualValue))
-        .vehicleInsurance(req.vehicleInsurance)
-        .insuranceAge(req.insuranceAge)
-        .vehicleInsuranceLimit(req.vehicleInsuranceLimit)
-        .vehicleDeductible(req.vehicleDeductible)
-        .propertyLiability(req.propertyLiability)
-        .propertyDeductible(req.propertyDeductible)
-        .personalDeductible(req.personalDeductible)
-        .passengerDeductible(req.passengerDeductible)
+        .paymentDay(req.paymentDay)
+        .installmentCount(installments)
+        .monthlyPayment(monthlyPayment)
+        .status(normalizeStatus(req.status))
+        .remainingPrincipal(nvl(req.loanAmount))
         .remarks(req.remarks)
         .build();
 
-    if (c.getBillingCount() == null) c.setBillingCount(0);
-    if (c.getTotalRent() == null) c.setTotalRent(0L);
-    if (c.getAdvancePayment() == null) c.setAdvancePayment(0L);
-    if (c.getDeposit() == null) c.setDeposit(0L);
-    if (c.getResidualValue() == null) c.setResidualValue(0L);
-
     contractRepo.save(c);
     scheduleAutoGen.ensureGenerated(c);
-
     return toResponse(c);
   }
 
   @Transactional
-  public ContractResponse update(Long id, ContractRequest req) {
-    Contract c = contractRepo.findById(id)
-        .orElseThrow(() -> new RuntimeException("계약 없음 id=" + id));
+  public ContractResponse update(Long id, ContractUpdateRequest req) {
+    Contract c = findById(id);
 
-    // BUG-05: 월세 변경 여부를 수정 전에 기록한다
-    Long prevMonthlyRent = c.getMonthlyRent();
-    Integer prevBillingCount = c.getBillingCount();
-    LocalDate prevStartDate = c.getStartDate();
+    boolean scheduleAffected = false;
 
-    if (req.customerNumber != null && !req.customerNumber.isBlank()) {
-      c.setCustomerNumber(req.customerNumber);
-      c.setCustomer(customerRepo.findByCustomerNumber(req.customerNumber).orElse(null));
+    if (isNotBlank(req.getCustomerNumber()) && !req.getCustomerNumber().equals(c.getCustomerNumber())) {
+      c.setCustomerNumber(req.getCustomerNumber());
+      c.setCustomer(customerRepo.findByCustomerNumber(req.getCustomerNumber()).orElse(null));
+    }
+    if (isNotBlank(req.getCustomerType())) c.setCustomerType(req.getCustomerType());
+    if (isNotBlank(req.getLoanType()))     c.setLoanType(req.getLoanType());
+    if (req.getExecuteDate() != null)      c.setExecuteDate(req.getExecuteDate());
+    if (req.getRemarks() != null)          c.setRemarks(req.getRemarks());
+
+    if (req.getLoanAmount() != null && !req.getLoanAmount().equals(c.getLoanAmount())) {
+      c.setLoanAmount(req.getLoanAmount());
+      scheduleAffected = true;
+    }
+    if (req.getInterestRate() != null && !safeEq(req.getInterestRate(), c.getInterestRate())) {
+      c.setInterestRate(req.getInterestRate());
+      scheduleAffected = true;
+    }
+    if (req.getOverdueRate() != null)     c.setOverdueRate(req.getOverdueRate());
+    if (req.getOverdueChargeYn() != null) c.setOverdueChargeYn(req.getOverdueChargeYn());
+
+    if (isNotBlank(req.getRepaymentMethod())
+        && !req.getRepaymentMethod().equals(c.getRepaymentMethod())) {
+      c.setRepaymentMethod(normalizeRepaymentMethod(req.getRepaymentMethod()));
+      scheduleAffected = true;
+    }
+    if (req.getStartDate() != null && !req.getStartDate().equals(c.getStartDate())) {
+      c.setStartDate(req.getStartDate());
+      scheduleAffected = true;
+    }
+    if (req.getEndDate() != null && !req.getEndDate().equals(c.getEndDate())) {
+      c.setEndDate(req.getEndDate());
+      scheduleAffected = true;
+    }
+    if (req.getPaymentDay() != null && !req.getPaymentDay().equals(c.getPaymentDay())) {
+      c.setPaymentDay(req.getPaymentDay());
+      scheduleAffected = true;
+    }
+    if (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount())) {
+      c.setInstallmentCount(req.getInstallmentCount());
+      scheduleAffected = true;
     }
 
-    if (req.vehicleNo != null && !req.vehicleNo.isBlank()) {
-      c.setVehicleNo(req.vehicleNo);
+    if (c.getEndDate() != null && c.getStartDate() != null && c.getEndDate().isBefore(c.getStartDate())) {
+      throw new IllegalArgumentException("종료일자는 시작일자보다 이전일 수 없습니다.");
     }
+    LoanRateValidator.validateInterestRate(c.getInterestRate());
+    LoanRateValidator.validateOverdueRate(c.getOverdueRate(), c.getInterestRate());
 
-    if (req.vehicleModel != null) c.setVehicleModel(req.vehicleModel);
-
-    if (req.contractType != null && !req.contractType.isBlank()) c.setContractType(req.contractType);
-    if (req.contractCategory != null && !req.contractCategory.isBlank()) c.setContractCategory(req.contractCategory);
-    if (req.status != null && !req.status.isBlank()) c.setStatus(req.status.trim());
-
-    if (req.startDate != null) c.setStartDate(req.startDate);
-    if (req.endDate != null) c.setEndDate(req.endDate);
-
-    c.setTaxInvoiceDay(req.taxInvoiceDay);
-    c.setPaymentDueDay(req.paymentDueDay);
-
-    if (req.billingCount == null || req.billingCount <= 0) {
-      throw new RuntimeException("청구횟수는 1 이상이어야 합니다. 청구횟수가 0이면 청구 스케줄이 생성되지 않아 청구생성에서 누락됩니다.");
+    // 월납입액은 명시 입력이 있으면 그것을 쓰고, 조건이 바뀌었으면 다시 산출한다.
+    if (req.getMonthlyPayment() != null) {
+      c.setMonthlyPayment(req.getMonthlyPayment());
+    } else if (scheduleAffected) {
+      c.setMonthlyPayment(AmortizationCalculator.monthlyPayment(
+          c.getRepaymentMethod(), nvl(c.getLoanAmount()), c.getInterestRate(), nvl(c.getInstallmentCount())));
     }
-
-    c.setAdvancePayment(nvl(req.advancePayment));
-    c.setMonthlyRent(nvl(req.monthlyRent));
-    c.setBillingDay(req.billingDay);
-    c.setBillingCount(req.billingCount);
-    c.setTotalRent(req.totalRent != null ? req.totalRent : c.getMonthlyRent() * c.getBillingCount());
-
-    c.setDeposit(nvl(req.deposit));
-    c.setMaturityOption(req.maturityOption);
-    c.setResidualValue(nvl(req.residualValue));
-
-    c.setVehicleInsurance(req.vehicleInsurance);
-    c.setInsuranceAge(req.insuranceAge);
-    c.setVehicleInsuranceLimit(req.vehicleInsuranceLimit);
-    c.setVehicleDeductible(req.vehicleDeductible);
-
-    c.setPropertyLiability(req.propertyLiability);
-    c.setPropertyDeductible(req.propertyDeductible);
-    c.setPersonalDeductible(req.personalDeductible);
-    c.setPassengerDeductible(req.passengerDeductible);
-
-    c.setRemarks(req.remarks);
 
     contractRepo.save(c);
 
-    // BUG-05: 월세·청구횟수·시작일이 변경된 경우 미래 스케줄을 삭제하고 재생성
-    boolean scheduleKeyChanged =
-        !nvl(prevMonthlyRent).equals(nvl(c.getMonthlyRent()))
-        || !safeEq(prevBillingCount, c.getBillingCount())
-        || !safeEq(prevStartDate, c.getStartDate());
-
-    if (scheduleKeyChanged) {
+    if (scheduleAffected) {
       scheduleAutoGen.regenerate(c);
     } else {
       scheduleAutoGen.ensureGenerated(c);
     }
-
     return toResponse(c);
   }
 
   @Transactional
   public void delete(Long id) {
-    if (!contractRepo.existsById(id)) {
-      throw new RuntimeException("계약 없음 id=" + id);
-    }
+    if (!contractRepo.existsById(id)) throw new RuntimeException("채권 없음 id=" + id);
     contractRepo.deleteById(id);
   }
 
+  // ── 검증 / 보조 ──────────────────────────────────────────────
+
   private void validateRequired(ContractRequest req) {
-    if (req.customerNumber == null || req.customerNumber.isBlank()) throw new RuntimeException("고객번호(customerNumber) 필수");
-    if (req.vehicleNo == null || req.vehicleNo.isBlank()) throw new RuntimeException("차량번호(vehicleNo) 필수");
-    if (req.contractType == null || req.contractType.isBlank()) throw new RuntimeException("계약구분 필수");
-    if (req.contractCategory == null || req.contractCategory.isBlank()) throw new RuntimeException("계약유형 필수");
-    if (req.startDate == null) throw new RuntimeException("계약시작일 필수");
-    if (req.endDate == null) throw new RuntimeException("계약종료일 필수");
-    // BUG-⑨ 수정: 구 계약 이관을 위해 endDate < today 차단 조건 제거.
-    // startDate > endDate 검증만 유지한다.
-    if (req.startDate != null && req.endDate.isBefore(req.startDate)) {
-      throw new IllegalArgumentException("계약 종료일은 시작일보다 이전일 수 없습니다.");
+    if (isBlank(req.customerNumber)) throw new RuntimeException("고객번호(customerNumber) 필수");
+    if (isBlank(req.loanType))       throw new RuntimeException("대출구분 필수");
+    if (req.loanAmount == null || req.loanAmount <= 0) {
+      throw new IllegalArgumentException("대출금은 1원 이상이어야 합니다.");
     }
-    if (req.billingCount == null || req.billingCount <= 0) {
-      throw new RuntimeException("청구횟수는 1 이상이어야 합니다. 청구횟수가 0이면 청구 스케줄이 생성되지 않아 청구생성에서 누락됩니다.");
+    if (req.startDate == null) throw new RuntimeException("시작일자 필수");
+    if (req.endDate == null)   throw new RuntimeException("종료일자 필수");
+    if (req.endDate.isBefore(req.startDate)) {
+      throw new IllegalArgumentException("종료일자는 시작일자보다 이전일 수 없습니다.");
     }
+    if (req.paymentDay != null && (req.paymentDay < 1 || req.paymentDay > 31)) {
+      throw new IllegalArgumentException("납입일자는 1~31 사이여야 합니다.");
+    }
+
+    // 대부업법 최고이자율 — 화면 검증만으로는 API 직접 호출을 막지 못하므로 여기서 강제한다.
+    LoanRateValidator.validateInterestRate(req.interestRate);
+    LoanRateValidator.validateOverdueRate(req.overdueRate, req.interestRate);
   }
 
-  private Long nvl(Long v) {
-    return v == null ? 0L : v;
+  private String normalizeRepaymentMethod(String method) {
+    if (isBlank(method)) return RepaymentMethod.EQUAL_PAYMENT;
+    String m = method.trim();
+    if (!RepaymentMethod.isValid(m)) {
+      throw new IllegalArgumentException(
+          "상환방식은 " + String.join(" / ", RepaymentMethod.ALL) + " 중 하나여야 합니다. 입력값: " + method);
+    }
+    return m;
   }
 
-  /** null-safe 동등비교 */
-  private <T> boolean safeEq(T a, T b) {
+  /** 회차수 미입력 시 시작일자~종료일자 개월수로 계산한다. */
+  private int resolveInstallmentCount(Integer given, LocalDate start, LocalDate end) {
+    if (given != null && given > 0) return given;
+    if (start == null || end == null) {
+      throw new IllegalArgumentException("회차수를 입력하거나 시작일자·종료일자를 지정해야 합니다.");
+    }
+    int months = (int) ChronoUnit.MONTHS.between(start.withDayOfMonth(1), end.withDayOfMonth(1));
+    if (months <= 0) {
+      throw new IllegalArgumentException("회차수는 1 이상이어야 합니다. 시작일자와 종료일자를 확인해주세요.");
+    }
+    return months;
+  }
+
+  private long resolveMonthlyPayment(Long given, String method, Long principal,
+                                     BigDecimal rate, int installments) {
+    if (given != null && given > 0) return given;
+    return AmortizationCalculator.monthlyPayment(method, nvl(principal), rate, installments);
+  }
+
+  private Contract findById(Long id) {
+    return contractRepo.findById(id).orElseThrow(() -> new RuntimeException("채권 없음 id=" + id));
+  }
+
+  private String normalizeStatus(String status) {
+    if (isBlank(status)) return ContractStatus.NORMAL;
+    return status.trim();
+  }
+
+  private static boolean isBlank(String s) { return s == null || s.isBlank(); }
+  private static boolean isNotBlank(String s) { return !isBlank(s); }
+
+  private static long nvl(Long v) { return v == null ? 0L : v; }
+  private static int nvl(Integer v) { return v == null ? 0 : v; }
+
+  private static <T> boolean safeEq(T a, T b) {
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
     return a.equals(b);
   }
 
-  private String normalizeStatus(String status) {
-    if (status == null || status.isBlank()) {
-      return "대기";
-    }
-    return status.trim();
-  }
+  // ── 응답 변환 ────────────────────────────────────────────────
 
   private ContractResponse toResponse(Contract c) {
-    String customerName = null;
-    if (c.getCustomer() != null) {
-      customerName = c.getCustomer().getCustomerName();
-    }
-
     return ContractResponse.builder()
         .id(c.getId())
         .contractNumber(c.getContractNumber())
         .customerNumber(c.getCustomerNumber())
-        .customerName(customerName)
-        .vehicleNo(c.getVehicleNo())
-        .vehicleModel(c.getVehicleModel())
-        .contractType(c.getContractType())
-        .contractCategory(c.getContractCategory())
-        .status(c.getStatus())
+        .customerName(c.getCustomer() != null ? c.getCustomer().getCustomerName() : null)
+        .customerType(c.getCustomerType())
+        .loanType(c.getLoanType())
+        .loanAmount(c.getLoanAmount())
+        .executeDate(c.getExecuteDate())
+        .interestRate(c.getInterestRate())
+        .overdueRate(c.getOverdueRate())
+        .overdueChargeYn(c.getOverdueChargeYn())
+        .repaymentMethod(c.getRepaymentMethod())
         .startDate(c.getStartDate())
         .endDate(c.getEndDate())
-        .billingCount(c.getBillingCount())
-        .monthlyRent(c.getMonthlyRent())
+        .paymentDay(c.getPaymentDay())
+        .installmentCount(c.getInstallmentCount())
+        .monthlyPayment(c.getMonthlyPayment())
+        .status(c.getStatus())
+        .remainingPrincipal(c.getRemainingPrincipal())
+        .remarks(c.getRemarks())
         .build();
   }
 
   private ContractFullResponse toFullResponse(Contract c) {
-    String customerName = null;
-    String customerPhone = null;
-    String customerAddress = null;
-    String customerRegNo = null;
-
-    if (c.getCustomer() != null) {
-      customerName = c.getCustomer().getCustomerName();
-      customerPhone = c.getCustomer().getPhone();
-      customerAddress = c.getCustomer().getAddress();
-      customerRegNo = c.getCustomer().getRegistrationNumber();
-    }
-
+    Customer cu = c.getCustomer();
     return ContractFullResponse.builder()
         .id(c.getId())
         .contractNumber(c.getContractNumber())
         .customerNumber(c.getCustomerNumber())
-        .customerName(customerName)
-        .customerPhone(customerPhone)
-        .customerAddress(customerAddress)
-        .customerRegistrationNumber(customerRegNo)
-        .vehicleNo(c.getVehicleNo())
-        .vehicleModel(c.getVehicleModel())
-        .contractType(c.getContractType())
-        .contractCategory(c.getContractCategory())
-        .status(c.getStatus())
+        .customerName(cu != null ? cu.getCustomerName() : null)
+        .customerPhone(cu != null ? cu.getPhone() : null)
+        .customerAddress(cu != null ? cu.getAddress() : null)
+        .customerRegistrationNumber(cu != null ? cu.getRegistrationNumber() : null)
+        .customerType(c.getCustomerType())
+        .loanType(c.getLoanType())
+        .loanAmount(nvl(c.getLoanAmount()))
+        .executeDate(c.getExecuteDate())
+        .interestRate(c.getInterestRate())
+        .overdueRate(c.getOverdueRate())
+        .overdueChargeYn(c.getOverdueChargeYn())
+        .repaymentMethod(c.getRepaymentMethod())
         .startDate(c.getStartDate())
         .endDate(c.getEndDate())
-        .taxInvoiceDay(c.getTaxInvoiceDay())
-        .paymentDueDay(c.getPaymentDueDay())
-        .advancePayment(nvl(c.getAdvancePayment()))
-        .monthlyRent(nvl(c.getMonthlyRent()))
-        .billingDay(c.getBillingDay())
-        .billingCount(c.getBillingCount() == null ? 0 : c.getBillingCount())
-        .totalRent(nvl(c.getTotalRent()))
-        .deposit(nvl(c.getDeposit()))
-        .maturityOption(c.getMaturityOption())
-        .residualValue(nvl(c.getResidualValue()))
-        .vehicleInsurance(c.getVehicleInsurance())
-        .insuranceAge(c.getInsuranceAge())
-        .vehicleInsuranceLimit(c.getVehicleInsuranceLimit())
-        .vehicleDeductible(c.getVehicleDeductible())
-        .propertyLiability(c.getPropertyLiability())
-        .propertyDeductible(c.getPropertyDeductible())
-        .personalDeductible(c.getPersonalDeductible())
-        .passengerDeductible(c.getPassengerDeductible())
+        .paymentDay(c.getPaymentDay())
+        .installmentCount(nvl(c.getInstallmentCount()))
+        .monthlyPayment(nvl(c.getMonthlyPayment()))
+        .status(c.getStatus())
+        .remainingPrincipal(nvl(c.getRemainingPrincipal()))
         .remarks(c.getRemarks())
         .build();
   }

@@ -13,12 +13,10 @@ public interface MonthlyVoucherRuleRepository extends JpaRepository<MonthlyVouch
 
   @Query("SELECT r FROM MonthlyVoucherRule r WHERE " +
       "(:activeOnly IS NULL OR r.active = :activeOnly) AND " +
-      "(:contractNumber IS NULL OR r.contractNumber LIKE %:contractNumber%) AND " +
-      "(:vehicleNo IS NULL OR r.vehicleNo LIKE %:vehicleNo%) " +
+      "(:contractNumber IS NULL OR r.contractNumber LIKE %:contractNumber%) " +
       "ORDER BY r.id DESC")
   List<MonthlyVoucherRule> search(
       @Param("activeOnly") Boolean activeOnly,
-      @Param("contractNumber") String contractNumber,
-      @Param("vehicleNo") String vehicleNo
+      @Param("contractNumber") String contractNumber
   );
 }

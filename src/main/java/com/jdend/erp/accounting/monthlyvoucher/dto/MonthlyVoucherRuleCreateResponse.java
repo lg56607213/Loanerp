@@ -12,7 +12,6 @@ public class MonthlyVoucherRuleCreateResponse {
   private Boolean isActive;
 
   private String contractNumber;
-  private String vehicleNo;
   private Integer monthlyDay;
 
   private LocalDate nextRunDate;

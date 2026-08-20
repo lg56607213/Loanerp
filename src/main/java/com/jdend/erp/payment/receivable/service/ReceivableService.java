@@ -34,7 +34,6 @@ public class ReceivableService {
         .contract(c)
         .contractNumber(c.getContractNumber())
         .customerName(cu != null ? cu.getCustomerName() : null)
-        .vehicleNo(c.getVehicleNo())
 
         .receivableAmount(nvl(req.getReceivableAmount()))
         .receivableDate(req.getReceivableDate() != null ? req.getReceivableDate() : LocalDate.now())
@@ -98,7 +97,6 @@ public class ReceivableService {
         .contractId(r.getContract() != null ? r.getContract().getId() : null)
         .contractNumber(r.getContractNumber())
         .customerName(r.getCustomerName())
-        .vehicleNo(r.getVehicleNo())
         .receivableAmount(r.getReceivableAmount())
         .receivableDate(r.getReceivableDate())
         .receivableType(r.getReceivableType())

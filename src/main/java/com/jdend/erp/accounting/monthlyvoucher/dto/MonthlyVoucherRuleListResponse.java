@@ -12,7 +12,6 @@ public class MonthlyVoucherRuleListResponse {
     private Long id;
     private boolean active;
     private String contractNumber;
-    private String vehicleNo;
     private Integer monthlyDay;
     private LocalDate nextRunDate;
     private LocalDate lastRunDate;
@@ -31,7 +30,6 @@ public class MonthlyVoucherRuleListResponse {
                 .id(r.getId())
                 .active(r.isActive())
                 .contractNumber(r.getContractNumber())
-                .vehicleNo(r.getVehicleNo())
                 .monthlyDay(r.getMonthlyDay())
                 .nextRunDate(r.getNextRunDate())
                 .lastRunDate(r.getLastRunDate())

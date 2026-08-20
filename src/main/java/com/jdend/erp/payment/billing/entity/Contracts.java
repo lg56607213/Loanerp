@@ -22,6 +22,6 @@ public class Contracts {
   @Column(name = "customer_number")
   private String customerNumber;
 
-  @Column(name = "monthly_rent")
-  private Long monthlyRent;
+  @Column(name = "monthly_payment")
+  private Long monthlyPayment;
 }

@@ -15,8 +15,8 @@ public class ScheduleManagementController {
   private final ScheduleManagementService service;
 
   @GetMapping("/by-vehicle-no")
-  public ScheduleSearchResponse getByVehicleNo(@RequestParam String vehicleNo) {
-    return service.getByVehicleNo(vehicleNo);
+  public ScheduleSearchResponse getByContractNumber(@RequestParam String contractNumber) {
+    return service.getByContractNumber(contractNumber);
   }
 
   @PutMapping

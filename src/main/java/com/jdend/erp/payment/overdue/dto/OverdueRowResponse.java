@@ -8,7 +8,6 @@ import java.time.LocalDate;
 @Builder
 public class OverdueRowResponse {
     private String contractNumber;
-    private String vehicleNo;
     private String customerName;
     private Integer installmentNo;
     private LocalDate paymentDate;

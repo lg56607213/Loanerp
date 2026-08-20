@@ -14,7 +14,6 @@ public class MaturityDetailResponse {
   private String oldContractNumber;
 
   private String customerName;
-  private String vehicleNo;
   private LocalDate oldEndDate;
 
   private String newContractNumber;

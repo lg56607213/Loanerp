@@ -14,7 +14,6 @@ public class EarlyTerminationDetailResponse {
   private String contractNumber;
 
   private String customerName;
-  private String vehicleNo;
   private String contractType;
 
   private LocalDate startDate;

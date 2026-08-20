@@ -7,6 +7,5 @@ import lombok.*;
 @Builder
 public class ContractSummaryResponse {
   private String contractNumber;
-  private String vehicleNo;
   private String customerName;
 }

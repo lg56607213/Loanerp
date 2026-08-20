@@ -58,7 +58,6 @@ public interface StatementAggRepository extends JpaRepository<VoucherLine, Long>
       l.amount,
       l.description,
       v.contractNumber,
-      v.vehicleNo,
       v.memo,
       v.status
     )

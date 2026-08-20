@@ -30,9 +30,6 @@ public class EarlyTermination {
   @Column(name = "customer_name")
   private String customerName;
 
-  @Column(name = "vehicle_no")
-  private String vehicleNo;
-
   @Column(name = "contract_type")
   private String contractType;
 

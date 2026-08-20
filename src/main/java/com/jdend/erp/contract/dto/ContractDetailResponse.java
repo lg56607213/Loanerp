@@ -1,11 +1,13 @@
 package com.jdend.erp.contract.dto;
 
 import lombok.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/** 여신계약 상세 응답 */
 @Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 @Builder
 public class ContractDetailResponse {
 
@@ -17,35 +19,26 @@ public class ContractDetailResponse {
   private String customerPhone;
   private String customerAddress;
   private String customerRegistrationNumber;
+  private String customerType;
 
-  private String vehicleNo;
-  private String vehicleModel;
+  private String loanType;
 
-  private String contractType;
-  private String contractCategory;
-  private String status;
+  private Long loanAmount;
+  private LocalDate executeDate;
+
+  private BigDecimal interestRate;
+  private BigDecimal overdueRate;
+  private Boolean overdueChargeYn;
+
+  private String repaymentMethod;
+
   private LocalDate startDate;
   private LocalDate endDate;
-  private Integer taxInvoiceDay;
-  private String paymentDueDay;
+  private Integer paymentDay;
+  private Integer installmentCount;
+  private Long monthlyPayment;
 
-  private Long advancePayment;
-  private Long monthlyRent;
-  private Integer billingDay;
-  private Integer billingCount;
-  private Long totalRent;
-  private Long deposit;
-  private String maturityOption;
-  private Long residualValue;
-
-  private String vehicleInsurance;
-  private String insuranceAge;
-  private String vehicleInsuranceLimit;
-  private String vehicleDeductible;
-  private String propertyLiability;
-  private String propertyDeductible;
-  private String personalDeductible;
-  private String passengerDeductible;
-
+  private String status;
+  private Long remainingPrincipal;
   private String remarks;
 }

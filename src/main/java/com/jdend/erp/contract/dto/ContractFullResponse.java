@@ -2,8 +2,10 @@ package com.jdend.erp.contract.dto;
 
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/** 여신계약 + 고객정보 전체 응답 (계약 상세화면용) */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 @Builder
@@ -17,39 +19,26 @@ public class ContractFullResponse {
   public String customerPhone;
   public String customerAddress;
   public String customerRegistrationNumber;
+  public String customerType;
 
-  public String vehicleNo;
-  public String vehicleModel;
+  public String loanType;
 
-  public String contractType;
-  public String contractCategory;
-  public String status;
+  public Long loanAmount;
+  public LocalDate executeDate;
+
+  public BigDecimal interestRate;
+  public BigDecimal overdueRate;
+  public Boolean overdueChargeYn;
+
+  public String repaymentMethod;
 
   public LocalDate startDate;
   public LocalDate endDate;
+  public Integer paymentDay;
+  public Integer installmentCount;
+  public Long monthlyPayment;
 
-  public Integer taxInvoiceDay;
-  public String paymentDueDay;
-
-  public Long advancePayment;
-  public Long monthlyRent;
-  public Integer billingDay;
-  public Integer billingCount;
-  public Long totalRent;
-
-  public Long deposit;
-  public String maturityOption;
-  public Long residualValue;
-
-  public String vehicleInsurance;
-  public String insuranceAge;
-  public String vehicleInsuranceLimit;
-  public String vehicleDeductible;
-
-  public String propertyLiability;
-  public String propertyDeductible;
-  public String personalDeductible;
-  public String passengerDeductible;
-
+  public String status;
+  public Long remainingPrincipal;
   public String remarks;
 }

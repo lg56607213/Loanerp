@@ -12,7 +12,6 @@ public class PrepaidRentListItemResponse {
     private Long contractId;
     private String contractNumber;
     private String customerName;
-    private String vehicleNo;
 
     /** 계약의 월렌트료 (적용 시 기본 금액) */
     private Long monthlyRent;

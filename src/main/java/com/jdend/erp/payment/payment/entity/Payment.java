@@ -34,9 +34,6 @@ public class Payment {
   @Column(name="customer_name", length=100)
   private String customerName;
 
-  @Column(name="vehicle_no", length=30)
-  private String vehicleNo;
-
   @Column(name="payment_date", nullable=false)
   private LocalDate paymentDate;
 

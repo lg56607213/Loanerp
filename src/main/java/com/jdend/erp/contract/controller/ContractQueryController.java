@@ -4,6 +4,7 @@ import com.jdend.erp.contract.dto.ContractSearchRowResponse;
 import com.jdend.erp.contract.dto.ContractStatusRowResponse;
 import com.jdend.erp.contract.dto.ContractSummaryResponse;
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.payment.overdue.service.OverdueService;
@@ -18,74 +19,52 @@ import java.util.Set;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/contracts")
-
 public class ContractQueryController {
 
   private final ContractRepository contractRepo;
   private final OverdueService overdueService;
 
-  // ✅ 기존: 전체 계약 검색(모달 등)
+  /** 전체 채권 검색 (선택 모달용) */
   @GetMapping("/search")
   public List<ContractSearchRowResponse> search(
       @RequestParam(value = "kw", required = false, defaultValue = "") String kw
   ) {
-    String keyword = (kw == null) ? "" : kw.trim();
-    List<Contract> list = contractRepo.searchTop200(keyword);
-
-    List<ContractSearchRowResponse> out = new ArrayList<>();
-    for (Contract c : list) {
-      String customerName = (c.getCustomer() != null) ? c.getCustomer().getCustomerName() : null;
-
-      out.add(ContractSearchRowResponse.builder()
-          .contractNumber(c.getContractNumber())
-          .customerName(customerName)
-          .vehicleNo(c.getVehicleNo())
-          .contractType(c.getContractType())
-          .startDate(c.getStartDate())
-          .endDate(c.getEndDate())
-          .monthlyRent(c.getMonthlyRent())
-          .totalRent(c.getTotalRent())
-          .build()
-      );
-    }
-    return out;
+    return toSearchRows(contractRepo.searchTop200(kw == null ? "" : kw.trim()));
   }
 
-  // ✅✅ 추가: 수납등록 "가능" 계약만 검색 (돋보기용)
-  // GET /api/contracts/payable-search?kw=
+  /** 수납등록 가능한 채권만 검색 */
   @GetMapping("/payable-search")
   public List<ContractSearchRowResponse> payableSearch(
       @RequestParam(value = "kw", required = false, defaultValue = "") String kw
   ) {
-    String keyword = (kw == null) ? "" : kw.trim();
-    List<Contract> list = contractRepo.payableSearchTop200(keyword);
+    return toSearchRows(contractRepo.payableSearchTop200(kw == null ? "" : kw.trim()));
+  }
 
+  private List<ContractSearchRowResponse> toSearchRows(List<Contract> list) {
     List<ContractSearchRowResponse> out = new ArrayList<>();
     for (Contract c : list) {
-      String customerName = (c.getCustomer() != null) ? c.getCustomer().getCustomerName() : null;
-
       out.add(ContractSearchRowResponse.builder()
           .contractNumber(c.getContractNumber())
-          .customerName(customerName)
-          .vehicleNo(c.getVehicleNo())
-          .contractType(c.getContractType())
+          .customerName(c.getCustomer() != null ? c.getCustomer().getCustomerName() : null)
+          .loanType(c.getLoanType())
           .startDate(c.getStartDate())
           .endDate(c.getEndDate())
-          .monthlyRent(c.getMonthlyRent())
-          .totalRent(c.getTotalRent())
-          .build()
-      );
+          .loanAmount(c.getLoanAmount())
+          .interestRate(c.getInterestRate())
+          .monthlyPayment(c.getMonthlyPayment())
+          .remainingPrincipal(c.getRemainingPrincipal())
+          .build());
     }
     return out;
   }
 
-  // ✅ 수납 화면 계약 요약
+  /** 수납 화면 채권 요약 */
   @GetMapping("/{contractNumber}/summary")
   public ContractSummaryResponse summary(@PathVariable String contractNumber) {
     String cn = (contractNumber == null) ? "" : contractNumber.trim();
 
     Contract c = contractRepo.findWithCustomerByContractNumber(cn)
-        .orElseThrow(() -> new RuntimeException("계약 없음: " + cn));
+        .orElseThrow(() -> new RuntimeException("채권 없음: " + cn));
 
     Customer cu = c.getCustomer();
 
@@ -96,60 +75,61 @@ public class ContractQueryController {
           : cu.getManagerEmail();
     }
 
-    String status = (c.getStatus() == null || c.getStatus().isBlank()) ? "진행중" : c.getStatus();
-
     return ContractSummaryResponse.builder()
         .contractNumber(c.getContractNumber())
-        .vehicleNo(c.getVehicleNo())
         .customerName(cu != null ? cu.getCustomerName() : null)
         .registrationNumber(cu != null ? cu.getRegistrationNumber() : null)
         .email(email)
-        .monthlyRent(c.getMonthlyRent())
-        .contractStatus(status)
+        .monthlyPayment(c.getMonthlyPayment())
+        .contractStatus(c.getStatus() == null || c.getStatus().isBlank()
+            ? ContractStatus.NORMAL : c.getStatus())
         .build();
   }
 
-  private static final Set<String> TERMINATED_STATUSES = Set.of(
-      "종료", "만기종료", "해지", "중도해지", "중도상환", "만기상환", "완료", "종결"
-  );
-
-  // GET /api/contracts/status?contractNumber=&customerName=&vehicleNo=&contractStatus=
+  /**
+   * 채권현황.
+   *
+   * 상태는 저장값과 파생값을 나눠 판정한다.
+   *  - 해지/상각/종료는 기한이익상실·대손상각·완제 이벤트로 이미 확정 저장된 값이라 그대로 쓴다.
+   *  - 그 외에는 미납 스케줄 유무로 정상/연체를 그때그때 계산한다.
+   */
   @GetMapping("/status")
   public List<ContractStatusRowResponse> status(
       @RequestParam(required = false, defaultValue = "") String contractNumber,
       @RequestParam(required = false, defaultValue = "") String customerName,
-      @RequestParam(required = false, defaultValue = "") String vehicleNo,
       @RequestParam(required = false, defaultValue = "") String contractStatus
   ) {
     List<ContractStatusRowResponse> list = contractRepo.statusList(
         contractNumber == null ? "" : contractNumber.trim(),
-        customerName == null ? "" : customerName.trim(),
-        vehicleNo == null ? "" : vehicleNo.trim()
+        customerName == null ? "" : customerName.trim()
     );
 
     LocalDate today = LocalDate.now();
     Set<String> overdueNumbers = overdueService.overdueContractNumbers();
 
     for (ContractStatusRowResponse row : list) {
-      String s = row.getStatus();
-      String derived;
-      if (s != null && TERMINATED_STATUSES.contains(s)) {
-        derived = "종료";
-      } else if (row.getContractEnd() != null && row.getContractEnd().isBefore(today)) {
-        derived = "종료";
-      } else if (overdueNumbers.contains(row.getContractNumber())) {
-        derived = "연체";
-      } else {
-        derived = "정상";
-      }
-      row.setContractStatus(derived);
+      row.setContractStatus(deriveStatus(row, today, overdueNumbers));
     }
 
     String filter = (contractStatus == null) ? "" : contractStatus.trim();
     if (!filter.isEmpty()) {
       list = list.stream().filter(r -> filter.equals(r.getContractStatus())).toList();
     }
-
     return list;
+  }
+
+  private String deriveStatus(ContractStatusRowResponse row, LocalDate today, Set<String> overdueNumbers) {
+    String stored = row.getStatus();
+
+    // 이벤트로 확정된 상태(해지/상각/종료)는 재판정하지 않는다.
+    if (stored != null && ContractStatus.STORED.contains(stored)) {
+      return stored;
+    }
+    // 만기가 지났는데 미납이 없으면 종료로 본다.
+    boolean overdue = overdueNumbers.contains(row.getContractNumber());
+    if (!overdue && row.getContractEnd() != null && row.getContractEnd().isBefore(today)) {
+      return ContractStatus.CLOSED;
+    }
+    return overdue ? ContractStatus.OVERDUE : ContractStatus.NORMAL;
   }
 }

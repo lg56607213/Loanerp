@@ -27,15 +27,11 @@ public class ScheduleManagementService {
   private final PaymentRepository paymentRepo;
 
   @Transactional
-  public ScheduleSearchResponse getByVehicleNo(String vehicleNo) {
-    if (vehicleNo == null || vehicleNo.trim().isEmpty()) {
-      throw new RuntimeException("차량번호가 비었습니다.");
+  public ScheduleSearchResponse getByContractNumber(String contractNumberParam) {
+    if (contractNumberParam == null || contractNumberParam.trim().isEmpty()) {
+      throw new RuntimeException("채권번호가 비었습니다.");
     }
-
-    String vn = vehicleNo.trim();
-
-    String contractNumber = contractRepo.findLatestContractNumberByVehicleNo(vn)
-        .orElseThrow(() -> new RuntimeException("해당 차량번호의 계약을 찾을 수 없습니다: " + vn));
+    final String contractNumber = contractNumberParam.trim();
 
     List<PaymentSchedule> list = scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contractNumber);
 
@@ -104,7 +100,6 @@ public class ScheduleManagementService {
     }
 
     return ScheduleSearchResponse.builder()
-        .vehicleNo(vn)
         .contractNumber(contractNumber)
         .schedule(out)
         .build();

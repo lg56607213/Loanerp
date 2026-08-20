@@ -25,10 +25,9 @@ public class MonthlyVoucherRuleController {
   @GetMapping
   public List<MonthlyVoucherRuleListResponse> list(
       @RequestParam(required = false) Boolean activeOnly,
-      @RequestParam(required = false) String contractNumber,
-      @RequestParam(required = false) String vehicleNo
+      @RequestParam(required = false) String contractNumber
   ) {
-    return service.list(activeOnly, contractNumber, vehicleNo);
+    return service.list(activeOnly, contractNumber);
   }
 
   @DeleteMapping("/{id}")

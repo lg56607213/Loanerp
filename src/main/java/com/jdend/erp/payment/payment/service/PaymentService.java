@@ -81,7 +81,6 @@ public class PaymentService {
         .customerId(cu != null ? cu.getId() : null)
         .customerNumber(c.getCustomerNumber())
         .customerName(cu != null ? cu.getCustomerName() : null)
-        .vehicleNo(c.getVehicleNo())
         .paymentDate(req.getPaymentDate())
         .paymentAmount(req.getPaymentAmount())
         .paymentMethod(req.getPaymentMethod())
@@ -144,7 +143,6 @@ public class PaymentService {
       p.setCustomerId(cu != null ? cu.getId() : null);
       p.setCustomerNumber(c.getCustomerNumber());
       p.setCustomerName(cu != null ? cu.getCustomerName() : null);
-      p.setVehicleNo(c.getVehicleNo());
     }
 
     p.setPaymentDate(req.getPaymentDate());
@@ -228,7 +226,6 @@ public class PaymentService {
         .voucherNo(voucherNo)
         .voucherDate(voucherDate)
         .contractNumber(blankToNull(payment.getContractNumber()))
-        .vehicleNo(blankToNull(payment.getVehicleNo()))
         .totalAmount(payment.getPaymentAmount())
         .status("대기")
         .memo(memo)
@@ -405,7 +402,6 @@ public class PaymentService {
         .id(p.getId())
         .contractNumber(p.getContractNumber())
         .customerName(p.getCustomerName())
-        .vehicleNo(p.getVehicleNo())
         .paymentDate(p.getPaymentDate())
         .paymentAmount(p.getPaymentAmount())
         .paymentMethod(p.getPaymentMethod())

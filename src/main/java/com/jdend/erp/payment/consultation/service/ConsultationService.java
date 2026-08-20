@@ -33,7 +33,6 @@ public class ConsultationService {
 
     return ContractSummaryResponse.builder()
         .contractNumber(c.getContractNumber())
-        .vehicleNo(c.getVehicleNo())
         .customerName(cu != null ? cu.getCustomerName() : null)
         .build();
   }

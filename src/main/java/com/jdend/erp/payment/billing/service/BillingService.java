@@ -78,7 +78,7 @@ public class BillingService {
 
     // 계약구분(장기/단기) 필터 적용
     if (req.getContractCategory() != null && !req.getContractCategory().isBlank()) {
-      List<String> allowedCns = contractRepository.findContractNumbersByContractCategory(req.getContractCategory());
+      List<String> allowedCns = contractRepository.findContractNumbersByLoanType(req.getContractCategory());
       Set<String> allowedSet = new HashSet<>(allowedCns);
       schedules = schedules.stream()
           .filter(ps -> ps.getContractNumber() != null && allowedSet.contains(ps.getContractNumber()))
@@ -223,8 +223,6 @@ public class BillingService {
     String registrationNumber = "-";
     String address = "-";
 
-    String vehicleNo = "-";
-    String vehicleModel = "-";
     String contractCategory = "장기";
     String contractType = "일반";
     String contractStartDate = "-";
@@ -250,15 +248,13 @@ public class BillingService {
       if (contractOpt.isPresent()) {
         Contract contract = contractOpt.get();
 
-        contractCategory = safe(defaultIfBlank(contract.getContractCategory(), "장기"));
-        contractType = safe(defaultIfBlank(contract.getContractType(), "일반"));
+        contractCategory = safe(defaultIfBlank(contract.getLoanType(), "신용대출"));
+        contractType = safe(defaultIfBlank(contract.getRepaymentMethod(), "원리금균등"));
         contractStartDate = contract.getStartDate() == null ? "-" : contract.getStartDate().format(f);
         contractEndDate = contract.getEndDate() == null ? "-" : contract.getEndDate().format(f);
-        vehicleNo = safe(contract.getVehicleNo());
-        vehicleModel = safe(contract.getVehicleModel());
 
-        if (contract.getMonthlyRent() != null) {
-          rentAmount = contract.getMonthlyRent();
+        if (contract.getMonthlyPayment() != null) {
+          rentAmount = contract.getMonthlyPayment();
         }
 
         Customer customer = null;
@@ -342,23 +338,12 @@ public class BillingService {
             </tr>
 
             <tr class="big-row">
-              <td colspan="9" class="section-title">차량구분</td>
-            </tr>
-
-            <tr class="big-row">
-              <td colspan="2" class="label">차량번호</td>
-              <td colspan="3" class="value center">%s</td>
-              <td colspan="2" class="label">차종</td>
-              <td colspan="2" class="value center">%s</td>
-            </tr>
-
-            <tr class="big-row">
-              <td colspan="9" class="section-title">계약내용</td>
+              <td colspan="9" class="section-title">채권내용</td>
             </tr>
 
             <tr>
-              <td colspan="3" class="label">계약구분</td>
-              <td colspan="2" class="label">계약유형</td>
+              <td colspan="3" class="label">대출구분</td>
+              <td colspan="2" class="label">상환방식</td>
               <td colspan="2" class="label">계약시작일</td>
               <td colspan="2" class="label">계약종료일</td>
             </tr>
@@ -418,8 +403,6 @@ public class BillingService {
         safe(registrationNumber),
         safe(phone),
         safe(address),
-        safe(vehicleNo),
-        safe(vehicleModel),
         safe(contractCategory),
         safe(contractType),
         safe(contractStartDate),

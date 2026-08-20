@@ -17,7 +17,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     where (:kw is null or :kw = ''
       or p.contractNumber like concat('%', :kw, '%')
       or p.customerName like concat('%', :kw, '%')
-      or p.vehicleNo like concat('%', :kw, '%')
     )
     order by p.id desc
   """)

@@ -22,8 +22,6 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
 
     List<Voucher> findByMemoStartingWithOrderByIdAsc(String memoPrefix);
 
-    @Query("select v from Voucher v where v.vehicleMgmtNo = :mgmtNo and v.memo like concat(:prefix, '%') order by v.id asc")
-    List<Voucher> findByVehicleMgmtNoAndMemoStartingWith(@Param("mgmtNo") String mgmtNo, @Param("prefix") String prefix);
 
     @Query("select v from Voucher v where v.contractNumber = :contractNumber and v.memo = :memo order by v.id asc")
     List<Voucher> findByContractNumberAndMemo(@Param("contractNumber") String contractNumber, @Param("memo") String memo);
@@ -58,7 +56,4 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     """)
     int approveByIds(@Param("ids") List<Long> ids);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update Voucher v set v.vehicleMgmtNo = :newNo where v.vehicleMgmtNo = :oldNo")
-    int updateVehicleMgmtNo(@Param("oldNo") String oldNo, @Param("newNo") String newNo);
 }

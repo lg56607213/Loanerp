@@ -82,8 +82,6 @@ public class VoucherService {
                 .voucherNo(voucherNo)
                 .voucherDate(req.getVoucherDate())
                 .contractNumber(blankToNull(req.getContractNumber()))
-                .vehicleNo(blankToNull(req.getVehicleNo()))
-                .vehicleMgmtNo(blankToNull(req.getVehicleMgmtNo()))
                 .totalAmount(debitSum)
                 .status("대기")
                 .memo(blankToNull(req.getMemo()))
@@ -189,7 +187,6 @@ public class VoucherService {
                                         .creditDescription(credit != null ? nvl(credit.getDescription()) : "")
 
                                         .status(v.getStatus())
-                                        .vehicleNo(v.getVehicleNo())
                                         .contractNumber(v.getContractNumber())
                                         .showMain(i == 0)
                                         .build();
@@ -308,12 +305,6 @@ public class VoucherService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
-    }
-
-    @Transactional
-    public void updateVehicleMgmtNo(String oldNo, String newNo) {
-        if (isBlank(oldNo) || isBlank(newNo) || oldNo.equals(newNo)) return;
-        voucherRepository.updateVehicleMgmtNo(oldNo, newNo);
     }
 
     private String nvl(String s) {

@@ -62,7 +62,6 @@ public class MonthlyVoucherRuleProcessor {
                 VoucherCreateRequest.builder()
                         .voucherDate(voucherDate)
                         .contractNumber(blankToNull(rule.getContractNumber()))
-                        .vehicleNo(blankToNull(rule.getVehicleNo()))
                         .memo(memo)
                         .debitEntries(List.of(
                                 VoucherCreateRequest.VoucherLineRequest.builder()

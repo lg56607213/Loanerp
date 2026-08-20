@@ -33,12 +33,13 @@ public class ContractSearchController {
             out.add(ContractSearchRowResponse.builder()
                     .contractNumber(c.getContractNumber())
                     .customerName(customerName)
-                    .vehicleNo(c.getVehicleNo())
-                    .contractType(c.getContractType())
+                    .loanType(c.getLoanType())
                     .startDate(c.getStartDate())
                     .endDate(c.getEndDate())
-                    .monthlyRent(c.getMonthlyRent())
-                    .totalRent(c.getTotalRent())
+                    .loanAmount(c.getLoanAmount())
+                    .interestRate(c.getInterestRate())
+                    .monthlyPayment(c.getMonthlyPayment())
+                    .remainingPrincipal(c.getRemainingPrincipal())
                     .build()
             );
         }

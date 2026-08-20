@@ -75,7 +75,7 @@ public class FinancialStatementAccountController {
         r.getVoucherDate(), r.getVoucherNo(),
         "DEBIT".equals(r.getLineType()) ? "차변" : "대변",
         r.getAccountName(), r.getAmount(), r.getDescription(),
-        r.getContractNumber(), r.getVehicleNo(), r.getMemo(), r.getStatus()
+        r.getContractNumber(), r.getMemo(), r.getStatus()
     }).collect(Collectors.toList());
     byte[] data = excelExportService.build(accountName + "_전표내역", headers, rows);
     String filename = "voucher_rows_" + id + ".xlsx";

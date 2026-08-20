@@ -8,7 +8,6 @@ import java.util.List;
 @NoArgsConstructor @AllArgsConstructor
 @Builder
 public class ScheduleSearchResponse {
-  private String vehicleNo;
   private String contractNumber;
   private List<ScheduleRowDto> schedule;
 }

@@ -14,8 +14,6 @@ public class VoucherCreateRequest {
     private LocalDate voucherDate;
 
     private String contractNumber;
-    private String vehicleNo;
-    private String vehicleMgmtNo;
     private String memo;
 
     private List<VoucherLineRequest> debitEntries;

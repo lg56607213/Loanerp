@@ -11,7 +11,6 @@ import java.util.List;
 public class LegalCaseResponse {
     private Long id;
     private String contractNumber;
-    private String vehicleNo;
     private String customerName;
     private String caseType;
     private String caseNumber;

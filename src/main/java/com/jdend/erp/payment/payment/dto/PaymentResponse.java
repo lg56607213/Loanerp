@@ -11,7 +11,6 @@ public class PaymentResponse {
   private Long id;
   private String contractNumber;
   private String customerName;
-  private String vehicleNo;
   private LocalDate paymentDate;
   private Long paymentAmount;
   private String paymentMethod;

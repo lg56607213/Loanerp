@@ -29,9 +29,6 @@ public class MaturityManagement {
   @Column(name = "customer_name", length = 100)
   private String customerName;
 
-  @Column(name = "vehicle_no", length = 30)
-  private String vehicleNo;
-
   @Column(name = "old_end_date")
   private LocalDate oldEndDate;
 

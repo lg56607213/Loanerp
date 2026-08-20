@@ -20,9 +20,6 @@ public class LegalCase {
     @Column(name = "contract_number", nullable = false, length = 30)
     private String contractNumber;
 
-    @Column(name = "vehicle_no", length = 30)
-    private String vehicleNo;
-
     @Column(name = "customer_name", length = 100)
     private String customerName;
 

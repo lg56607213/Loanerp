@@ -14,7 +14,6 @@ public class MaturityRowDto {
   private String newContractNumber;
 
   private String customerName;
-  private String vehicleNo;
 
   private LocalDate oldEndDate;
   private LocalDate newStartDate;

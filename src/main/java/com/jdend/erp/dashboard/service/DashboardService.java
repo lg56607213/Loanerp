@@ -24,7 +24,6 @@ public class DashboardService {
   private final DashboardBankTransactionRepository bankTxRepo;
   private final DashboardVoucherRepository voucherRepo;
   private final BankAccountRepository bankAccountRepo;
-  private final ContractDashboardRepository contractRepo;
   private final MaturityDashboardRepository maturityRepo;
   private final ReceivableDashboardRepository receivableRepo;
   private final VoucherRepository voucherRepository;

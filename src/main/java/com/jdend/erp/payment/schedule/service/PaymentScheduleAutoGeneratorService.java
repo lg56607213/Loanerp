@@ -1,17 +1,26 @@
 package com.jdend.erp.payment.schedule.service;
 
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.RepaymentMethod;
+import com.jdend.erp.contract.support.AmortizationCalculator;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 여신계약의 상환스케줄 자동 생성.
+ *
+ * 정기 회차는 월할(연이율 ÷ 12)로 산출한다.
+ * 중도상환·기한이익상실 등 정산 시점의 일할 재계산은 DailyInterestCalculator가 담당한다.
+ */
 @Service
 @RequiredArgsConstructor
 public class PaymentScheduleAutoGeneratorService {
@@ -19,169 +28,120 @@ public class PaymentScheduleAutoGeneratorService {
   private final PaymentScheduleRepository scheduleRepo;
 
   /**
-   * ✅ 계약 기준 스케줄 자동 생성 (멱등)
-   * - 해당 contractNumber에 스케줄이 0건일 때만 생성
+   * 계약 기준 스케줄 자동 생성 (멱등).
+   * 해당 채권번호에 스케줄이 0건일 때만 생성한다.
    */
-  @Transactional // ✅ readOnly 절대 X
+  @Transactional
   public int ensureGenerated(Contract c) {
-    if (c == null) return 0;
-    if (c.getContractNumber() == null || c.getContractNumber().isBlank()) return 0;
-
+    if (c == null || c.getContractNumber() == null || c.getContractNumber().isBlank()) return 0;
     if (scheduleRepo.existsByContractNumber(c.getContractNumber())) return 0;
-
-    return generateAll(c);
+    return persist(c, build(c));
   }
 
   /**
-   * NEW-01 수정: 계약 수정 시 미래 미수납 스케줄을 삭제하고 오늘 이후 회차만 재생성한다.
-   * - 오늘 이후 시작하는 스케줄(billStartDate >= today)만 삭제 → 과거 수납 이력 보존
-   * - 기존 generateAll() 대신 fromDate 이후 회차만 저장하는 generateFromDate() 호출
-   * - 이미 존재하는 과거 회차(installmentNo 1~N)와 unique constraint 충돌 방지
+   * 계약 조건 변경 시 미래 미수납 스케줄만 재생성한다.
+   * 오늘 이후 시작하는 회차만 삭제하므로 과거 수납 이력은 보존된다.
    */
   @Transactional
   public int regenerate(Contract c) {
     if (c == null || c.getContractNumber() == null || c.getContractNumber().isBlank()) return 0;
 
     LocalDate today = LocalDate.now();
-    scheduleRepo.deleteByContractNumberAndBillStartDateGreaterThanEqual(
-        c.getContractNumber(), today);
+    scheduleRepo.deleteByContractNumberAndBillStartDateGreaterThanEqual(c.getContractNumber(), today);
 
-    // 미래 스케줄만 재생성 — generateAll() 루프를 그대로 돌리되 billStart < today인 회차는 건너뜀
-    return generateFromDate(c, today);
+    // 전체 회차를 동일하게 계산하되 오늘 이후 회차만 저장한다.
+    // 이렇게 해야 잔여원금 흐름이 1회차부터 이어져 금액이 어긋나지 않는다.
+    List<PaymentSchedule> all = build(c);
+    List<PaymentSchedule> future = all.stream()
+        .filter(ps -> ps.getBillStartDate() != null && !ps.getBillStartDate().isBefore(today))
+        .toList();
+
+    return persist(c, future);
   }
 
-  /**
-   * 전체 회차를 순서대로 날짜 계산하되 fromDate 이후 회차만 저장한다.
-   * generateAll()과 동일한 날짜 계산 로직을 유지하므로 기간 연속성이 보장된다.
-   */
-  private int generateFromDate(Contract c, LocalDate fromDate) {
-    int billingCount = (c.getBillingCount() == null) ? 0 : c.getBillingCount();
-    if (billingCount <= 0) return 0;
-
-    LocalDate contractStart = c.getStartDate();
-    if (contractStart == null) return 0;
-
-    Integer taxDay    = c.getTaxInvoiceDay();
-    Integer billingDay = c.getBillingDay();
-    Integer payDay    = parseDayFromPaymentDueDay(c.getPaymentDueDay());
-
-    List<PaymentSchedule> batch = new ArrayList<>();
-    LocalDate billStart = contractStart;
-
-    for (int i = 1; i <= billingCount; i++) {
-      LocalDate billEnd = billStart.plusMonths(1).minusDays(1);
-
-      // fromDate 이전 회차는 날짜 계산만 진행하고 저장하지 않는다 (과거 회차 skip)
-      if (!billStart.isBefore(fromDate)) {
-        LocalDate taxDate = withDaySafe(billStart,
-            (taxDay != null && taxDay > 0) ? taxDay : billStart.getDayOfMonth());
-
-        int payDayFinal =
-            (payDay    != null && payDay    > 0) ? payDay    :
-            (billingDay != null && billingDay > 0) ? billingDay :
-            billStart.getDayOfMonth();
-
-        PaymentSchedule ps = PaymentSchedule.builder()
-            .contract(c)
-            .contractNumber(c.getContractNumber())
-            .installmentNo(i)
-            .billStartDate(billStart)
-            .billEndDate(billEnd)
-            .taxInvoiceDate(taxDate)
-            .paymentDate(null)
-            .rentAmount(c.getMonthlyRent())
-            .principalAmount(null)
-            .interestAmount(null)
-            .remainingPrincipal(null)
-            .build();
-
-        batch.add(ps);
-      }
-
-      billStart = billEnd.plusDays(1);
-    }
-
-    if (!batch.isEmpty()) {
-      scheduleRepo.saveAll(batch);
-    }
+  private int persist(Contract c, List<PaymentSchedule> batch) {
+    if (batch.isEmpty()) return 0;
+    scheduleRepo.saveAll(batch);
     return batch.size();
   }
 
   /**
-   * 계약의 전체 납부 스케줄을 생성해서 저장하는 내부 메서드.
-   * existsByContractNumber 체크 없이 바로 생성하므로 호출 전에 중복 여부를 확인해야 한다.
+   * 회차별 원금·이자·잔여원금을 계산해 전체 스케줄을 만든다.
+   *
+   * <ul>
+   *   <li>원리금균등 — 회차 납입액 고정, 이자는 잔액 기준, 원금은 나머지</li>
+   *   <li>원금균등 — 회차 원금 고정, 이자는 잔액 기준으로 체감</li>
+   *   <li>만기일시 — 매회 이자만, 마지막 회차에 원금 전액</li>
+   * </ul>
+   * 마지막 회차에서 생기는 단수 차이는 원금에 흡수시켜 잔여원금이 정확히 0으로 끝나게 한다.
    */
-  private int generateAll(Contract c) {
-    int billingCount = (c.getBillingCount() == null) ? 0 : c.getBillingCount();
-    if (billingCount <= 0) return 0;
-
-    LocalDate contractStart = c.getStartDate();
-    if (contractStart == null) return 0;
-
-    Integer taxDay = c.getTaxInvoiceDay();     // nullable
-    Integer billingDay = c.getBillingDay();    // nullable
-    Integer payDay = parseDayFromPaymentDueDay(c.getPaymentDueDay()); // nullable
-
+  private List<PaymentSchedule> build(Contract c) {
     List<PaymentSchedule> batch = new ArrayList<>();
 
-    // 회차마다 원래 계약시작일에서 다시 계산하면(contractStart.plusMonths(i-1)) 말일 시작
-    // 계약에서 윤년/월말 클램핑 때문에 회차 사이에 공백·겹침이 생긴다(예: 1/31 시작 계약의
-    // 2회차가 2/28에 끝나는데 3회차는 클램핑 전 원래 날짜인 3/31부터 시작해버림).
-    // 그래서 각 회차의 시작일을 직전 회차 종료일 다음날로 이어붙여 기간이 끊기지 않게 한다.
-    LocalDate billStart = contractStart;
+    int installments = c.getInstallmentCount() == null ? 0 : c.getInstallmentCount();
+    long principal = c.getLoanAmount() == null ? 0L : c.getLoanAmount();
+    LocalDate start = c.getStartDate();
+    if (installments <= 0 || principal <= 0 || start == null) return batch;
 
-    for (int i = 1; i <= billingCount; i++) {
+    String method = c.getRepaymentMethod() == null ? RepaymentMethod.EQUAL_PAYMENT : c.getRepaymentMethod();
+    BigDecimal monthlyRate = AmortizationCalculator.monthlyRate(c.getInterestRate());
+
+    long fixedPayment = c.getMonthlyPayment() == null || c.getMonthlyPayment() <= 0
+        ? AmortizationCalculator.monthlyPayment(method, principal, c.getInterestRate(), installments)
+        : c.getMonthlyPayment();
+
+    long equalPrincipalPart = Math.round((double) principal / installments);
+    int payDay = (c.getPaymentDay() != null && c.getPaymentDay() > 0)
+        ? c.getPaymentDay()
+        : start.getDayOfMonth();
+
+    long remaining = principal;
+    LocalDate billStart = start;
+
+    for (int i = 1; i <= installments; i++) {
       LocalDate billEnd = billStart.plusMonths(1).minusDays(1);
+      LocalDate dueDate = withDaySafe(start.plusMonths(i), payDay);
 
-      LocalDate taxDate = withDaySafe(billStart, (taxDay != null && taxDay > 0) ? taxDay : billStart.getDayOfMonth());
+      long interest = AmortizationCalculator.monthlyInterest(remaining, monthlyRate);
+      long principalPart = switch (method) {
+        case RepaymentMethod.EQUAL_PRINCIPAL -> equalPrincipalPart;
+        case RepaymentMethod.BULLET -> (i == installments) ? remaining : 0L;
+        default -> fixedPayment - interest;
+      };
+      if (principalPart < 0) principalPart = 0;
 
-      int payDayFinal =
-          (payDay != null && payDay > 0) ? payDay :
-          (billingDay != null && billingDay > 0) ? billingDay :
-          billStart.getDayOfMonth();
+      // 마지막 회차이거나 계산 원금이 잔액을 넘으면 잔액 전부를 상환해 0으로 맞춘다.
+      if (i == installments || principalPart > remaining) {
+        principalPart = remaining;
+      }
 
-      PaymentSchedule ps = PaymentSchedule.builder()
+      remaining -= principalPart;
+      if (remaining < 0) remaining = 0;
+
+      batch.add(PaymentSchedule.builder()
           .contract(c)
           .contractNumber(c.getContractNumber())
           .installmentNo(i)
           .billStartDate(billStart)
           .billEndDate(billEnd)
-          .taxInvoiceDate(taxDate)
-          .paymentDate(null)
-          .rentAmount(c.getMonthlyRent())
-          .principalAmount(null)
-          .interestAmount(null)
-          .remainingPrincipal(null)
-          .build();
-
-      batch.add(ps);
+          .taxInvoiceDate(dueDate)
+          .paymentDate(dueDate)
+          .rentAmount(principalPart + interest)
+          .principalAmount(principalPart)
+          .interestAmount(interest)
+          .remainingPrincipal(remaining)
+          .build());
 
       billStart = billEnd.plusDays(1);
     }
-
-    scheduleRepo.saveAll(batch);
-    return batch.size();
+    return batch;
   }
 
-  private static Integer parseDayFromPaymentDueDay(String s) {
-    if (s == null) return null;
-    String digits = s.replaceAll("[^0-9]", "");
-    if (digits.isBlank()) return null;
-    try {
-      int d = Integer.parseInt(digits);
-      return d > 0 ? d : null;
-    } catch (Exception e) {
-      return null;
-    }
-  }
-
+  /** 말일 클램핑 — 31일 납입일자를 2월에 적용하면 28/29일로 내린다. */
   private static LocalDate withDaySafe(LocalDate baseMonth, int day) {
     if (baseMonth == null) return null;
     if (day <= 0) day = 1;
-
     YearMonth ym = YearMonth.of(baseMonth.getYear(), baseMonth.getMonthValue());
-    int max = ym.lengthOfMonth();
-    int safeDay = Math.min(day, max);
-    return LocalDate.of(baseMonth.getYear(), baseMonth.getMonthValue(), safeDay);
+    return LocalDate.of(baseMonth.getYear(), baseMonth.getMonthValue(), Math.min(day, ym.lengthOfMonth()));
   }
 }

@@ -11,7 +11,6 @@ public class EarlyTerminationRowDto {
   private Long id;
   private String contractNumber;
   private String customerName;
-  private String vehicleNo;
 
   private String terminationMethod;
   private LocalDate terminationDate;

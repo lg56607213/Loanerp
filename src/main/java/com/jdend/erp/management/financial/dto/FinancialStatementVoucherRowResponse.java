@@ -21,7 +21,6 @@ public class FinancialStatementVoucherRowResponse {
   private String description;
 
   private String contractNumber;
-  private String vehicleNo;
   private String memo;
   private String status;
 }

@@ -34,12 +34,12 @@ public class ContractController {
     return service.list();
   }
 
-  // ✅ 계약번호 미리보기 (contractType: "장기" or "단기", 미지정 시 "장기" 기준)
+  /** 채권번호 미리보기 (loanType: 신용대출 / 담보대출 / 사업자대출) */
   @GetMapping("/next-number")
   public NextContractNumberResponse nextNumber(
-      @RequestParam(value = "contractType", defaultValue = "장기") String contractType) {
+      @RequestParam(value = "loanType", defaultValue = "신용대출") String loanType) {
     return NextContractNumberResponse.builder()
-      .contractNumber(service.nextNumberPreview(contractType))
+      .contractNumber(service.nextNumberPreview(loanType))
       .build();
   }
 
@@ -68,7 +68,7 @@ public class ContractController {
   }
 
   @PutMapping("/{id:\\d+}")
-  public ContractResponse update(@PathVariable Long id, @RequestBody ContractRequest req, HttpSession session) {
+  public ContractResponse update(@PathVariable Long id, @RequestBody ContractUpdateRequest req, HttpSession session) {
     permissionService.requireManager(session);
     return service.update(id, req);
   }
@@ -84,8 +84,8 @@ public class ContractController {
           @RequestParam(required = false) LocalDate startDate,
           @RequestParam(required = false) LocalDate endDate
   ) {
-    String[] headers = {"계약번호", "고객번호", "고객명", "차량번호", "차종",
-            "계약유형", "계약구분", "상태", "시작일", "종료일", "청구횟수", "월렌트료"};
+    String[] headers = {"채권번호", "고객번호", "고객명", "대출구분", "대출금", "이자율",
+            "상환방식", "상태", "시작일자", "종료일자", "납입일자", "회차수", "월납입액", "잔여원금"};
     List<Object[]> rows = service.list().stream()
             .filter(c -> {
                 if (startDate != null && (c.getStartDate() == null || c.getStartDate().isBefore(startDate))) return false;
@@ -94,13 +94,14 @@ public class ContractController {
             })
             .map(c -> new Object[]{
                     c.getContractNumber(), c.getCustomerNumber(), c.getCustomerName(),
-                    c.getVehicleNo(), c.getVehicleModel(),
-                    c.getContractType(), c.getContractCategory(), c.getStatus(),
-                    c.getStartDate(), c.getEndDate(), c.getBillingCount(), c.getMonthlyRent()
+                    c.getLoanType(), c.getLoanAmount(), c.getInterestRate(),
+                    c.getRepaymentMethod(), c.getStatus(),
+                    c.getStartDate(), c.getEndDate(), c.getPaymentDay(),
+                    c.getInstallmentCount(), c.getMonthlyPayment(), c.getRemainingPrincipal()
             }).collect(Collectors.toList());
-    byte[] data = excelExportService.build("계약목록", headers, rows);
+    byte[] data = excelExportService.build("채권목록", headers, rows);
     return ResponseEntity.ok()
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''contracts.xlsx")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''loans.xlsx")
             .contentType(MediaType.APPLICATION_OCTET_STREAM)
             .body(data);
   }
@@ -108,7 +109,7 @@ public class ContractController {
   @GetMapping("/bulk-upload/template")
   public ResponseEntity<byte[]> bulkUploadTemplate() {
     return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=contract_template.xlsx")
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=loan_template.xlsx")
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
         .body(bulkUploadService.template());
   }

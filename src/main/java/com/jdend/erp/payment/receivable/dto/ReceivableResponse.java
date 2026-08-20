@@ -14,7 +14,6 @@ public class ReceivableResponse {
   private String contractNumber;
 
   private String customerName;
-  private String vehicleNo;
 
   private Long receivableAmount;
   private LocalDate receivableDate;

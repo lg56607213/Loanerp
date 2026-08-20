@@ -32,54 +32,25 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
   Optional<Contract> findWithCustomerByContractNumber(@Param("contractNumber") String contractNumber);
 
   @Query("""
-    select (count(c) > 0)
-    from Contract c
-    where replace(replace(trim(c.vehicleNo), ' ', ''), '-', '') =
-          replace(replace(trim(:vehicleNo), ' ', ''), '-', '')
-      and c.status not in (
-        '종료','만기종료','해지','중도해지','중도상환','만기상환','완료','종결','해지대기'
-      )
-  """)
-  boolean existsByVehicleNoNormalized(@Param("vehicleNo") String vehicleNo);
-
-  @Query("""
     select c
     from Contract c
     left join fetch c.customer cust
     where (:kw = '' or
            c.contractNumber like concat('%', :kw, '%') or
-           c.vehicleNo like concat('%', :kw, '%') or
            cust.customerName like concat('%', :kw, '%'))
     order by c.id desc
   """)
   List<Contract> searchTop200(@Param("kw") String kw);
 
-  @Query(value = """
-      SELECT c.contract_number
-      FROM contracts c
-      WHERE REPLACE(REPLACE(TRIM(IFNULL(c.vehicle_no,'')), ' ', ''), '-', '')
-          = REPLACE(REPLACE(TRIM(IFNULL(:vehicleNo,'')), ' ', ''), '-', '')
-      ORDER BY c.id DESC
-      LIMIT 1
-      """, nativeQuery = true)
-  Optional<String> findLatestContractNumberByVehicleNo(@Param("vehicleNo") String vehicleNo);
-
+  /** 수납 가능한 채권 — 상각·종료된 채권은 제외한다. 해지(기한이익상실) 채권은 계속 회수하므로 포함한다. */
   @Query("""
     select c
     from Contract c
     left join fetch c.customer cust
-    where
-      (c.endDate is null or c.endDate >= current_date)
-      and (
-        c.status is null or trim(c.status) = '' or
-        c.status not in (
-          '종료','만기종료','해지','중도해지','중도상환','만기상환','완료','종결'
-        )
-      )
+    where (c.status is null or trim(c.status) = '' or c.status not in ('상각', '종료'))
       and (
         :kw = '' or
         c.contractNumber like concat('%', :kw, '%') or
-        c.vehicleNo like concat('%', :kw, '%') or
         cust.customerName like concat('%', :kw, '%')
       )
     order by c.id desc
@@ -88,35 +59,31 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
   @Query("""
     select new com.jdend.erp.contract.dto.ContractStatusRowResponse(
-      c.vehicleNo,
       c.contractNumber,
+      cust.customerName,
+      c.loanType,
       c.status,
       null,
-      cust.customerName,
       c.startDate,
       c.endDate,
-      c.monthlyRent,
-      c.totalRent,
-      0L,
-      c.advancePayment,
-      c.deposit,
-      c.vehicleModel
+      c.loanAmount,
+      c.interestRate,
+      c.monthlyPayment,
+      c.remainingPrincipal,
+      0L
     )
     from Contract c
     left join c.customer cust
     where 1=1
       and (:contractNumber = '' or lower(c.contractNumber) like concat('%', lower(:contractNumber), '%'))
       and (:customerName = '' or lower(cust.customerName) like concat('%', lower(:customerName), '%'))
-      and (:vehicleNo = '' or lower(c.vehicleNo) like concat('%', lower(:vehicleNo), '%'))
     order by c.id desc
   """)
   List<ContractStatusRowResponse> statusList(
       @Param("contractNumber") String contractNumber,
-      @Param("customerName") String customerName,
-      @Param("vehicleNo") String vehicleNo
+      @Param("customerName") String customerName
   );
 
-  // ✅ BillingService에서 사용
   @Query("""
     select c.contractNumber
     from Contract c
@@ -124,27 +91,25 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
   """)
   List<String> findContractNumbersByCustomerNumber(@Param("customerNumber") String customerNumber);
 
-  // ✅ 청구생성 계약구분(장기/단기) 필터용
+  /** 청구생성 대출구분(신용/담보/사업자) 필터용 */
   @Query("""
     select c.contractNumber
     from Contract c
-    where c.contractCategory = :category
+    where c.loanType = :loanType
   """)
-  List<String> findContractNumbersByContractCategory(@Param("category") String category);
+  List<String> findContractNumbersByLoanType(@Param("loanType") String loanType);
 
-  // ✅ 연체현황: 종료/해지 상태가 아닌 모든 계약
+  /** 연체현황 — 상각·종료 채권은 연체 판정 대상에서 제외한다. */
   @Query("""
     select c
     from Contract c
     left join fetch c.customer cust
-    where c.status not in (
-      '종료','만기종료','해지','중도해지','중도상환','만기상환','완료','종결'
-    )
+    where c.status not in ('상각', '종료')
     order by c.id asc
   """)
   List<Contract> findAllActiveWithCustomer();
 
-  // ✅ 계약만료 스케줄러: 종료일이 지났고 아직 종료 처리되지 않은 계약
+  /** 만기 스케줄러: 종료일이 지났고 아직 종료 처리되지 않은 채권 */
   @Query("""
     select c from Contract c
     where c.endDate < :today
@@ -155,24 +120,7 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
       @Param("terminated") Collection<String> terminated
   );
 
-  // ✅ 보증금/선수금 관리: deposit > 0 OR advancePayment > 0 인 계약 조회 (고객 fetch join)
-  @Query("""
-    select c
-    from Contract c
-    left join fetch c.customer cust
-    where (c.deposit > 0 or c.advancePayment > 0)
-      and (:customerName = '' or lower(cust.customerName) like concat('%', lower(:customerName), '%'))
-      and (:startDate is null or c.endDate >= :startDate)
-      and (:endDate is null or c.startDate <= :endDate)
-    order by c.id desc
-  """)
-  List<Contract> findDepositContracts(
-      @Param("customerName") String customerName,
-      @Param("startDate") LocalDate startDate,
-      @Param("endDate") LocalDate endDate
-  );
-
-  // ✅ 선수금 관리: 지정 ID 목록 중 필터 조건에 맞는 계약 조회 (고객 fetch join)
+  /** 선수금 관리: 지정 ID 목록 중 필터 조건에 맞는 채권 조회 (고객 fetch join) */
   @Query("""
     select c
     from Contract c

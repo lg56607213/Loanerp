@@ -26,9 +26,6 @@ public class MonthlyVoucherRule {
   @Column(name = "contract_number", length = 50)
   private String contractNumber;
 
-  @Column(name = "vehicle_no", length = 50)
-  private String vehicleNo;
-
   @Column(name = "monthly_day", nullable = false)
   private Integer monthlyDay;
 

@@ -77,7 +77,6 @@ public class OverdueService {
                 if (dueDate != null && dueDate.isBefore(today) && unpaid > 0) {
                     result.add(OverdueRowResponse.builder()
                             .contractNumber(contractNumber)
-                            .vehicleNo(c.getVehicleNo())
                             .customerName(customerName)
                             .installmentNo(ps.getInstallmentNo())
                             .paymentDate(dueDate)

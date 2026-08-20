@@ -71,7 +71,7 @@ public class StatementController {
         r.getVoucherDate(), r.getVoucherNo(),
         "DEBIT".equals(r.getLineType()) ? "차변" : "대변",
         r.getAccountName(), r.getAmount(), r.getDescription(),
-        r.getContractNumber(), r.getVehicleNo(), r.getMemo(), r.getStatus()
+        r.getContractNumber(), r.getMemo(), r.getStatus()
     }).collect(Collectors.toList());
 
     byte[] excel = excelExportService.build(accountName, headers, data);
@@ -99,7 +99,7 @@ public class StatementController {
             cat[1], r.getVoucherDate(), r.getVoucherNo(),
             "DEBIT".equals(r.getLineType()) ? "차변" : "대변",
             r.getAccountName(), r.getAmount(), r.getDescription(),
-            r.getContractNumber(), r.getVehicleNo(), r.getMemo(), r.getStatus()
+            r.getContractNumber(), r.getMemo(), r.getStatus()
         });
       }
     }
@@ -130,7 +130,7 @@ public class StatementController {
             cat[1], r.getVoucherDate(), r.getVoucherNo(),
             "DEBIT".equals(r.getLineType()) ? "차변" : "대변",
             r.getAccountName(), r.getAmount(), r.getDescription(),
-            r.getContractNumber(), r.getVehicleNo(), r.getMemo(), r.getStatus()
+            r.getContractNumber(), r.getMemo(), r.getStatus()
         });
       }
     }
