@@ -53,6 +53,8 @@ function loadSidebar() {
             <ul>
               <li><a href="${basePath}pages/payment/overdue_status.html">연체현황</a></li>
               <li><a href="${basePath}pages/management/contract_status.html">채권현황</a></li>
+              <li><a href="${basePath}pages/loan/acceleration.html">기한이익상실</a></li>
+              <li><a href="${basePath}pages/loan/write_off.html">대손상각</a></li>
               <li class="has-sub">
                 <span class="menu-label">미수관리</span>
                 <ul>

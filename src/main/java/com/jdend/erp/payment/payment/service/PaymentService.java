@@ -7,8 +7,11 @@ import com.jdend.erp.accounting.voucher.entity.VoucherLine;
 import com.jdend.erp.accounting.voucher.repository.VoucherRepository;
 import com.jdend.erp.accounting.voucher.service.VoucherNumberService;
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
+import com.jdend.erp.loan.repayment.RepaymentAllocation;
+import com.jdend.erp.loan.repayment.RepaymentPostingService;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
 import com.jdend.erp.payment.payment.dto.PaymentResponse;
@@ -41,6 +44,7 @@ public class PaymentService {
   private final VoucherNumberService voucherNumberService;
   private final PrepaidRentService prepaidRentService;
   private final PaymentScheduleRepository paymentScheduleRepo;
+  private final RepaymentPostingService repaymentPosting;
 
   @Transactional(readOnly = true)
   public Page<PaymentResponse> list(String kw, int page, int size) {
@@ -75,6 +79,7 @@ public class PaymentService {
     long totalDue = calcTotalDue(c.getContractNumber(), paymentDate);
     long excess   = Math.max(0L, req.getPaymentAmount() - totalDue);
 
+
     Payment saved = paymentRepo.save(Payment.builder()
         .contractId(c.getId())
         .contractNumber(c.getContractNumber())
@@ -88,10 +93,13 @@ public class PaymentService {
         .memo(req.getMemo())
         .build());
 
+    // 변제충당 반영 — 회차별 원금/이자/지연배상금 충당 실적을 다시 계산한다.
+    RepaymentAllocation alloc = repaymentPosting.recompute(saved.getContractNumber());
+    excess = alloc.getExcess();
+
     boolean shouldCreateVoucher = req.getCreateVoucher() == null || req.getCreateVoucher();
     if (shouldCreateVoucher) {
-      // BUG-03: createVoucherIfNeeded가 생성된 전표 ID를 반환하고 Payment에 저장
-      Long voucherId = createVoucherIfNeeded(saved, totalDue, excess);
+      Long voucherId = createVoucherIfNeeded(saved, alloc);
       if (voucherId != null) {
         saved.setVoucherId(voucherId);
         paymentRepo.save(saved);
@@ -156,9 +164,13 @@ public class PaymentService {
     long totalDue = calcTotalDue(p.getContractNumber(), updatedPaymentDate, id);
     long excess   = Math.max(0L, req.getPaymentAmount() - totalDue);
 
+    // 수정된 금액·일자로 충당을 처음부터 다시 계산한다.
+    RepaymentAllocation alloc = repaymentPosting.recompute(p.getContractNumber());
+    excess = alloc.getExcess();
+
     boolean shouldCreateVoucher = req.getCreateVoucher() == null || req.getCreateVoucher();
     if (shouldCreateVoucher) {
-      Long newVoucherId = createVoucherIfNeeded(p, totalDue, excess);
+      Long newVoucherId = createVoucherIfNeeded(p, alloc);
       if (newVoucherId != null) {
         p.setVoucherId(newVoucherId);
       }
@@ -198,25 +210,44 @@ public class PaymentService {
     prepaidRentService.deleteByPaymentReference(p.getContractId(), id);
 
     paymentRepo.deleteById(id);
+
+    // 삭제된 수납을 제외하고 충당을 다시 계산한다.
+    repaymentPosting.recompute(p.getContractNumber());
   }
 
+  /** 대여금 (대출채권) */
+  private static final String ACC_LOAN_RECEIVABLE = "100302";
+  /** 이자수익 (영업수익) */
+  private static final String ACC_INTEREST_REVENUE = "400101";
+  /** 연체이자수익 (영업수익) */
+  private static final String ACC_OVERDUE_REVENUE = "400102";
+  /** 상각채권추심이익 (영업수익) */
+  private static final String ACC_RECOVERY_REVENUE = "400103";
+  /** 법무비용 (영업비용) — 법적비용 회수분 환입 */
+  private static final String ACC_LEGAL_COST = "500102";
+
   /**
-   * BUG-03: 전표 생성 후 생성된 전표 ID를 반환한다.
-   * @param totalDue  미납 미수금 합계 (excess > 0 일 때 수익 대변 금액)
-   * @param excess    초과 수납액 → 선수금 대변
+   * 수납 전표를 변제충당 결과에 맞춰 항목별로 나눠 생성한다.
+   *
+   *   (차) 보통예금 [입금 전액]
+   *   (대) 대여금 [원금] + 이자수익 [이자] + 연체이자수익 [지연배상금]
+   *        + 법무비용 [비용 회수] + 선수금 [초과분]
+   *
+   * 상각 채권 회수는 원금·이자를 가리지 않고 상각채권추심이익으로 인식한다.
+   *
    * @return 생성된 Voucher ID, 생성 조건 미충족 시 null
    */
-  private Long createVoucherIfNeeded(Payment payment, long totalDue, long excess) {
+  private Long createVoucherIfNeeded(Payment payment, RepaymentAllocation alloc) {
     if (payment == null) return null;
     if (payment.getPaymentAmount() == null || payment.getPaymentAmount() <= 0) return null;
 
-    // 기타계정관리에서 설정한 계정명 사용. 미설정이면 전표를 생성하지 않는다.
-    String debitAccount  = accountSettings.getPaymentDebitAccount();
-    String creditAccount = accountSettings.getPaymentCreditAccount();
-    if (debitAccount == null || creditAccount == null) {
-      log.warn("수납 전표 생략: 기타계정관리 > 수납 전표의 차변/대변을 설정해주세요. paymentId={}", payment.getId());
+    // 입금 계정(보통예금)은 기타계정관리 설정을 따른다. 미설정이면 전표를 만들지 않는다.
+    String debitAccount = accountSettings.getPaymentDebitAccount();
+    if (debitAccount == null) {
+      log.warn("수납 전표 생략: 기타계정관리 > 수납 전표의 차변 계정을 설정해주세요. paymentId={}", payment.getId());
       return null;
     }
+    if (alloc == null) alloc = new RepaymentAllocation();
 
     LocalDate voucherDate = payment.getPaymentDate() != null ? payment.getPaymentDate() : LocalDate.now();
     String voucherNo = nextVoucherNo(voucherDate);
@@ -244,34 +275,74 @@ public class PaymentService {
         .sortOrder(1)
         .build());
 
-    if (excess > 0 && totalDue > 0) {
-      // 초과 수납: 대변 ① 수익 + ② 선수금 (초과분)
-      addRevenueCreditLine(voucher, creditAccount, totalDue, 2);
+    boolean writtenOff = ContractStatus.WRITTEN_OFF.equals(contractStatusOf(payment.getContractNumber()));
+    int order = 2;
+
+    if (alloc.getCost() > 0) {
+      order = addCredit(voucher, ACC_LEGAL_COST, "법무비용", alloc.getCost(), "법적비용 회수", order);
+    }
+    if (writtenOff) {
+      // 상각채권 회수는 원금·이자를 구분하지 않고 추심이익으로 인식한다.
+      long recovered = alloc.getPrincipal() + alloc.getInterest() + alloc.getOverdueInterest();
+      if (recovered > 0) {
+        order = addCredit(voucher, ACC_RECOVERY_REVENUE, "상각채권추심이익", recovered, "상각채권 회수", order);
+      }
+    } else {
+      if (alloc.getOverdueInterest() > 0) {
+        order = addCredit(voucher, ACC_OVERDUE_REVENUE, "연체이자수익", alloc.getOverdueInterest(), "지연배상금 수납", order);
+      }
+      if (alloc.getInterest() > 0) {
+        order = addCredit(voucher, ACC_INTEREST_REVENUE, "이자수익", alloc.getInterest(), "이자 수납", order);
+      }
+      if (alloc.getPrincipal() > 0) {
+        order = addCredit(voucher, ACC_LOAN_RECEIVABLE, "장기대여금", alloc.getPrincipal(), "원금 회수", order);
+      }
+    }
+    if (alloc.getExcess() > 0) {
       voucher.addLine(VoucherLine.builder()
           .lineType("CREDIT")
           .accountCode(prepaidAccountCode())
           .accountName("선수금")
-          .amount(excess)
+          .amount(alloc.getExcess())
           .description("초과수납 선수금")
-          .sortOrder(3)
+          .sortOrder(order++)
           .build());
-    } else if (excess > 0) {
-      // 미수금 0인데 전액 초과: 대변 선수금 전액
+    }
+
+    // 충당이 하나도 안 잡히면(스케줄 없음 등) 대변이 비어 대차가 안 맞는다.
+    // 이 경우 전액을 선수금으로 받아 둔다.
+    if (voucher.getLines().stream().noneMatch(l -> "CREDIT".equals(l.getLineType()))) {
       voucher.addLine(VoucherLine.builder()
           .lineType("CREDIT")
           .accountCode(prepaidAccountCode())
           .accountName("선수금")
           .amount(payment.getPaymentAmount())
-          .description("선수금 입금")
+          .description("선수금 입금 (충당 대상 회차 없음)")
           .sortOrder(2)
           .build());
-    } else {
-      // 일반 수납: 대변 수익 전액
-      addRevenueCreditLine(voucher, creditAccount, payment.getPaymentAmount(), 2);
     }
 
     Voucher saved = voucherRepository.save(voucher);
     return saved.getId();
+  }
+
+  private int addCredit(Voucher voucher, String code, String name, long amount, String desc, int order) {
+    voucher.addLine(VoucherLine.builder()
+        .lineType("CREDIT")
+        .accountCode(code)
+        .accountName(name)
+        .amount(amount)
+        .description(desc)
+        .sortOrder(order)
+        .build());
+    return order + 1;
+  }
+
+  private String contractStatusOf(String contractNumber) {
+    if (contractNumber == null) return null;
+    return contractRepo.findByContractNumber(contractNumber)
+        .map(Contract::getStatus)
+        .orElse(null);
   }
 
   /** 선수금 계정코드: 기타계정관리 설정 우선, 없으면 계정명으로 조회 */
@@ -279,22 +350,6 @@ public class PaymentService {
     String code = accountSettings.getPrepaidDebitAccountCode();
     if (code != null && !code.isBlank()) return code;
     return accountResolver.codeOf("선수금");
-  }
-
-  /**
-   * 수익 대변 라인을 추가한다.
-   * 대부업 이자수익은 부가가치세 면세이므로 공급가액/부가세 분리 없이 총액으로 계상한다.
-   */
-  private void addRevenueCreditLine(Voucher voucher, String creditAccount,
-                                    long amount, int startOrder) {
-    voucher.addLine(VoucherLine.builder()
-        .lineType("CREDIT")
-        .accountCode(accountResolver.codeOf(creditAccount))
-        .accountName(creditAccount)
-        .amount(amount)
-        .description("수납등록 입금")
-        .sortOrder(startOrder)
-        .build());
   }
 
   /**

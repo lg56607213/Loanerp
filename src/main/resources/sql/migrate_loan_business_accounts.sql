@@ -105,3 +105,34 @@ SELECT 'is', 'EXPENSE', 3, id, '500102', '법무비용', '영업비용', 2, '사
 -- 기존 법무비용(500303, 영업외비용) 전표를 새 계정으로 이관한 뒤 비활성화한다.
 UPDATE voucher_lines SET account_code = '500102' WHERE account_code = '500303';
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500303';
+
+-- ========== 9) 3~5단계 스키마 (ddl-auto=update 가 못 만드는 경우 수동 적용) ==========
+-- payment_schedules 충당 실적 컬럼
+ALTER TABLE payment_schedules
+  ADD COLUMN IF NOT EXISTS paid_principal        BIGINT      DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_interest         BIGINT      DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_overdue_interest BIGINT      DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS paid_cost             BIGINT      DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS line_status           VARCHAR(10) DEFAULT '미납';
+
+UPDATE payment_schedules
+   SET paid_principal = IFNULL(paid_principal, 0),
+       paid_interest = IFNULL(paid_interest, 0),
+       paid_overdue_interest = IFNULL(paid_overdue_interest, 0),
+       paid_cost = IFNULL(paid_cost, 0),
+       line_status = IFNULL(NULLIF(line_status, ''), '미납');
+
+-- contracts 여신 컬럼 (렌트 기준으로 만들어진 DB를 전환할 때만 필요)
+ALTER TABLE contracts
+  ADD COLUMN IF NOT EXISTS customer_type       VARCHAR(10),
+  ADD COLUMN IF NOT EXISTS loan_type           VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS loan_amount         BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS execute_date        DATE,
+  ADD COLUMN IF NOT EXISTS interest_rate       DECIMAL(5,2),
+  ADD COLUMN IF NOT EXISTS overdue_rate        DECIMAL(5,2),
+  ADD COLUMN IF NOT EXISTS overdue_charge_yn   TINYINT(1) NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS repayment_method    VARCHAR(20) NOT NULL DEFAULT '원리금균등',
+  ADD COLUMN IF NOT EXISTS payment_day         INT,
+  ADD COLUMN IF NOT EXISTS installment_count   INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS monthly_payment     BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS remaining_principal BIGINT;

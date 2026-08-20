@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>기한이익상실 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css" />
+  <link rel="stylesheet" href="../../assets/css/pages.css" />
+  <style>
+    .hidden { display: none !important; }
+    .amount-cell { text-align: right; font-variant-numeric: tabular-nums; }
+    .input-group { display: flex; gap: 6px; align-items: center; }
+    .btn-icon {
+      width: 38px; height: 38px; border: 1px solid #ddd; border-radius: 6px;
+      background: #fff; cursor: pointer;
+    }
+    .field-hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .calc-box {
+      margin-top: 12px; padding: 14px 16px; border: 1px solid #fed7aa;
+      background: #fff7ed; border-radius: 8px; font-size: 13px; line-height: 2;
+    }
+    .calc-box b { color: #9a3412; }
+    .calc-total { font-size: 17px; font-weight: 800; color: #9a3412; }
+    .calc-note { margin-top: 8px; font-size: 12px; color: #7c2d12; line-height: 1.6; }
+    .warn-box {
+      margin: 12px 0; padding: 12px 14px; border-radius: 8px;
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; line-height: 1.7;
+    }
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      align-items: center; justify-content: center; z-index: 9999;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box { width: min(860px, calc(100vw - 24px)); background: #fff; border-radius: 12px; padding: 18px; }
+    .pick-row { cursor: pointer; }
+    .pick-row:hover td { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+
+<div class="content-wrapper">
+  <div class="page-header">
+    <h1>기한이익상실</h1>
+    <p>채권관리 &gt; 기한이익상실</p>
+  </div>
+
+  <!-- 등록 -->
+  <div class="erp-card">
+    <div class="card-header"><h2>기한이익상실 등록</h2></div>
+    <div class="card-body">
+      <div class="warn-box">
+        기한이익상실을 등록하면 채권 상태가 <b>해지</b>로 바뀌고, 그 시점부터 <b>잔여원금 전액</b>이 즉시 청구 대상이 됩니다.
+        상실일 이후의 미래 회차는 <b>청구중지</b>로 전환되어 개별 청구가 멈춥니다.
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="required">채권번호</label>
+          <div class="input-group">
+            <input type="text" id="contractNumber" placeholder="채권번호 입력">
+            <button type="button" class="btn-icon" id="btnSearchContract" title="채권 검색">🔍</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>고객명</label>
+          <input type="text" id="customerName" disabled placeholder="자동입력">
+        </div>
+        <div class="form-group">
+          <label class="required">기한이익상실일</label>
+          <input type="date" id="eodDate">
+        </div>
+        <div class="form-group">
+          <label>사전통지일</label>
+          <input type="date" id="noticeDate">
+          <div class="field-hint">대부업법상 사전통지 의무가 있습니다.</div>
+        </div>
+        <div class="form-group">
+          <label class="required">사유</label>
+          <select id="reason">
+            <option value="연체">연체</option>
+            <option value="파산·회생">파산·회생</option>
+            <option value="신용악화">신용악화</option>
+            <option value="약정위반">약정위반</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1 / -1;">
+          <label>비고</label>
+          <textarea id="memo" rows="2" placeholder="특이사항"></textarea>
+        </div>
+      </div>
+
+      <div class="calc-box" id="calcBox">
+        채권번호와 상실일을 입력하면 청구 금액을 일할로 계산해 보여줍니다.
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" id="btnPreview">청구액 계산</button>
+        <button type="button" class="btn btn-primary" id="btnSubmit">기한이익상실 등록</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 목록 -->
+  <div class="erp-card">
+    <div class="card-header">
+      <h2>등록 내역</h2>
+      <div class="input-group">
+        <input type="text" id="listKw" placeholder="채권번호 / 고객명">
+        <button type="button" class="btn btn-primary" id="btnList">조회</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-container" style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>채권번호</th>
+              <th>고객명</th>
+              <th>상실일</th>
+              <th>통지일</th>
+              <th>사유</th>
+              <th class="amount-cell">청구원금</th>
+              <th class="amount-cell">미수이자</th>
+              <th class="amount-cell">지연배상금</th>
+              <th class="amount-cell">청구총액</th>
+              <th>청구중지</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="listBody">
+            <tr><td colspan="11" style="text-align:center;color:#64748b;padding:20px;">불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 채권 검색 -->
+<div class="modal-backdrop" id="pickBackdrop">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="margin:0;">채권 선택</h3>
+      <button type="button" class="btn btn-secondary" id="btnClosePick">닫기</button>
+    </div>
+    <div class="input-group" style="margin-bottom:10px;">
+      <input type="text" id="pickKw" placeholder="채권번호 / 고객명" style="flex:1;">
+      <button type="button" class="btn btn-primary" id="btnPickSearch">검색</button>
+    </div>
+    <div class="table-container" style="max-height:420px;overflow:auto;">
+      <table>
+        <thead>
+          <tr><th>채권번호</th><th>고객명</th><th>대출구분</th><th class="amount-cell">대출금</th><th class="amount-cell">잔여원금</th></tr>
+        </thead>
+        <tbody id="pickBody"><tr><td colspan="5" style="text-align:center;padding:16px;">검색하세요.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/sidebar.js"></script>
+<script src="../../assets/js/config.js"></script>
+<script src="../../assets/js/html-escape.js"></script>
+<script>
+  const API = API_BASE_URL.replace(/\/$/, '');
+  const $ = (id) => document.getElementById(id);
+  const esc = typeof escHtml === 'function' ? escHtml : s => String(s ?? '');
+  const money = (v) => Number(v || 0).toLocaleString();
+  const txt = (v) => (v == null || v === '' ? '-' : String(v));
+
+  async function api(path, method, body) {
+    const opt = { method: method || 'GET', credentials: 'include' };
+    if (body !== undefined) {
+      opt.headers = { 'Content-Type': 'application/json' };
+      opt.body = JSON.stringify(body);
+    }
+    const res = await fetch(API + path, opt);
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      let msg = t;
+      try { msg = JSON.parse(t).message || t; } catch (e) {}
+      throw new Error(msg || ('요청 실패 ' + res.status));
+    }
+    return res.status === 204 ? null : res.json().catch(() => null);
+  }
+
+  // ── 청구액 미리보기 ─────────────────────────────────────────
+  async function preview() {
+    const cn = $('contractNumber').value.trim();
+    if (!cn) { alert('채권번호를 입력하세요.'); return null; }
+
+    const qs = new URLSearchParams({ contractNumber: cn });
+    if ($('eodDate').value) qs.set('eodDate', $('eodDate').value);
+
+    try {
+      const s = await api('/api/accelerations/preview?' + qs.toString());
+      $('customerName').value = s.customerName || '';
+
+      const interest = (s.unpaidInterest || 0) + (s.accruedInterest || 0);
+      $('calcBox').innerHTML =
+        `청구원금(잔여원금) <b>${money(s.remainingPrincipal)}원</b><br>` +
+        `미수이자 <b>${money(interest)}원</b> ` +
+        `<span style="color:#7c2d12;">(미납 ${money(s.unpaidInterest)} + 경과 ${money(s.accruedInterest)})</span><br>` +
+        `지연배상금 <b>${money(s.overdueInterest)}원</b>` +
+        (s.overdueCharged === false ? ' <span style="color:#dc2626;">— 연체이자 미부과 채권</span>' : '') + '<br>' +
+        `<span class="calc-total">청구 총액 ${money(s.totalDue)}원</span>` +
+        `<div class="calc-note">${esc(s.note || '')}</div>`;
+      return s;
+    } catch (e) {
+      $('calcBox').innerHTML = `<span style="color:#dc2626;">계산 실패: ${esc(e.message)}</span>`;
+      return null;
+    }
+  }
+
+  // ── 등록 ────────────────────────────────────────────────────
+  async function submit() {
+    const cn = $('contractNumber').value.trim();
+    if (!cn) { alert('채권번호를 입력하세요.'); return; }
+    if (!$('eodDate').value) { alert('기한이익상실일을 입력하세요.'); return; }
+
+    const s = await preview();
+    if (!s) return;
+
+    const ok = confirm(
+      `${cn} 채권에 기한이익상실을 등록합니다.\n\n` +
+      `청구 총액: ${money(s.totalDue)}원\n` +
+      `채권 상태가 '해지'로 바뀌고 잔여원금 전액이 즉시 청구됩니다.\n\n진행하시겠습니까?`);
+    if (!ok) return;
+
+    try {
+      await api('/api/accelerations', 'POST', {
+        contractNumber: cn,
+        eodDate: $('eodDate').value,
+        noticeDate: $('noticeDate').value || null,
+        reason: $('reason').value,
+        memo: $('memo').value || null,
+      });
+      alert('기한이익상실이 등록되었습니다.');
+      resetForm();
+      await loadList();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function resetForm() {
+    $('contractNumber').value = '';
+    $('customerName').value = '';
+    $('noticeDate').value = '';
+    $('memo').value = '';
+    $('calcBox').innerHTML = '채권번호와 상실일을 입력하면 청구 금액을 일할로 계산해 보여줍니다.';
+  }
+
+  // ── 목록 ────────────────────────────────────────────────────
+  async function loadList() {
+    const tbody = $('listBody');
+    try {
+      const list = await api('/api/accelerations?kw=' + encodeURIComponent($('listKw').value.trim()));
+      if (!list || !list.length) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#64748b;padding:20px;">등록된 내역이 없습니다.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(r => `
+        <tr>
+          <td>${esc(r.contractNumber)}</td>
+          <td>${esc(r.customerName || '-')}</td>
+          <td>${txt(r.eodDate)}</td>
+          <td>${txt(r.noticeDate)}</td>
+          <td>${esc(r.reason || '-')}</td>
+          <td class="amount-cell">${money(r.calledPrincipal)}</td>
+          <td class="amount-cell">${money(r.accruedInterest)}</td>
+          <td class="amount-cell">${money(r.accruedOverdue)}</td>
+          <td class="amount-cell"><b>${money(r.totalCalled)}</b></td>
+          <td style="text-align:center;">${r.suspendedInstallments || 0}회</td>
+          <td><button type="button" class="btn btn-sm btn-danger" data-cancel="${r.id}">취소</button></td>
+        </tr>`).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#dc2626;padding:20px;">조회 실패: ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  // ── 채권 검색 ───────────────────────────────────────────────
+  async function pickSearch() {
+    const body = $('pickBody');
+    body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;">불러오는 중...</td></tr>`;
+    try {
+      const list = await api('/api/contracts/search?kw=' + encodeURIComponent($('pickKw').value.trim()));
+      if (!list || !list.length) {
+        body.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;">결과 없음</td></tr>`;
+        return;
+      }
+      body.innerHTML = list.map(c => `
+        <tr class="pick-row" data-cn="${esc(c.contractNumber)}">
+          <td>${esc(c.contractNumber)}</td>
+          <td>${esc(c.customerName || '-')}</td>
+          <td>${esc(c.loanType || '-')}</td>
+          <td class="amount-cell">${money(c.loanAmount)}</td>
+          <td class="amount-cell">${money(c.remainingPrincipal)}</td>
+        </tr>`).join('');
+      body.querySelectorAll('.pick-row').forEach(tr => {
+        tr.addEventListener('click', () => {
+          $('contractNumber').value = tr.dataset.cn;
+          $('pickBackdrop').classList.remove('open');
+          preview();
+        });
+      });
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#dc2626;padding:16px;">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  // ── 이벤트 ──────────────────────────────────────────────────
+  $('btnPreview').addEventListener('click', preview);
+  $('btnSubmit').addEventListener('click', submit);
+  $('btnList').addEventListener('click', loadList);
+  $('eodDate').addEventListener('change', () => { if ($('contractNumber').value.trim()) preview(); });
+  $('contractNumber').addEventListener('change', () => { if ($('contractNumber').value.trim()) preview(); });
+
+  $('btnSearchContract').addEventListener('click', () => {
+    $('pickBackdrop').classList.add('open');
+    $('pickKw').value = '';
+    pickSearch();
+  });
+  $('btnClosePick').addEventListener('click', () => $('pickBackdrop').classList.remove('open'));
+  $('btnPickSearch').addEventListener('click', pickSearch);
+  $('pickKw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pickSearch(); } });
+
+  $('listBody').addEventListener('click', async (e) => {
+    const id = e.target.getAttribute('data-cancel');
+    if (!id) return;
+    if (!confirm('기한이익상실을 취소하면 청구중지된 회차가 되살아나고 채권 상태가 정상으로 돌아갑니다. 진행하시겠습니까?')) return;
+    try {
+      await api('/api/accelerations/' + id, 'DELETE');
+      await loadList();
+    } catch (err) { alert(err.message); }
+  });
+
+  loadSidebar();
+  $('eodDate').value = new Date().toISOString().split('T')[0];
+  loadList();
+</script>
+</body>
+</html>

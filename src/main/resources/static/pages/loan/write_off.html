@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>대손상각 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css" />
+  <link rel="stylesheet" href="../../assets/css/pages.css" />
+  <style>
+    .hidden { display: none !important; }
+    .amount-cell { text-align: right; font-variant-numeric: tabular-nums; }
+    .input-group { display: flex; gap: 6px; align-items: center; }
+    .btn-icon {
+      width: 38px; height: 38px; border: 1px solid #ddd; border-radius: 6px;
+      background: #fff; cursor: pointer;
+    }
+    .field-hint { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .calc-box {
+      margin-top: 12px; padding: 14px 16px; border: 1px solid #e5e7eb;
+      background: #f8fafc; border-radius: 8px; font-size: 13px; line-height: 2;
+    }
+    .calc-box b { color: #374151; }
+    .calc-total { font-size: 17px; font-weight: 800; color: #374151; }
+    .calc-note { margin-top: 8px; font-size: 12px; color: #475569; line-height: 1.6; }
+    .warn-box {
+      margin: 12px 0; padding: 12px 14px; border-radius: 8px;
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; font-size: 13px; line-height: 1.7;
+    }
+    .journal {
+      margin-top: 10px; padding: 10px 12px; border-radius: 6px;
+      background: #fff; border: 1px dashed #cbd5e1; font-size: 12.5px; line-height: 1.9; color: #334155;
+    }
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      align-items: center; justify-content: center; z-index: 9999;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box { width: min(860px, calc(100vw - 24px)); background: #fff; border-radius: 12px; padding: 18px; }
+    .pick-row { cursor: pointer; }
+    .pick-row:hover td { background: #f8fafc; }
+  </style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+
+<div class="content-wrapper">
+  <div class="page-header">
+    <h1>대손상각</h1>
+    <p>채권관리 &gt; 대손상각</p>
+  </div>
+
+  <div class="erp-card">
+    <div class="card-header"><h2>대손상각 등록</h2></div>
+    <div class="card-body">
+      <div class="warn-box">
+        대손상각을 등록하면 채권 상태가 <b>상각</b>으로 바뀌고 이후 이자·지연배상금 기산이 멈춥니다.
+        <b>연체 또는 해지(기한이익상실) 채권만</b> 상각할 수 있습니다.
+        상각 후 회수가 발생하면 <b>상각채권추심이익</b>으로 인식하며, 이때 변제충당은 법적비용 → <b>원금</b> → 이자 순으로 바뀝니다.
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="required">채권번호</label>
+          <div class="input-group">
+            <input type="text" id="contractNumber" placeholder="채권번호 입력">
+            <button type="button" class="btn-icon" id="btnSearchContract" title="채권 검색">🔍</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>고객명</label>
+          <input type="text" id="customerName" disabled placeholder="자동입력">
+        </div>
+        <div class="form-group">
+          <label class="required">상각일</label>
+          <input type="date" id="writeOffDate">
+        </div>
+        <div class="form-group">
+          <label class="required">사유</label>
+          <select id="reason">
+            <option value="회수불능">회수불능</option>
+            <option value="소멸시효완성">소멸시효완성</option>
+            <option value="파산면책">파산면책</option>
+            <option value="채권매각">채권매각</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>대손충당금 상계액</label>
+          <input type="text" id="allowanceUsed" placeholder="0" inputmode="numeric">
+          <div class="field-hint">설정한 만큼 대손충당금에서 상계하고, 나머지는 대손상각비로 계상합니다.</div>
+        </div>
+        <div class="form-group">
+          <label>전표 자동생성</label>
+          <select id="createVoucher">
+            <option value="true">생성</option>
+            <option value="false">생성하지 않음</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1 / -1;">
+          <label>비고</label>
+          <textarea id="memo" rows="2" placeholder="특이사항"></textarea>
+        </div>
+      </div>
+
+      <div class="calc-box" id="calcBox">
+        채권번호와 상각일을 입력하면 상각 대상 금액을 계산해 보여줍니다.
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" id="btnPreview">상각액 계산</button>
+        <button type="button" class="btn btn-primary" id="btnSubmit">대손상각 등록</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="erp-card">
+    <div class="card-header">
+      <h2>상각 내역</h2>
+      <div class="input-group">
+        <input type="text" id="listKw" placeholder="채권번호 / 고객명">
+        <button type="button" class="btn btn-primary" id="btnList">조회</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="table-container" style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>채권번호</th>
+              <th>고객명</th>
+              <th>상각일</th>
+              <th>사유</th>
+              <th class="amount-cell">상각원금</th>
+              <th class="amount-cell">상각이자</th>
+              <th class="amount-cell">지연배상금</th>
+              <th class="amount-cell">충당금상계</th>
+              <th class="amount-cell">대손상각비</th>
+              <th class="amount-cell">상각총액</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="listBody">
+            <tr><td colspan="11" style="text-align:center;color:#64748b;padding:20px;">불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="pickBackdrop">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3 style="margin:0;">채권 선택</h3>
+      <button type="button" class="btn btn-secondary" id="btnClosePick">닫기</button>
+    </div>
+    <div class="input-group" style="margin-bottom:10px;">
+      <input type="text" id="pickKw" placeholder="채권번호 / 고객명" style="flex:1;">
+      <button type="button" class="btn btn-primary" id="btnPickSearch">검색</button>
+    </div>
+    <div class="table-container" style="max-height:420px;overflow:auto;">
+      <table>
+        <thead>
+          <tr><th>채권번호</th><th>고객명</th><th>상태</th><th class="amount-cell">잔여원금</th></tr>
+        </thead>
+        <tbody id="pickBody"><tr><td colspan="4" style="text-align:center;padding:16px;">검색하세요.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/sidebar.js"></script>
+<script src="../../assets/js/config.js"></script>
+<script src="../../assets/js/html-escape.js"></script>
+<script>
+  const API = API_BASE_URL.replace(/\/$/, '');
+  const $ = (id) => document.getElementById(id);
+  const esc = typeof escHtml === 'function' ? escHtml : s => String(s ?? '');
+  const money = (v) => Number(v || 0).toLocaleString();
+  const txt = (v) => (v == null || v === '' ? '-' : String(v));
+  const digits = (s) => String(s || '').replace(/[^0-9]/g, '');
+
+  let lastPreview = null;
+
+  async function api(path, method, body) {
+    const opt = { method: method || 'GET', credentials: 'include' };
+    if (body !== undefined) {
+      opt.headers = { 'Content-Type': 'application/json' };
+      opt.body = JSON.stringify(body);
+    }
+    const res = await fetch(API + path, opt);
+    if (!res.ok) {
+      const t = await res.text().catch(() => '');
+      let msg = t;
+      try { msg = JSON.parse(t).message || t; } catch (e) {}
+      throw new Error(msg || ('요청 실패 ' + res.status));
+    }
+    return res.status === 204 ? null : res.json().catch(() => null);
+  }
+
+  function renderCalc(s) {
+    const interest = (s.unpaidInterest || 0) + (s.accruedInterest || 0);
+    const total = s.totalDue || 0;
+    const allowance = Math.min(Number(digits($('allowanceUsed').value) || 0), total);
+    const expense = Math.max(0, total - allowance);
+    const principal = s.remainingPrincipal || 0;
+    const allowanceOnPrincipal = Math.min(allowance, principal);
+    const expenseOnPrincipal = Math.max(0, principal - allowanceOnPrincipal);
+
+    $('calcBox').innerHTML =
+      `상각원금 <b>${money(principal)}원</b> · 상각이자 <b>${money(interest)}원</b> · 지연배상금 <b>${money(s.overdueInterest)}원</b><br>` +
+      `<span class="calc-total">상각 총액 ${money(total)}원</span><br>` +
+      `대손충당금 상계 <b>${money(allowance)}원</b> / 대손상각비 <b>${money(expense)}원</b>` +
+      `<div class="journal">` +
+      `<b>전표 분개 (원금 제각)</b><br>` +
+      (allowanceOnPrincipal > 0 ? `(차) 대손충당금 ${money(allowanceOnPrincipal)}원<br>` : '') +
+      (expenseOnPrincipal > 0 ? `(차) 대손상각비 ${money(expenseOnPrincipal)}원<br>` : '') +
+      `(대) 장기대여금 ${money(principal)}원<br>` +
+      `<span style="color:#64748b;">현금주의라 미수이자는 아직 수익으로 잡히지 않았으므로 원금만 제각합니다.</span>` +
+      `</div>` +
+      `<div class="calc-note">${esc(s.note || '')}</div>`;
+  }
+
+  async function preview() {
+    const cn = $('contractNumber').value.trim();
+    if (!cn) { alert('채권번호를 입력하세요.'); return null; }
+
+    const qs = new URLSearchParams({ contractNumber: cn });
+    if ($('writeOffDate').value) qs.set('writeOffDate', $('writeOffDate').value);
+
+    try {
+      const s = await api('/api/write-offs/preview?' + qs.toString());
+      $('customerName').value = s.customerName || '';
+      lastPreview = s;
+      renderCalc(s);
+      return s;
+    } catch (e) {
+      lastPreview = null;
+      $('calcBox').innerHTML = `<span style="color:#dc2626;">계산 실패: ${esc(e.message)}</span>`;
+      return null;
+    }
+  }
+
+  async function submit() {
+    const cn = $('contractNumber').value.trim();
+    if (!cn) { alert('채권번호를 입력하세요.'); return; }
+    if (!$('writeOffDate').value) { alert('상각일을 입력하세요.'); return; }
+
+    const s = await preview();
+    if (!s) return;
+
+    if (!confirm(`${cn} 채권을 대손상각 처리합니다.\n\n상각 총액: ${money(s.totalDue)}원\n채권 상태가 '상각'으로 바뀌고 이자 기산이 멈춥니다.\n\n진행하시겠습니까?`)) return;
+
+    try {
+      await api('/api/write-offs', 'POST', {
+        contractNumber: cn,
+        writeOffDate: $('writeOffDate').value,
+        reason: $('reason').value,
+        allowanceUsed: Number(digits($('allowanceUsed').value) || 0),
+        memo: $('memo').value || null,
+        createVoucher: $('createVoucher').value === 'true',
+      });
+      alert('대손상각이 등록되었습니다.');
+      resetForm();
+      await loadList();
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  function resetForm() {
+    $('contractNumber').value = '';
+    $('customerName').value = '';
+    $('allowanceUsed').value = '';
+    $('memo').value = '';
+    lastPreview = null;
+    $('calcBox').innerHTML = '채권번호와 상각일을 입력하면 상각 대상 금액을 계산해 보여줍니다.';
+  }
+
+  async function loadList() {
+    const tbody = $('listBody');
+    try {
+      const list = await api('/api/write-offs?kw=' + encodeURIComponent($('listKw').value.trim()));
+      if (!list || !list.length) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#64748b;padding:20px;">등록된 내역이 없습니다.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = list.map(r => `
+        <tr>
+          <td>${esc(r.contractNumber)}</td>
+          <td>${esc(r.customerName || '-')}</td>
+          <td>${txt(r.writeOffDate)}</td>
+          <td>${esc(r.reason || '-')}</td>
+          <td class="amount-cell">${money(r.writeOffPrincipal)}</td>
+          <td class="amount-cell">${money(r.writeOffInterest)}</td>
+          <td class="amount-cell">${money(r.writeOffOverdue)}</td>
+          <td class="amount-cell">${money(r.allowanceUsed)}</td>
+          <td class="amount-cell">${money(r.expenseAmount)}</td>
+          <td class="amount-cell"><b>${money(r.totalWrittenOff)}</b></td>
+          <td><button type="button" class="btn btn-sm btn-danger" data-cancel="${r.id}">취소</button></td>
+        </tr>`).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:#dc2626;padding:20px;">조회 실패: ${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  async function pickSearch() {
+    const body = $('pickBody');
+    body.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;">불러오는 중...</td></tr>`;
+    try {
+      const list = await api('/api/contracts/status?contractNumber=&customerName=' + encodeURIComponent($('pickKw').value.trim()));
+      // 정상 채권은 상각 대상이 아니므로 목록에서 제외한다.
+      const rows = (list || []).filter(c => ['연체', '해지'].includes(c.contractStatus));
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:16px;">상각 가능한 채권이 없습니다. (연체 또는 해지 상태만 가능)</td></tr>`;
+        return;
+      }
+      body.innerHTML = rows.map(c => `
+        <tr class="pick-row" data-cn="${esc(c.contractNumber)}">
+          <td>${esc(c.contractNumber)}</td>
+          <td>${esc(c.customerName || '-')}</td>
+          <td>${esc(c.contractStatus)}</td>
+          <td class="amount-cell">${money(c.remainingPrincipal)}</td>
+        </tr>`).join('');
+      body.querySelectorAll('.pick-row').forEach(tr => {
+        tr.addEventListener('click', () => {
+          $('contractNumber').value = tr.dataset.cn;
+          $('pickBackdrop').classList.remove('open');
+          preview();
+        });
+      });
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#dc2626;padding:16px;">${esc(e.message)}</td></tr>`;
+    }
+  }
+
+  $('btnPreview').addEventListener('click', preview);
+  $('btnSubmit').addEventListener('click', submit);
+  $('btnList').addEventListener('click', loadList);
+  $('writeOffDate').addEventListener('change', () => { if ($('contractNumber').value.trim()) preview(); });
+  $('contractNumber').addEventListener('change', () => { if ($('contractNumber').value.trim()) preview(); });
+  $('allowanceUsed').addEventListener('input', (e) => {
+    const d = digits(e.target.value);
+    e.target.value = d ? Number(d).toLocaleString() : '';
+    if (lastPreview) renderCalc(lastPreview);
+  });
+
+  $('btnSearchContract').addEventListener('click', () => {
+    $('pickBackdrop').classList.add('open');
+    $('pickKw').value = '';
+    pickSearch();
+  });
+  $('btnClosePick').addEventListener('click', () => $('pickBackdrop').classList.remove('open'));
+  $('btnPickSearch').addEventListener('click', pickSearch);
+  $('pickKw').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); pickSearch(); } });
+
+  $('listBody').addEventListener('click', async (e) => {
+    const id = e.target.getAttribute('data-cancel');
+    if (!id) return;
+    if (!confirm('대손상각을 취소하면 채권 상태가 상각 직전 상태로 되돌아갑니다. 진행하시겠습니까?')) return;
+    try {
+      await api('/api/write-offs/' + id, 'DELETE');
+      await loadList();
+    } catch (err) { alert(err.message); }
+  });
+
+  loadSidebar();
+  $('writeOffDate').value = new Date().toISOString().split('T')[0];
+  loadList();
+</script>
+</body>
+</html>

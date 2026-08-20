@@ -263,6 +263,13 @@
               </div>
             </div>
 
+            <div style="margin-top:10px;">
+              <button type="button" class="btn btn-secondary" id="btnSettlePreview">일할 정산 계산</button>
+              <span class="help-text" style="margin-left:8px;">중도상환일 기준으로 잔여원금·경과이자·지연배상금을 다시 계산해 채워 넣습니다.</span>
+            </div>
+
+            <div id="settleBox" style="margin-top:10px; padding:12px 14px; border:1px solid #dbeafe; background:#f0f6ff; border-radius:8px; font-size:13px; line-height:1.9; display:none;"></div>
+
             <div class="total-amount">
               <div class="total-label">합계 금액 (미수금)</div>
               <div class="total-value" id="totalAmount">0 원</div>
@@ -614,6 +621,45 @@
       document.getElementById('totalAmount').textContent = formatNumber(total) + ' 원';
     }
 
+    /**
+     * 일할 정산 — 서버 LoanSettlementService가 계산한 값을 그대로 받아 채운다.
+     * 정기 회차는 월할이지만 중도상환은 실제 경과일수 기준이라 반드시 일할로 다시 계산해야 한다.
+     */
+    async function loadSettlement() {
+      const cn = (document.getElementById('contractNumber')?.value || '').trim();
+      if (!cn) { alert('먼저 채권을 선택하세요.'); return; }
+
+      const asOf = document.getElementById('terminationDate').value;
+      const box = document.getElementById('settleBox');
+      box.style.display = 'block';
+      box.textContent = '계산 중...';
+
+      try {
+        const qs = asOf ? ('?asOf=' + encodeURIComponent(asOf)) : '';
+        const res = await fetch(API_BASE_URL.replace(/\/$/, '') + '/api/loans/' + encodeURIComponent(cn) + '/settlement' + qs,
+                                { credentials: 'include' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const st = await res.json();
+
+        const interest = (st.unpaidInterest || 0) + (st.accruedInterest || 0);
+        document.getElementById('terminationAmount').value = st.remainingPrincipal || 0;
+        document.getElementById('uncollectedRent').value = interest + (st.overdueInterest || 0);
+        calculateTotal();
+
+        box.innerHTML =
+          '잔여원금 <b>' + formatWon(st.remainingPrincipal) + '</b> · ' +
+          '미수이자 <b>' + formatWon(interest) + '</b> ' +
+          '<span style="color:#64748b;">(미납 ' + formatWon(st.unpaidInterest) + ' + 경과 ' + formatWon(st.accruedInterest) + ')</span> · ' +
+          '지연배상금 <b>' + formatWon(st.overdueInterest) + '</b>' +
+          (st.overdueCharged === false ? ' <span style="color:#dc2626;">— 연체이자 미부과 채권</span>' : '') +
+          '<br><b style="font-size:15px;color:#1d4ed8;">정산 총액 ' + formatWon(st.totalDue) + '</b>' +
+          '<div style="margin-top:6px;font-size:12px;color:#475569;">' + (st.note || '') + '</div>';
+      } catch (e) {
+        box.innerHTML = '<span style="color:#dc2626;">정산 계산 실패: ' + e.message + '</span>';
+      }
+    }
+
+    document.getElementById('btnSettlePreview').addEventListener('click', loadSettlement);
     document.getElementById('terminationAmount').addEventListener('input', calculateTotal);
     document.getElementById('terminationFee').addEventListener('input', calculateTotal);
     document.getElementById('uncollectedRent').addEventListener('input', calculateTotal);

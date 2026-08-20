@@ -43,39 +43,26 @@ public class ScheduleManagementService {
       list = scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contractNumber);
     }
 
-    // ✅ 계약 전체 수납내역 조회
-    List<Payment> payments = paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber);
-
-    long totalPaidAmount = 0L;
-    for (Payment p : payments) {
-      if (p.getPaymentAmount() != null && p.getPaymentAmount() > 0) {
-        totalPaidAmount += p.getPaymentAmount();
-      }
-    }
-
-    long remainingPaid = totalPaidAmount;
+    // 수납액은 변제충당 결과(회차별 paid*)를 그대로 읽는다.
+    // 예전처럼 총수납액을 회차에 순서대로 흘려보내면 이자/원금 구분이 사라져
+    // 지연배상금이 붙은 회차에서 금액이 어긋난다.
     LocalDate today = LocalDate.now();
 
     List<ScheduleRowDto> out = new ArrayList<>();
     for (PaymentSchedule ps : list) {
-      long rent = nz(ps.getRentAmount());
+      long paidForThisRow = ps.paidTotal() + nz(ps.getPaidOverdueInterest());
+      long unpaid = ps.unpaidTotal();
 
-      long paidForThisRow = Math.min(remainingPaid, rent);
-      if (paidForThisRow < 0) paidForThisRow = 0L;
-
-      remainingPaid = Math.max(remainingPaid - paidForThisRow, 0L);
-
-      long unpaid = Math.max(rent - paidForThisRow, 0L);
-
-      LocalDate dueDate = ps.getTaxInvoiceDate();
+      LocalDate dueDate = ps.getPaymentDate() != null ? ps.getPaymentDate() : ps.getTaxInvoiceDate();
       long receivable = (dueDate != null && dueDate.isBefore(today)) ? unpaid : 0L;
 
       String status;
-      if (dueDate == null || !dueDate.isBefore(today)) {
-        // 납기일이 오늘이거나 미래: 선수금으로 커버됐어도 예정 유지
-        status = "예정";
-      } else if (unpaid == 0L) {
+      if (PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) {
+        status = "청구중지";
+      } else if (unpaid == 0L && ps.dueTotal() > 0) {
         status = "완납";
+      } else if (dueDate == null || !dueDate.isBefore(today)) {
+        status = paidForThisRow > 0 ? "부분수납" : "예정";
       } else if (paidForThisRow > 0L) {
         status = "부분수납";
       } else {
