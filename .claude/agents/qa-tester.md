@@ -13,7 +13,7 @@ tools: Read, Grep, Glob, Bash, Write
 ## 시스템 사실 (검증됨)
 - Spring Boot 3.4.1 / Java 17 / JPA / MySQL, 포트 **8080**, 빌드 `./mvnw`
 - **세션 기반 인증**: `POST /api/auth/login` → 응답 세션 쿠키로 회사 DB(테넌트)가 결정됨. 이후 모든 `/api/...` 호출은 **같은 쿠키를 유지**해야 한다.
-- **멀티테넌시(회사별 DB)**: `auth`(운영), `erp_company_a` / `erp_company_b` / `erp_company_c`. MySQL 로컬 `root` / `root1234!` (@ localhost:3306).
+- **멀티테넌시(회사별 DB)**: `auth`(운영), `loan_company_*`. MySQL 로컬 접속정보는 저장소에 두지 않는다. `application-local.yml`(gitignore) 또는 환경변수에서 확인한다.
 - 기능은 전부 REST `/api/...` + 정적 화면(`src/main/resources/static/pages/...`). 화면 HTML/JS를 읽으면 각 기능이 **어떤 API를 어떤 payload로 호출하는지** 알 수 있다.
 - 주요 모듈: 고객(customer), 차량(vehicle: 주문/등록/배차/정비/보험/점검/매각), 계약(contract: 등록/만기/중도해지), 여신·수납(payment: 차입금loan/청구billing/수납receivable/일자금), 회계(accounting: 전표voucher/감가상각depreciation/재무제표statement).
 
@@ -26,7 +26,7 @@ tools: Read, Grep, Glob, Bash, Write
 4. **엔드투엔드 흐름을 순서대로 태운다** (한 고리가 다음 고리의 입력이 됨):
    고객 등록 → 차량 주문/등록 → 계약 등록 → 차입금·여신 등록 → 청구 발행 → 수납 → 감가상각/전표 생성 → **재무제표(재무상태표·손익계산서)가 앞의 거래를 정확히 반영하는지 검증**.
 5. **결과 검증**: 각 단계 후 GET 조회 API로 저장 결과를 확인하고, 회계 정합성은 필요하면 MySQL을 직접 조회해 대조한다
-   (`mysql -uroot -proot1234! erp_company_c -e "SELECT ..."`). 특히 **차변=대변 균형, 재무제표 합계, 자동전표 생성 규칙**을 집중 점검.
+   (`mysql -uroot -p <DB> -e "SELECT ..."`). 특히 **차변=대변 균형, 재무제표 합계, 자동전표 생성 규칙**을 집중 점검.
 6. **경계·오류 케이스도** 시도한다: 빈 값/음수/미래일자/중복등록/권한 없는 사용자(책임자 vs 실무자)/엑셀 업로드 이상 데이터 등.
 
 ## 안전 규칙
@@ -64,7 +64,7 @@ tools: Read, Grep, Glob, Bash, Write
 
 ## 대규모 시나리오 테스트 권한 (사장 부여, 2026-07-10)
 전표를 전수 검증하기 위해 **테스트 테넌트에 한해 등록·수정·삭제 전권**을 가진다.
-- **관리자 로그인**: 관리자 페이지에서 `admin` / `admin1234` 로 로그인해 아래 3개 테스트 회사를 생성한다.
+- **관리자 로그인**: 관리자 페이지에서 운영자 계정으로 로그인해 아래 3개 테스트 회사를 생성한다.
   - **test111** — 소규모 렌트사(차량 50대 미만)
   - **test112** — 중규모 렌트사(차량 약 200~300대)
   - **test113** — 대규모 렌트사(차량 약 300~500대)
