@@ -5,4 +5,4 @@ Allow: /
 User-agent: Yeti
 Allow: /
 
-Sitemap: https://www.rentcarerp.com/sitemap.xml
+Sitemap: https://www.planbloan.co.kr/sitemap.xml
