@@ -1,0 +1,32 @@
+@echo off
+REM 로컬 시범운영 실행 스크립트
+REM
+REM 사용법:
+REM   1) 이 파일을 run-local.bat 로 복사한다 (run-local.bat 는 .gitignore 처리됨)
+REM   2) 아래 비밀번호를 본인 값으로 채운다
+REM   3) 더블클릭하거나 터미널에서 run-local.bat 실행
+REM   4) 브라우저에서 http://localhost:8080/login.html
+
+set JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot
+
+REM ── DB ──────────────────────────────────────────────────────────
+set DB_URL_AUTH=jdbc:mysql://localhost:3306/loan_auth?useSSL=false^&allowPublicKeyRetrieval=true^&serverTimezone=Asia/Seoul^&characterEncoding=UTF-8
+set DB_USERNAME=root
+set DB_PASSWORD=여기에_MySQL_비밀번호
+
+REM ── 메일 ────────────────────────────────────────────────────────
+REM 값이 없으면 앱이 뜨지 않는다. 로컬 시범운영에서 메일을 쓸 일이 없으면
+REM 아무 값이나 넣어도 기동은 된다(실제 발송만 실패).
+set MAIL_USERNAME=lg56607213@gmail.com
+set MAIL_PASSWORD=구글_앱비밀번호_또는_아무값
+
+REM ── 로컬은 http 라 Secure 쿠키를 끈다 (이걸 켜면 로그인이 유지되지 않는다) ──
+set COOKIE_SECURE=false
+
+REM ── CODEF 계좌연동은 쓰지 않는다 (비워두면 기능만 꺼지고 앱은 정상 기동) ──
+set CODEF_CLIENT_ID=
+set CODEF_CLIENT_SECRET=
+set CODEF_PUBLIC_KEY=
+
+cd /d "%~dp0.."
+call mvnw.cmd spring-boot:run
