@@ -25,8 +25,12 @@
 ### 1단계 — DB 2개 만들기
 
 ```
-"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p < local\1-create-databases.sql
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p --default-character-set=utf8mb4 < local\1-create-databases.sql
 ```
+
+> `--default-character-set=utf8mb4` 를 빼면 안 된다. Windows 한글 환경의 mysql 클라이언트는
+> 기본이 euckr 이라 SQL 안의 한글에서
+> `ERROR 3854 ... Cannot convert string from euckr to utf8mb3` 이 난다. (실제로 겪었다)
 
 - `loan_auth` — 로그인 계정·회사 목록이 있는 운영 DB
 - `loan_erp` — **템플릿 DB.** 새 회사를 만들 때 이 DB의 테이블 구조를 복사해 간다
@@ -49,21 +53,29 @@ set DB_URL_AUTH=jdbc:mysql://localhost:3306/loan_erp?...
 
 > 이때 `loan_auth`에도 스키마가 필요한데, 그건 이후 정상 기동 때 `ddl-auto`가 자동으로 만든다.
 
-### 3단계 — 운영자 계정 1건
+### 3단계 — 앱 실행 (loan_auth 스키마 자동 생성)
 
-`local/3-create-admin.sql`의 비밀번호를 본인 것으로 바꾸고 실행한다.
+`run-local.bat.example` 를 `run-local.bat` 로 복사하고 비밀번호를 채운 뒤 실행한다.
+(`run-local.bat` 는 `.gitignore` 처리되어 커밋되지 않는다)
+
+`ddl-auto` 가 `loan_auth` 에 테이블을 만든다. 로그에 `Started ErpApplication` 이 뜨면 된다.
+
+> **포트 8080이 이미 쓰이고 있으면 기동이 실패한다.** 앞 단계에서 띄운 앱이 살아 있을 수 있다.
+> `Get-NetTCPConnection -LocalPort 8080 -State Listen` 으로 확인하고 그 PID 를 종료한다.
+
+### 4단계 — 운영자 계정 1건
+
+**3단계를 먼저 해야 한다.** `login_users` 테이블이 있어야 INSERT 가 되기 때문이다.
+앱은 켜 둔 채로 실행해도 된다(로그인할 때마다 DB 를 읽는다).
+
+`local/3-create-admin.sql` 의 비밀번호를 본인 것으로 바꾸고 실행한다.
 
 ```
-"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p loan_auth < local\3-create-admin.sql
+"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p --default-character-set=utf8mb4 loan_auth < local\3-create-admin.sql
 ```
 
 **비밀번호는 평문으로 넣어도 된다.** 첫 로그인 성공 시 BCrypt로 자동 재암호화된다
 ([AuthService.isHashed](../src/main/java/com/jdend/erp/auth/service/AuthService.java#L343) 분기).
-
-### 4단계 — 실행
-
-`run-local.bat.example`를 `run-local.bat`로 복사하고 비밀번호를 채운 뒤 실행한다.
-(`run-local.bat`는 `.gitignore` 처리되어 커밋되지 않는다)
 
 → http://localhost:8080/login.html
 

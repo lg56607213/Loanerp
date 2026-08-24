@@ -57,8 +57,11 @@ public class RepaymentPostingService {
         .map(w -> w.getWriteOffDate())
         .orElse(null);
 
-    // 변제충당 1순위 법적비용. 채권 단위 총액에서 시작해 수납을 흘려보내며 줄여 간다.
-    long remainCost = chargeableCost(contractNumber);
+    // 변제충당 1순위 법적비용.
+    // 수납 시점까지 '이미 발생한' 비용만 충당 대상이다. 총액을 그냥 쓰면 나중에 등록한
+    // 비용이 그 이전 수납에까지 소급 적용돼, 이미 완납이던 회차가 부분납으로 되돌아가고
+    // 없던 지연배상금이 붙는다. 상각 순서를 상각일 기준으로 정하는 것과 같은 이유다.
+    long allocatedCost = 0L;
 
     List<Payment> payments = paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber);
     for (Payment p : payments) {
@@ -66,8 +69,10 @@ public class RepaymentPostingService {
       if (amount <= 0) continue;
       LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
       boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
-      last = allocator.allocate(c, schedules, amount, date, Math.max(0L, remainCost), writeOffOrder);
-      remainCost -= last.getCost();
+
+      long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
+      last = allocator.allocate(c, schedules, amount, date, availableCost, writeOffOrder);
+      allocatedCost += last.getCost();
     }
 
     scheduleRepo.saveAll(schedules);
@@ -84,17 +89,18 @@ public class RepaymentPostingService {
     List<PaymentSchedule> schedules =
         scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contract.getContractNumber());
     // 이미 반영된 충당 실적 위에 이번 입금만 얹어 본다.
-    long outstandingCost = chargeableCost(contract.getContractNumber())
+    LocalDate asOf = paymentDate != null ? paymentDate : LocalDate.now();
+    long outstandingCost = chargeableCostAsOf(contract.getContractNumber(), asOf)
         - schedules.stream().mapToLong(ps -> ps.getPaidCost() == null ? 0L : ps.getPaidCost()).sum();
     return allocator.allocate(contract, schedules, amount, paymentDate, Math.max(0L, outstandingCost));
   }
 
   /**
-   * 채권에 걸린 법적비용 총액 (법적절차 모듈 기준).
+   * 기준일까지 발생한 법적비용 합계 (법적절차 모듈 기준).
    * 신청비용·추가비용·확인비용은 더하고 환입은 뺀다. 법적절차가 없으면 0이다.
    */
-  private long chargeableCost(String contractNumber) {
-    Long v = legalCostRepo.sumChargeableByContractNumber(contractNumber);
+  private long chargeableCostAsOf(String contractNumber, LocalDate asOf) {
+    Long v = legalCostRepo.sumChargeableByContractNumberAsOf(contractNumber, asOf);
     return v == null ? 0L : v;
   }
 
