@@ -163,7 +163,7 @@ public class TenantDatabaseService {
     }
 
     /**
-     * 신규 테넌트에 기타계정관리 기본 설정이 없으면 렌터카 표준 계정 매핑을 자동으로 삽입한다.
+     * 신규 테넌트에 기타계정관리 기본 설정이 없으면 대부업 표준 계정 매핑을 자동으로 삽입한다.
      * 이미 설정이 있으면 (count > 0) 건너뜀.
      */
     private void ensureDefaultOtherAccountSettings(String targetDb) {

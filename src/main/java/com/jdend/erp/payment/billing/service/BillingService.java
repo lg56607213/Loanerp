@@ -228,11 +228,25 @@ public class BillingService {
     String contractStartDate = "-";
     String contractEndDate = "-";
 
-    Long rentAmount = b.getRentAmount() == null ? total : b.getRentAmount();
-    Long extraAmount = 0L;
-    // 대부업(면세사업)이므로 부가세를 역산하지 않는다. 공급가액 = 총액, 세액 = 0.
-    Long taxAmount = 0L;
-    Long supplyAmount = total;
+    // 청구내용은 원금·이자로 나눠 보여준다. 대부업 이자수익은 부가가치세 면세라
+    // 공급가액/세액 칸은 두지 않는다.
+    long billedPrincipal = 0L;
+    long billedInterest = 0L;
+    List<Long> scheduleIds = lines.stream()
+        .map(BillingLines::getScheduleId)
+        .filter(Objects::nonNull)
+        .toList();
+    if (!scheduleIds.isEmpty()) {
+      for (PaymentSchedule ps : paymentSchedulesRepository.findAllById(scheduleIds)) {
+        billedPrincipal += ps.getPrincipalAmount() == null ? 0L : ps.getPrincipalAmount();
+        billedInterest  += ps.getInterestAmount()  == null ? 0L : ps.getInterestAmount();
+      }
+    }
+    // 스케줄을 못 찾으면(수기 청구 등) 원금·이자를 나눌 근거가 없으므로 총액을 원금 칸에 넣는다.
+    // 합계는 어느 쪽이든 맞는다.
+    if (billedPrincipal + billedInterest == 0L) {
+      billedPrincipal = total;
+    }
     String memo = safe(b.getMemo()).equals("-") ? "" : b.getMemo();
 
     String baseContractNumber = null;
@@ -252,10 +266,6 @@ public class BillingService {
         contractType = safe(defaultIfBlank(contract.getRepaymentMethod(), "원리금균등"));
         contractStartDate = contract.getStartDate() == null ? "-" : contract.getStartDate().format(f);
         contractEndDate = contract.getEndDate() == null ? "-" : contract.getEndDate().format(f);
-
-        if (contract.getMonthlyPayment() != null) {
-          rentAmount = contract.getMonthlyPayment();
-        }
 
         Customer customer = null;
         if (contract.getCustomer() != null) {
@@ -360,17 +370,21 @@ public class BillingService {
             </tr>
 
             <tr>
-              <td colspan="3" class="label">렌트료</td>
+              <td colspan="3" class="label">청구원금</td>
               <td colspan="2" class="value right">%,d</td>
-              <td colspan="2" class="label">공급가액</td>
-              <td colspan="2" class="label">세액</td>
+              <td colspan="2" class="label">청구이자</td>
+              <td colspan="2" class="value right">%,d</td>
             </tr>
 
             <tr>
-              <td colspan="3" class="label">기타비용(면책금, 주유비 등)</td>
-              <td colspan="2" class="value right">%,d</td>
-              <td colspan="2" class="value right">%,d</td>
-              <td colspan="2" class="value right">%,d</td>
+              <td colspan="3" class="label">청구합계</td>
+              <td colspan="6" class="value right">%,d</td>
+            </tr>
+
+            <tr>
+              <td colspan="9" class="value" style="font-size:11px;color:#555;">
+                대부업 이자수익은 부가가치세 면세 대상이므로 세금계산서를 발행하지 않습니다.
+              </td>
             </tr>
 
             <tr class="note-row">
@@ -382,7 +396,7 @@ public class BillingService {
             </tr>
 
             <tr>
-              <td colspan="9" class="section-title">임대인</td>
+              <td colspan="9" class="section-title">대부업자</td>
             </tr>
 
             <tr class="footer-row">
@@ -407,10 +421,9 @@ public class BillingService {
         safe(contractType),
         safe(contractStartDate),
         safe(contractEndDate),
-        rentAmount == null ? 0 : rentAmount,
-        extraAmount == null ? 0 : extraAmount,
-        supplyAmount == null ? 0 : supplyAmount,
-        taxAmount == null ? 0 : taxAmount,
+        billedPrincipal,
+        billedInterest,
+        billedPrincipal + billedInterest,
         safe(memo).replace("\n", "<br>"),
         lessorName,
         lessorAddress

@@ -73,11 +73,6 @@
               </div>
 
               <div class="form-group">
-                <label for="vehicleManagementId">차량관리번호</label>
-                <input type="text" id="vehicleManagementId" name="vehicleManagementId" placeholder="차량관리번호 입력 (선택사항)">
-              </div>
-
-              <div class="form-group">
                 <label for="monthlyDate" class="required">매월 전표발생일</label>
                 <select id="monthlyDate" name="monthlyDate" required>
                   <option value="">날짜 선택</option>
@@ -324,7 +319,6 @@
 
       const payload = {
         contractNumber: (document.getElementById('contractNumber').value || '').trim(),
-        vehicleManagementId: (document.getElementById('vehicleManagementId').value || '').trim(),
         monthlyDate: monthlyDate,
         debitAccountCode: debitSel.value,
         debitAccount: debitSel.options[debitSel.selectedIndex]?.getAttribute('data-name') || debitSel.value,

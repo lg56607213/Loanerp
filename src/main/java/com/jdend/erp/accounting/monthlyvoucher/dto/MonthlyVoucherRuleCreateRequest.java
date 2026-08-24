@@ -7,7 +7,6 @@ import lombok.Setter;
 public class MonthlyVoucherRuleCreateRequest {
 
   private String contractNumber;       // 선택
-  private String vehicleManagementId;  // 선택(관리번호)
 
   private Integer monthlyDate;         // 필수(1~31)
 

@@ -32,7 +32,7 @@ public class MaturityManagement {
   @Column(name = "old_end_date")
   private LocalDate oldEndDate;
 
-  // 신규(재렌트)
+  // 신규(재약정)
   @Column(name = "new_contract_number", length = 30)
   private String newContractNumber;
 

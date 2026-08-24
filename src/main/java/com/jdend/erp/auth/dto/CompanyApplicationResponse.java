@@ -13,7 +13,7 @@ public class CompanyApplicationResponse {
     private final String representativeName;
     private final String phone;
     private final String email;
-    private final String vehicleCount;
+    private final String loanBalanceScale;
     private final String inquiry;
     private final String status;
     private final LocalDateTime createdAt;
@@ -24,7 +24,7 @@ public class CompanyApplicationResponse {
         this.representativeName = a.getRepresentativeName();
         this.phone = a.getPhone();
         this.email = a.getEmail();
-        this.vehicleCount = a.getVehicleCount();
+        this.loanBalanceScale = a.getLoanBalanceScale();
         this.inquiry = a.getInquiry();
         this.status = a.getStatus();
         this.createdAt = a.getCreatedAt();

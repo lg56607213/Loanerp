@@ -55,6 +55,8 @@ admin:
   email: ${ADMIN_EMAIL:${MAIL_USERNAME:}}
 
 app:
+  # 안내 메일에 넣을 ERP 접속 주소. 배포 도메인이 바뀌면 이 값만 바꾼다.
+  erp-base-url: ${ERP_BASE_URL:https://erp.planbloan.co.kr}
   contact:
     recipient-email: ${MAIL_USERNAME}
   upload-dir: uploads/accounts

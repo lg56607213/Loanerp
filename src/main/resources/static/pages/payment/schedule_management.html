@@ -112,7 +112,7 @@
               <label for="contractNo">채권번호</label>
               <div class="input-with-icon">
                 <input type="text" id="contractNo" placeholder="예: CRD260804001001">
-                <button type="button" class="icon-btn" id="openVehicleModalBtn" title="채권 검색">🔍</button>
+                <button type="button" class="icon-btn" id="openContractModalBtn" title="채권 검색">🔍</button>
               </div>
             </div>
 
@@ -132,9 +132,9 @@
                     <th>회차</th>
                     <th>청구시작일</th>
                     <th>청구종료일</th>
-                    <th>세금계산서발행일</th>
+                    <th>납기일</th>
                     <th>납부일자</th>
-                    <th>렌트료</th>
+                    <th>청구액</th>
                     <th>수납금액</th>
                     <th>미납금액</th>
                     <th>미수금액</th>
@@ -160,9 +160,9 @@
                     <th>회차</th>
                     <th>청구시작일</th>
                     <th>청구종료일</th>
-                    <th>세금계산서발행일</th>
+                    <th>납기일</th>
                     <th>납부일자</th>
-                    <th>렌트료</th>
+                    <th>청구액</th>
                     <th>수납금액</th>
                     <th>미납금액</th>
                     <th>미수금액</th>
@@ -186,19 +186,19 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="vehicleModalBackdrop">
+  <div class="modal-backdrop" id="contractModalBackdrop">
     <div class="modal">
       <div class="modal-header">
         <div>
           <div class="modal-title">채권 선택</div>
           <div class="muted">선택하면 채권번호가 자동 입력됩니다.</div>
         </div>
-        <button type="button" class="modal-close" id="closeVehicleModalBtn">✕</button>
+        <button type="button" class="modal-close" id="closeContractModalBtn">✕</button>
       </div>
       <div class="modal-body">
         <div class="modal-search">
-          <input type="text" id="vehicleKw" placeholder="채권번호 / 고객명 키워드">
-          <button type="button" id="vehicleSearchBtn">검색</button>
+          <input type="text" id="contractKw" placeholder="채권번호 / 고객명 키워드">
+          <button type="button" id="contractSearchBtn">검색</button>
         </div>
         <table class="pick-table">
           <thead>
@@ -208,7 +208,7 @@
               <th>기간</th>
             </tr>
           </thead>
-          <tbody id="vehiclePickBody">
+          <tbody id="contractPickBody">
             <tr><td colspan="3" style="text-align:center; color:#888;">불러오는 중...</td></tr>
           </tbody>
         </table>
@@ -336,7 +336,7 @@
       });
     }
 
-    async function searchVehicle(){
+    async function searchContract(){
       const contractNumber = $('contractNo').value.trim();
       if(!contractNumber){
         alert('채권번호를 입력해주세요.');
@@ -412,22 +412,22 @@
         await mustOk(res);
 
         alert('저장되었습니다.');
-        await searchVehicle();
+        await searchContract();
       }catch(e){
         alert('저장 실패: ' + e.message);
       }
     }
 
-    function openVehicleModal(){
-      $('vehicleModalBackdrop').style.display = 'flex';
-      $('vehicleKw').value = '';
-      loadVehicles('');
-      setTimeout(()=>$('vehicleKw').focus(),0);
+    function openContractModal(){
+      $('contractModalBackdrop').style.display = 'flex';
+      $('contractKw').value = '';
+      loadContracts('');
+      setTimeout(()=>$('contractKw').focus(),0);
     }
-    function closeVehicleModal(){ $('vehicleModalBackdrop').style.display = 'none'; }
+    function closeContractModal(){ $('contractModalBackdrop').style.display = 'none'; }
 
-    function renderVehicles(list){
-      const body = $('vehiclePickBody');
+    function renderContracts(list){
+      const body = $('contractPickBody');
       if(!Array.isArray(list) || list.length===0){
         body.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">결과 없음</td></tr>`;
         return;
@@ -443,19 +443,19 @@
       body.querySelectorAll('.pick-row').forEach(tr=>{
         tr.addEventListener('click', ()=>{
           $('contractNo').value = tr.dataset.cn || '';
-          closeVehicleModal();
+          closeContractModal();
         });
       });
     }
 
-    async function loadVehicles(kw){
-      const body = $('vehiclePickBody');
+    async function loadContracts(kw){
+      const body = $('contractPickBody');
       body.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">불러오는 중...</td></tr>`;
       try{
         const res = await fetch(`${BASE}/api/contracts/search?kw=${encodeURIComponent(kw||'')}`);
         await mustOk(res);
         const data = await res.json();
-        renderVehicles(data);
+        renderContracts(data);
       }catch(e){
         body.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#d00;">오류: ${escapeHtml(e.message)}</td></tr>`;
       }
@@ -463,23 +463,23 @@
 
     document.addEventListener('keydown', (e)=>{
       if(e.key === 'Escape'){
-        if($('vehicleModalBackdrop').style.display === 'flex') closeVehicleModal();
+        if($('contractModalBackdrop').style.display === 'flex') closeContractModal();
       }
     });
-    $('vehicleModalBackdrop').addEventListener('click', (e)=>{
-      if(e.target === $('vehicleModalBackdrop')) closeVehicleModal();
+    $('contractModalBackdrop').addEventListener('click', (e)=>{
+      if(e.target === $('contractModalBackdrop')) closeContractModal();
     });
 
     document.addEventListener('DOMContentLoaded', ()=>{
-      $('searchBtn').addEventListener('click', searchVehicle);
+      $('searchBtn').addEventListener('click', searchContract);
       $('resetBtn').addEventListener('click', resetSchedule);
       $('saveBtn').addEventListener('click', saveSchedule);
 
-      $('openVehicleModalBtn').addEventListener('click', openVehicleModal);
-      $('closeVehicleModalBtn').addEventListener('click', closeVehicleModal);
-      $('vehicleSearchBtn').addEventListener('click', ()=>loadVehicles($('vehicleKw').value.trim()));
-      $('vehicleKw').addEventListener('keydown', (e)=>{
-        if(e.key==='Enter'){ e.preventDefault(); loadVehicles($('vehicleKw').value.trim()); }
+      $('openContractModalBtn').addEventListener('click', openContractModal);
+      $('closeContractModalBtn').addEventListener('click', closeContractModal);
+      $('contractSearchBtn').addEventListener('click', ()=>loadContracts($('contractKw').value.trim()));
+      $('contractKw').addEventListener('keydown', (e)=>{
+        if(e.key==='Enter'){ e.preventDefault(); loadContracts($('contractKw').value.trim()); }
       });
     });
   </script>

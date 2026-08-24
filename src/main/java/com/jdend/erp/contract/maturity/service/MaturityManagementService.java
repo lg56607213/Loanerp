@@ -51,7 +51,7 @@ public class MaturityManagementService {
 
     String customerName = resolveCustomerName(old);
 
-    // 재렌트 계약번호: 기존 계약번호의 base(앞 12자리) 유지 + 회차 증가
+    // 재약정 계약번호: 기존 채권번호의 base(앞 12자리) 유지 + 회차 증가
     String newContractNumber = contractService.generateRerentContractNumber(old.getContractNumber());
 
     MaturityManagement mm = MaturityManagement.builder()

@@ -23,7 +23,7 @@ public class BankTransactionService {
   private final PaymentBankTransactionRepository repo;
 
   private static final List<String> EXCEL_HEADERS  = List.of("일자", "입금액", "출금액", "잔액", "적요");
-  private static final List<String> EXCEL_SAMPLE   = List.of("2026-01-01", "1000000", "", "5000000", "월렌트료");
+  private static final List<String> EXCEL_SAMPLE   = List.of("2026-01-01", "1000000", "", "5000000", "이자수납");
 
   @Transactional(readOnly = true)
   public List<BankTransactionRowResponse> search(String bank, String accountNo, LocalDate startDate, LocalDate endDate) {

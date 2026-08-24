@@ -24,6 +24,10 @@ public class SubscriptionEmailService {
     @Value("${admin.email}")
     private String adminEmail;
 
+    /** ERP 접속 도메인. 배포 환경에 따라 바뀌므로 하드코딩하지 않는다. */
+    @Value("${app.erp-base-url:https://erp.planbloan.co.kr}")
+    private String erpBaseUrl;
+
     public void sendPaymentCompleteNotice(SubscriptionPayment payment) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -49,7 +53,7 @@ public class SubscriptionEmailService {
                     "카드사: " + (payment.getCardName() != null ? payment.getCardName() : "-") + "\n" +
                     "승인번호: " + (payment.getAuthno() != null ? payment.getAuthno() : "-") + "\n\n" +
                     "▶ ERP 관리자 화면에서 계정을 생성해주세요.\n" +
-                    "https://rentcarerp.com\n" +
+                    erpBaseUrl + "\n" +
                     "━━━━━━━━━━━━━━━━━━━━━━━━";
 
             message.setText(body);

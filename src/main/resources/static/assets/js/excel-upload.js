@@ -1,4 +1,4 @@
-// 공통 엑셀 일괄 업로드 모달. 계약/차량/고객/전표 등록 화면에서 공통으로 사용한다.
+// 공통 엑셀 일괄 업로드 모달. 대출/고객/전표 등록 화면에서 공통으로 사용한다.
 // 사용법: openExcelUploadModal({ title, templateUrl, uploadUrl, previewUrl, onSuccess })
 // previewUrl 이 있으면: 업로드 버튼 → 미리보기(검증) → 저장 버튼 활성화 → 저장
 // previewUrl 이 없으면: 업로드 버튼 클릭 즉시 저장 (기존 동작)

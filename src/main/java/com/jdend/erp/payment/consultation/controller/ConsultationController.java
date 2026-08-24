@@ -15,7 +15,7 @@ public class ConsultationController {
 
   private final ConsultationService service;
 
-  // ✅ 계약정보(차량번호/고객명) + 유효성 체크
+  // ✅ 계약정보(채권번호/고객명) + 유효성 체크
   // GET /api/consultations/contract-summary?contractNumber=R00001001
   @GetMapping("/contract-summary")
   public ContractSummaryResponse contractSummary(@RequestParam String contractNumber) {

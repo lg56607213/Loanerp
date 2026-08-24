@@ -32,8 +32,9 @@ public class CompanyApplication {
     @Column(name = "email", nullable = false, length = 100)
     private String email;
 
-    @Column(name = "vehicle_count", length = 30)
-    private String vehicleCount;
+    /** 대출채권 잔액 규모 (신청 시 자기 신고, 선택 입력) */
+    @Column(name = "loan_balance_scale", length = 30)
+    private String loanBalanceScale;
 
     @Column(name = "inquiry", columnDefinition = "TEXT")
     private String inquiry;

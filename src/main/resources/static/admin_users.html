@@ -188,7 +188,7 @@
             <th>대표자</th>
             <th>연락처</th>
             <th>이메일</th>
-            <th>차량대수</th>
+            <th>채권규모</th>
             <th>상태</th>
             <th>처리</th>
           </tr>
@@ -452,7 +452,7 @@
           <td>${esc(a.representativeName)}</td>
           <td>${esc(a.phone)}</td>
           <td>${esc(a.email)}</td>
-          <td>${esc(a.vehicleCount || '-')}</td>
+          <td>${esc(a.loanBalanceScale || '-')}</td>
           <td><span class="${statusCls}">${statusLabel}</span></td>
           <td>${actionBtns}</td>
         </tr>

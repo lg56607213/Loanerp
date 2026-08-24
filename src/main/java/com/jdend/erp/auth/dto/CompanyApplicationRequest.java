@@ -10,6 +10,6 @@ public class CompanyApplicationRequest {
     private String representativeName;
     private String phone;
     private String email;
-    private String vehicleCount;
+    private String loanBalanceScale;
     private String inquiry;
 }

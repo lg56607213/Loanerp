@@ -70,7 +70,7 @@ public class FinancialStatementAccountController {
       @RequestParam(required = false) LocalDate endDate,
       @RequestParam(required = false, defaultValue = "계정") String accountName
   ) {
-    String[] headers = {"전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "차량번호", "메모", "상태"};
+    String[] headers = {"전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> rows = service.getVoucherRows(id, startDate, endDate).stream().map(r -> new Object[]{
         r.getVoucherDate(), r.getVoucherNo(),
         "DEBIT".equals(r.getLineType()) ? "차변" : "대변",

@@ -155,7 +155,7 @@
                       <span class="info-value" id="displayEmail">-</span>
                     </div>
                     <div class="info-item">
-                      <span class="info-label">렌트료</span>
+                      <span class="info-label">월 납입액</span>
                       <span class="info-value" id="displayRentAmount">-</span>
                     </div>
                     <div class="info-item">
@@ -252,9 +252,9 @@
                       <th>회차</th>
                       <th>청구시작일</th>
                       <th>청구종료일</th>
-                      <th>세금계산서발행일</th>
+                      <th>납기일</th>
                       <th>납부일자</th>
-                      <th>렌트료</th>
+                      <th>청구액</th>
                       <th>수납금액</th>
                       <th>미납금액</th>
                       <th>미수금액</th>
@@ -305,7 +305,7 @@
               <th style="width:180px;">고객명</th>
               <th style="width:110px;">시작일</th>
               <th style="width:110px;">만기일</th>
-              <th style="width:120px;">월렌트</th>
+              <th style="width:120px;">월납입액</th>
               <th style="width:90px;">선택</th>
             </tr>
           </thead>
@@ -698,12 +698,10 @@
 
         resetForm(true);
 
-        if (currentVehicleNo) {
-          await Promise.all([
-            loadPaymentHistory(cn),
-            loadScheduleStatusByContractNumber(cn)
-          ]);
-        }
+        await Promise.all([
+          loadPaymentHistory(cn),
+          loadScheduleStatusByContractNumber(cn)
+        ]);
 
       } catch (err) {
         console.error(err);

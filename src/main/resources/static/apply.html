@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>무료체험 신청 | JDEND 렌터카 ERP</title>
+  <title>무료체험 신청 | JDEND 대부업 ERP</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -194,7 +194,7 @@
 <div class="header">
   <span class="header-logo">JDEND ERP</span>
   <span class="header-sep">|</span>
-  <span class="header-title">렌터카 전문 ERP 솔루션</span>
+  <span class="header-title">대부업 전문 ERP 솔루션</span>
 </div>
 
 <!-- 본문 -->
@@ -210,7 +210,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="companyName">회사명<span class="req">*</span></label>
-          <input type="text" id="companyName" placeholder="예: 동천렌터카" required>
+          <input type="text" id="companyName" placeholder="예: 플랜비대부" required>
         </div>
         <div class="form-group">
           <label for="representativeName">대표자명<span class="req">*</span></label>
@@ -231,13 +231,13 @@
 
       <div class="form-row full">
         <div class="form-group">
-          <label for="vehicleCount">차량 보유 대수</label>
-          <select id="vehicleCount">
+          <label for="loanBalanceScale">대출채권 잔액 규모</label>
+          <select id="loanBalanceScale">
             <option value="">선택 (선택사항)</option>
-            <option value="10대 미만">10대 미만</option>
-            <option value="10-30대">10-30대</option>
-            <option value="30-50대">30-50대</option>
-            <option value="50대 이상">50대 이상</option>
+            <option value="5억 미만">5억 미만</option>
+            <option value="5-20억">5-20억</option>
+            <option value="20-50억">20-50억</option>
+            <option value="50억 이상">50억 이상</option>
           </select>
         </div>
       </div>
@@ -288,7 +288,7 @@
     const representativeName = val('representativeName');
     const phone             = val('phone');
     const email             = val('email');
-    const vehicleCount      = val('vehicleCount');
+    const loanBalanceScale  = val('loanBalanceScale');
     const inquiry           = document.getElementById('inquiry').value.trim();
     const agreePrivacy      = document.getElementById('agreePrivacy').checked;
 
@@ -321,7 +321,7 @@
       const res = await fetch('/api/company-applications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, representativeName, phone, email, vehicleCount, inquiry })
+        body: JSON.stringify({ companyName, representativeName, phone, email, loanBalanceScale, inquiry })
       });
 
       const data = await res.json();

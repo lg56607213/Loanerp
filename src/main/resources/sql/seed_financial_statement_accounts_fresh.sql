@@ -69,8 +69,6 @@ SELECT 'bs', 'ASSET', 3, id, '100401', '차량운반구', '유형자산', 1, '�
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 3, id, '100402', '집기/가구비품', '유형자산', 2, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '1004';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'bs', 'ASSET', 3, id, '100403', '렌트자산', '유형자산', 3, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '1004';
-INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 3, id, '100404', '감가상각누계액', '유형자산', 4, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '1004';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 3, id, '100501', '가지급금', '기타자산', 1, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '1005';
@@ -169,9 +167,10 @@ UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code 
 UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '10030101'; -- 단기대여금 대손충당금
 UPDATE financial_statement_accounts SET is_active = '사용' WHERE account_code = '10030201'; -- 장기대여금 대손충당금
 
--- ========== 렌터카 전용 계정 비활성화 ==========
+-- ========== 대부업에서 기본으로 쓰지 않는 계정 비활성화 ==========
+-- 삭제가 아니라 '미사용' 처리다. 업무용 차량·비품처럼 실제로 자산을 잡는 경우
+-- 기타계정관리에서 다시 '사용'으로 켤 수 있다.
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100401'; -- 차량운반구
-UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100403'; -- 렌트자산
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100404'; -- 감가상각누계액
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500202'; -- 감가상각비
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500203'; -- 차량유지비

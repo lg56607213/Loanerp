@@ -74,46 +74,32 @@ public class OtherAccountSettingsService {
     return null;
   }
 
-  /** 차량관리 실행 차변 계정명 */
-  public String getVehicleDebitAccount()     { return nested("vehicleMapping",    "debit");  }
-  /** 차량관리 실행 대변 계정명 */
-  public String getVehicleCreditAccount()    { return nested("vehicleMapping",    "credit"); }
   /** 차입금상환 차변1 계정명 (원금) */
   public String getLoanDebit1Account()       { return nested("loanMapping",       "debit1"); }
   /** 차입금상환 차변2 계정명 (이자) */
   public String getLoanDebit2Account()       { return nested("loanMapping",       "debit2"); }
   /** 차입금상환 대변 계정명 */
   public String getLoanCreditAccount()       { return nested("loanMapping",       "credit"); }
-  /** 정기검사 차변 계정명 (차량유지비 - 공급가액) */
-  public String getInspectionDebitAccount()     { return nested("inspectionMapping", "debit");     }
-  /** 정기검사 대변 계정명 */
-  public String getInspectionCreditAccount()    { return nested("inspectionMapping", "credit");    }
 
   /** 차입금 개시 차변 계정명 */
   public String getLoanOpenDebitAccount()    { return nested("loanOpenMapping",   "debit");  }
   /** 차입금 개시 대변 계정명 */
   public String getLoanOpenCreditAccount()   { return nested("loanOpenMapping",   "credit"); }
-  /** 감가상각 차변 계정명 */
-  public String getDeprecDebitAccount()      { return nested("deprecMapping",     "debit");  }
-  /** 감가상각 대변 계정명 */
-  public String getDeprecCreditAccount()     { return nested("deprecMapping",     "credit"); }
   /** 법적비용 차변 계정명 */
   public String getLegalCostDebitAccount()   { return nested("legalCostMapping",  "debit");  }
   /** 법적비용 대변 계정명 */
   public String getLegalCostCreditAccount()  { return nested("legalCostMapping",  "credit"); }
-  /** 차량매각 차변 계정명 */
-  public String getSaleDebitAccount()        { return nested("saleMapping",       "debit");  }
-  /** 차량매각 대변 계정명 */
-  public String getSaleCreditAccount()       { return nested("saleMapping",       "credit"); }
   /** 수납 차변 계정명 */
   public String getPaymentDebitAccount()     { return nested("paymentMapping",    "debit");     }
   /** 수납 대변 계정명 (이자수익) */
   public String getPaymentCreditAccount()    { return nested("paymentMapping",    "credit");    }
 
-  /** 중도해지 미회수렌트료 차변 계정명 */
-  public String getEarlyTermUnrealizedRentDebit()      { return nested3("earlyTermMapping","unrealizedRent","debit");     }
+  // 설정 JSON 키 "unrealizedRent"는 렌터카 시절 이름이지만, 이미 저장된 테넌트 설정과의
+  // 호환을 위해 키는 그대로 두고 메서드·주석만 대부업 용어로 맞춘다.
+  /** 중도상환 미회수이자 차변 계정명 */
+  public String getEarlyTermUnrealizedInterestDebit()  { return nested3("earlyTermMapping","unrealizedRent","debit");     }
   /** 중도상환 미회수이자 대변 계정명 (이자수익) */
-  public String getEarlyTermUnrealizedRentCredit()     { return nested3("earlyTermMapping","unrealizedRent","credit");    }
+  public String getEarlyTermUnrealizedInterestCredit() { return nested3("earlyTermMapping","unrealizedRent","credit");    }
   /** 중도해지 수수료 차변 계정명 */
   public String getEarlyTermFeeDebit()             { return nested3("earlyTermMapping","terminationFee",   "debit");  }
   /** 중도해지 수수료 대변 계정명 */
@@ -123,14 +109,6 @@ public class OtherAccountSettingsService {
   /** 중도해지 상환금액 대변 계정명 */
   public String getEarlyTermAmountCredit()         { return nested3("earlyTermMapping","terminationAmount","credit"); }
 
-  /** 보험 신규/갱신 차변 계정명 */
-  public String getInsuranceDebitAccount()         { return nested("insuranceMapping",       "debit");  }
-  /** 보험 신규/갱신 대변 계정명 */
-  public String getInsuranceCreditAccount()        { return nested("insuranceMapping",       "credit"); }
-  /** 보험 변경 환급 차변 계정명 */
-  public String getInsuranceRefundDebitAccount()   { return nested("insuranceRefundMapping", "debit");  }
-  /** 보험 변경 환급 대변 계정명 */
-  public String getInsuranceRefundCreditAccount()  { return nested("insuranceRefundMapping", "credit"); }
 
   /** 보증금/선수금 수납 시 대변 계정명 (임대보증금 - 부채) */
   public String getDepositDebitAccount()     { return nested("depositMapping",    "debit");  }
@@ -157,20 +135,6 @@ public class OtherAccountSettingsService {
   public static final String DEFAULT_PREPAID_REVENUE_CODE = "400101";
 
 
-  /** 정비 차변 계정명 (공급가액) */
-  public String getMaintenanceDebitAccount()        { return nested("maintenanceMapping", "debit");        }
-  /** 정비 대변 계정명 (미지급금 결제) */
-  public String getMaintenanceCreditUnpaidAccount() { return nested("maintenanceMapping", "creditUnpaid"); }
-  /** 정비 대변 계정명 (법인카드 결제) */
-  public String getMaintenanceCreditCardAccount()   { return nested("maintenanceMapping", "creditCard");   }
-  /** 정비 대변 계정명 (보통예금 결제) */
-  public String getMaintenanceCreditBankAccount()   { return nested("maintenanceMapping", "creditBank");   }
-  /** 매각 감가상각누계액 차변 계정명 */
-  public String getSaleAccumDeprecAccount()         { return nested("saleDetailMapping",  "accumDeprec");  }
-  /** 매각 미상각잔액 차변 계정명 */
-  public String getSaleUndepreciatedAccount()       { return nested("saleDetailMapping",  "undepreciated"); }
-  /** 매각 차량운반구 대변 계정명 */
-  public String getSaleVehicleAssetAccount()        { return nested("saleDetailMapping",  "vehicleAsset"); }
 
   // ── 회사정보 (청구서 출력용) ───────────────────────────────────────────
   /** 회사 상호명 */

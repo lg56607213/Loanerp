@@ -302,8 +302,10 @@ public class EarlyTerminationService {
   }
 
   /**
-   * 중도해지 > 반납 > 처리완료 시 전표 발생
+   * 중도상환 처리완료 시 전표 발생
    * 기타계정관리 earlyTermMapping 설정 기준으로 각 분개 항목의 차변/대변 계정을 결정한다.
+   * 변수·컬럼명 uncollectedRent 는 렌터카 시절 이름이지만 이미 저장된 데이터와 API 계약이
+   * 걸려 있어 그대로 두고, 화면·전표 적요만 '미수이자'로 맞춘다.
    * 금액이 0인 항목과 계정이 미설정된 항목은 warn 로그 후 해당 분개를 건너뛴다.
    * 최종적으로 유효한 분개가 하나도 없으면 전표를 생성하지 않는다.
    */
@@ -312,10 +314,10 @@ public class EarlyTerminationService {
     long terminationAmount = safe(et.getTerminationAmount());
     long terminationFee    = safe(et.getTerminationFee());
 
-    String unrDebit      = accountSettings.getEarlyTermUnrealizedRentDebit();
-    String unrCredit     = accountSettings.getEarlyTermUnrealizedRentCredit();
+    String unrDebit      = accountSettings.getEarlyTermUnrealizedInterestDebit();
+    String unrCredit     = accountSettings.getEarlyTermUnrealizedInterestCredit();
     String amtDebit  = accountSettings.getEarlyTermAmountDebit();
-    // BUG-9차-02: 미회수렌트료(uncollectedRent)가 0이면 미수금 잔액이 없는 상태이므로
+    // BUG-9차-02: 미수이자(uncollectedRent)가 0이면 미수금 잔액이 없는 상태이므로
     // 별도 대변 계정(creditNoReceivable)을 사용한다. 미설정 시 기본 credit 계정으로 fallback.
     String amtCredit;
     if (uncollectedRent == 0) {
@@ -330,17 +332,17 @@ public class EarlyTerminationService {
     List<VoucherCreateRequest.VoucherLineRequest> debitEntries  = new ArrayList<>();
     List<VoucherCreateRequest.VoucherLineRequest> creditEntries = new ArrayList<>();
 
-    // 미회수렌트료 분개
+    // 미수이자 분개
     if (uncollectedRent > 0) {
       if (unrDebit == null || unrCredit == null) {
-        log.warn("중도해지 미회수렌트료 분개 생략: 기타계정관리 > 중도해지 > 미회수렌트료 차변/대변을 설정해주세요. etId={}", et.getId());
+        log.warn("중도상환 미수이자 분개 생략: 기타계정관리 > 중도상환 > 미수이자 차변/대변을 설정해주세요. etId={}", et.getId());
       } else {
         // 차변(미수금)은 항상 총액
         debitEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
-            .account(unrDebit).amount(uncollectedRent).description("미회수렌트료").build());
+            .account(unrDebit).amount(uncollectedRent).description("미수이자").build());
         // 대변: 면세사업(대부업)이므로 부가세 분리 없이 총액으로 계상
         creditEntries.add(VoucherCreateRequest.VoucherLineRequest.builder()
-            .account(unrCredit).amount(uncollectedRent).description("미회수렌트료").build());
+            .account(unrCredit).amount(uncollectedRent).description("미수이자").build());
       }
     }
 

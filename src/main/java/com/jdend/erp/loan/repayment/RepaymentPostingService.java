@@ -2,6 +2,7 @@ package com.jdend.erp.loan.repayment;
 
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.repository.ContractRepository;
+import com.jdend.erp.legal.repository.LegalCostItemRepository;
 import com.jdend.erp.loan.writeoff.repository.WriteOffRepository;
 import com.jdend.erp.payment.payment.entity.Payment;
 import com.jdend.erp.payment.payment.repository.PaymentRepository;
@@ -33,6 +34,7 @@ public class RepaymentPostingService {
   private final ContractRepository contractRepo;
   private final RepaymentAllocator allocator;
   private final WriteOffRepository writeOffRepo;
+  private final LegalCostItemRepository legalCostRepo;
 
   /**
    * 채권의 충당 실적을 전부 다시 계산하고 잔여원금을 갱신한다.
@@ -55,13 +57,17 @@ public class RepaymentPostingService {
         .map(w -> w.getWriteOffDate())
         .orElse(null);
 
+    // 변제충당 1순위 법적비용. 채권 단위 총액에서 시작해 수납을 흘려보내며 줄여 간다.
+    long remainCost = chargeableCost(contractNumber);
+
     List<Payment> payments = paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber);
     for (Payment p : payments) {
       long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
       if (amount <= 0) continue;
       LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
       boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
-      last = allocator.allocate(c, schedules, amount, date, 0L, writeOffOrder);
+      last = allocator.allocate(c, schedules, amount, date, Math.max(0L, remainCost), writeOffOrder);
+      remainCost -= last.getCost();
     }
 
     scheduleRepo.saveAll(schedules);
@@ -78,7 +84,18 @@ public class RepaymentPostingService {
     List<PaymentSchedule> schedules =
         scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contract.getContractNumber());
     // 이미 반영된 충당 실적 위에 이번 입금만 얹어 본다.
-    return allocator.allocate(contract, schedules, amount, paymentDate, 0L);
+    long outstandingCost = chargeableCost(contract.getContractNumber())
+        - schedules.stream().mapToLong(ps -> ps.getPaidCost() == null ? 0L : ps.getPaidCost()).sum();
+    return allocator.allocate(contract, schedules, amount, paymentDate, Math.max(0L, outstandingCost));
+  }
+
+  /**
+   * 채권에 걸린 법적비용 총액 (법적절차 모듈 기준).
+   * 신청비용·추가비용·확인비용은 더하고 환입은 뺀다. 법적절차가 없으면 0이다.
+   */
+  private long chargeableCost(String contractNumber) {
+    Long v = legalCostRepo.sumChargeableByContractNumber(contractNumber);
+    return v == null ? 0L : v;
   }
 
   private void resetAllocations(List<PaymentSchedule> schedules) {

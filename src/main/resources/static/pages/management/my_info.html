@@ -83,7 +83,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" onclick="switchTab('bank')">통장 관리</button>
     <button class="tab-btn" onclick="switchTab('card')">법인카드 관리</button>
-    <button class="tab-btn" onclick="switchTab('supplier')">세금계산서 공급자 정보</button>
+    <button class="tab-btn" onclick="switchTab('supplier')">사업자 정보</button>
   </div>
 
   <!-- ═══ 통장 탭 ═══ -->
@@ -136,44 +136,45 @@
     </div>
   </div>
 
-  <!-- ═══ 세금계산서 공급자 정보 탭 ═══ -->
+  <!-- ═══ 사업자 정보 탭 ═══ -->
   <div id="tabSupplier" class="tab-panel">
     <div class="info-card">
       <div class="card-header">
-        <h3>세금계산서 공급자(자사) 정보</h3>
+        <h3>사업자(자사) 정보</h3>
         <button class="btn btn-save" onclick="saveSupplierInfo()">저장</button>
       </div>
       <p style="margin:0 0 18px;color:#6b7280;font-size:0.85rem;">
-        전자세금계산서 발행 시 공급자 칸에 아래 값이 채워집니다.
-        회사(테넌트)별로 저장되며, 사업자등록번호와 사업장주소는 세금계산서 법적 필수 항목입니다.
+        청구서·안내문 발행 시 공급자 칸에 아래 값이 채워집니다.
+        회사(테넌트)별로 저장되며, 사업자등록번호와 사업장주소는 대부업 등록·표시광고 의무 항목이므로 반드시 입력해 주세요.
+        대부업 이자수익은 부가가치세 면세이므로 세금계산서는 발행하지 않습니다.
       </p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;max-width:760px;">
         <div class="mfg">
           <label>상호명</label>
-          <input type="text" id="supCompanyName" placeholder="예: 주식회사 OO렌트카">
+          <input type="text" id="supCompanyName" placeholder="예: 주식회사 OO대부">
         </div>
         <div class="mfg">
           <label>대표자명</label>
           <input type="text" id="supCeoName" placeholder="예: 홍길동">
         </div>
         <div class="mfg">
-          <label>사업자등록번호 <span style="font-weight:400;color:#6b7280;font-size:0.8rem;">(세금계산서 필수)</span></label>
+          <label>사업자등록번호 <span style="font-weight:400;color:#6b7280;font-size:0.8rem;">(필수)</span></label>
           <input type="text" id="supRegistrationNumber" placeholder='예: 1234567890 ("-" 없이)'>
         </div>
         <div class="mfg">
           <label>이메일</label>
-          <input type="text" id="supEmail" placeholder="예: tax@company.com">
+          <input type="text" id="supEmail" placeholder="예: info@company.com">
         </div>
         <div class="mfg">
           <label>업태</label>
-          <input type="text" id="supBusinessType" placeholder="예: 서비스, 임대">
+          <input type="text" id="supBusinessType" placeholder="예: 금융업">
         </div>
         <div class="mfg">
           <label>업종(종목)</label>
-          <input type="text" id="supBusinessItem" placeholder="예: 자동차임대업">
+          <input type="text" id="supBusinessItem" placeholder="예: 대부업">
         </div>
         <div class="mfg" style="grid-column:1 / span 2;">
-          <label>사업장주소 <span style="font-weight:400;color:#6b7280;font-size:0.8rem;">(세금계산서 필수)</span></label>
+          <label>사업장주소 <span style="font-weight:400;color:#6b7280;font-size:0.8rem;">(필수)</span></label>
           <input type="text" id="supAddress" placeholder="예: 서울시 영등포구 여의대방로 379, 605호">
         </div>
       </div>
@@ -460,7 +461,7 @@
     await loadCorporateCards();
   }
 
-  // ─── 세금계산서 공급자 정보 ───────────────────────────────
+  // ─── 사업자 정보 ─────────────────────────────────────────
   async function loadSupplierInfo() {
     const res = await fetch(SUPPLIER_API, { credentials: 'include' });
     if (!res.ok) return;

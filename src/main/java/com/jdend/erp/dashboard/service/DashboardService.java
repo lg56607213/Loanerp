@@ -229,7 +229,7 @@ public class DashboardService {
         .build();
   }
 
-  // ✅ 차량번호 normalize
+  // ✅ 채권번호 normalize
   private String normalize(String v) {
     if (v == null) return null;
     return v.replace(" ", "").replace("-", "").trim();

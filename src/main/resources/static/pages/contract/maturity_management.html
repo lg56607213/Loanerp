@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>만기관리(재렌트) | JDEND ERP</title>
+  <title>만기관리(재약정) | JDEND ERP</title>
   <link rel="stylesheet" href="../../assets/css/sidebar.css">
   <link rel="stylesheet" href="../../assets/css/pages.css">
   <link rel="stylesheet" href="../../assets/css/contract/maturity_management.css">
@@ -34,15 +34,15 @@
   <div id="sidebar-container"></div>
   <div class="content-wrapper">
     <div class="page-header">
-      <h1>만기관리 (재렌트)</h1>
-      <p>계약관리 &gt; 만기관리 &gt; 재렌트</p>
+      <h1>만기관리 (재약정)</h1>
+      <p>여신관리 &gt; 만기관리 &gt; 재약정</p>
     </div>
 
     <!-- 목록 -->
     <div class="erp-card" id="maturityListSection">
       <div class="card-header">
         <h2>만기관리 목록</h2>
-        <button type="button" class="btn btn-primary" id="addMaturityBtn"><span>+ 재렌트 추가</span></button>
+        <button type="button" class="btn btn-primary" id="addMaturityBtn"><span>+ 재약정 추가</span></button>
         <button type="button" class="btn-excel" onclick="exportTableToExcel('maturityTableBody', '만기관리')">엑셀 내보내기</button>
       </div>
 
@@ -87,7 +87,7 @@
     <!-- 등록 -->
     <div class="erp-card hidden" id="maturityFormSection">
       <div class="card-header">
-        <h2>재렌트 등록</h2>
+        <h2>재약정 등록</h2>
         <button type="button" class="btn btn-secondary" id="cancelFormBtn">취소</button>
       </div>
 
@@ -127,9 +127,9 @@
             </div>
           </div>
 
-          <!-- 재렌트 계약 정보 -->
+          <!-- 재약정 계약 정보 -->
           <div class="form-section">
-            <h3 class="section-title">재렌트 계약 정보</h3>
+            <h3 class="section-title">재약정 계약 정보</h3>
             <div class="form-grid">
               <div class="form-group">
                 <label for="newContractNumber">신규 계약번호</label>
@@ -147,8 +147,8 @@
               </div>
 
               <div class="form-group">
-                <label for="newMonthlyRent" class="required">신규 월 렌트료</label>
-                <input type="number" id="newMonthlyRent" name="newMonthlyRent" placeholder="월 렌트료를 입력하세요" required>
+                <label for="newMonthlyRent" class="required">신규 월 납입액</label>
+                <input type="number" id="newMonthlyRent" name="newMonthlyRent" placeholder="월 납입액을 입력하세요" required>
               </div>
 
               <div class="form-group">
@@ -164,7 +164,7 @@
 
           <div class="form-actions">
             <button type="button" class="btn btn-secondary" id="btnReset">초기화</button>
-            <button type="submit" class="btn btn-primary">재렌트 등록</button>
+            <button type="submit" class="btn btn-primary">재약정 등록</button>
           </div>
         </form>
       </div>
@@ -462,7 +462,7 @@
           body: JSON.stringify(payload)
         }).then(mustOk).then(r=>r.json());
 
-        alert('재렌트가 성공적으로 등록되었습니다!');
+        alert('재약정이 성공적으로 등록되었습니다!');
 
         // 등록 후 목록 갱신
         resetFormHard();

@@ -12,7 +12,7 @@ public class MaturityCreateRequest {
   // 기존 계약번호(돋보기로 선택)
   private String oldContractNumber;
 
-  // 신규 계약(재렌트)
+  // 신규 계약(재약정)
   private LocalDate newStartDate;
   private LocalDate newEndDate;
   private Long newMonthlyRent;

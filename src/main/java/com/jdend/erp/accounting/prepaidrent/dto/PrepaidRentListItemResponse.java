@@ -13,7 +13,7 @@ public class PrepaidRentListItemResponse {
     private String contractNumber;
     private String customerName;
 
-    /** 계약의 월렌트료 (적용 시 기본 금액) */
+    /** 계약의 월 납입액 (적용 시 기본 금액) */
     private Long monthlyRent;
 
     /** 선수금 잔액 = sum(입금) - sum(적용) */

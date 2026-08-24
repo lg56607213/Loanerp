@@ -52,7 +52,7 @@ public class PrepaidRentController {
 
     /**
      * POST /api/prepaid-rents/deposit
-     * 선수금 입금 등록 (고객이 미래 렌트료 미리 납입)
+     * 선수금 입금 등록 (고객이 미래 상환분을 미리 납입)
      * 전표: 차변 보통예금 / 대변 선수금
      */
     @PostMapping("/deposit")
@@ -63,7 +63,7 @@ public class PrepaidRentController {
 
     /**
      * POST /api/prepaid-rents/apply
-     * 선수금 적용 등록 (당월 렌트료에 선수금 차감, 수익 인식)
+     * 선수금 적용 등록 (당월 청구액에 선수금 차감, 수익 인식)
      * 전표: 차변 선수금 / 대변 임대수익
      */
     @PostMapping("/apply")

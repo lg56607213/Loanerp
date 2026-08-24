@@ -81,7 +81,7 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label>세금계산서일자 <span class="required">*</span></label>
+              <label>납기일 <span class="required">*</span></label>
               <div class="date-range-group">
                 <input type="date" id="taxStartDate">
                 <span>~</span>
@@ -119,7 +119,7 @@
         </div>
 
         <div class="info-message" id="infoMessage">
-          일괄생성: 세금계산서일자 기간 내의 모든 스케줄에 대해 청구를 생성합니다.
+          일괄생성: 납기일 기간 내의 모든 스케줄에 대해 청구를 생성합니다.
         </div>
 
         <div class="action-buttons">
@@ -233,7 +233,7 @@
       if (type === 'batch') {
         customerNumberInput.innerHTML = '<input type="text" id="customerNumber" placeholder="일괄생성은 선택 불필요" disabled>';
         customerPickedText.textContent = '';
-        infoMessage.textContent = '일괄생성: 세금계산서일자 기간 내의 모든 스케줄에 대해 청구를 생성합니다.';
+        infoMessage.textContent = '일괄생성: 납기일 기간 내의 모든 스케줄에 대해 청구를 생성합니다.';
       } else {
         customerNumberInput.innerHTML = `
           <input type="text" id="customerNumber" placeholder="고객번호 선택" readonly>
@@ -322,8 +322,8 @@
       const customerNumber = customerNumberEl ? customerNumberEl.value : "";
 
       if (!billingDate) return alert('청구일을 입력해주세요.');
-      if (!taxStartDate || !taxEndDate) return alert('세금계산서일자를 입력해주세요.');
-      if (new Date(taxStartDate) > new Date(taxEndDate)) return alert('세금계산서 시작일이 종료일보다 늦을 수 없습니다.');
+      if (!taxStartDate || !taxEndDate) return alert('납기일을 입력해주세요.');
+      if (new Date(taxStartDate) > new Date(taxEndDate)) return alert('납기일 시작일이 종료일보다 늦을 수 없습니다.');
       if (type === 'individual' && !customerNumber) return alert('개별생성 시 고객번호(customerNumber)를 선택해주세요.');
 
       const msg = (type === 'batch')

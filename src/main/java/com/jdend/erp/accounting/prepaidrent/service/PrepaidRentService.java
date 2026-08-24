@@ -156,7 +156,7 @@ public class PrepaidRentService {
         List<PaymentSchedule> overdueSchedules = paymentSchedulesRepo
                 .findUnpaidByContractNumberAndDateLTE(contract.getContractNumber(), yesterday);
         if (overdueSchedules.isEmpty()) {
-            throw new IllegalArgumentException("연체된 렌트료가 없어 선수금 수납이 불가능합니다.");
+            throw new IllegalArgumentException("연체된 청구액이 없어 선수금 수납이 불가능합니다.");
         }
 
         // 잔액 초과 적용 방지

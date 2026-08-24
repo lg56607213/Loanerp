@@ -72,7 +72,7 @@ public class RepaymentAllocator {
     for (Step step : order) {
       if (remain <= 0) break;
       remain = switch (step) {
-        case COST -> applyCost(result, remain, outstandingCost);
+        case COST -> applyCost(result, targets, schedules, remain, outstandingCost);
         case OVERDUE_INTEREST -> applyOverdueInterest(result, targets, remain, contract, asOf, overdueCharged);
         case INTEREST -> applyInterest(result, targets, remain, asOf);
         case PRINCIPAL -> applyPrincipal(result, targets, remain, asOf);
@@ -83,10 +83,29 @@ public class RepaymentAllocator {
     return result;
   }
 
-  private long applyCost(RepaymentAllocation result, long remain, long outstandingCost) {
+  /**
+   * 법적비용 충당 (1순위).
+   *
+   * 법적비용은 회차가 아니라 채권 단위로 발생하므로 회차별로 나눌 의미가 없다.
+   * 다만 재계산(replay) 시 초기화 대상이어야 하고 부분 회수도 추적해야 하므로,
+   * 실적은 가장 오래된 회차의 paidCost에 모아 기록한다.
+   * paidCost는 회차 완납 판정(dueTotal/paidTotal)에는 들어가지 않는다.
+   *
+   * 기한이익상실로 전 회차가 청구중지된 채권은 targets가 비므로, 그때는 전체 스케줄의
+   * 첫 회차에 기록한다. 기록할 곳이 아예 없으면(스케줄 0건) 충당 자체를 하지 않는다 —
+   * 기록하지 않고 금액만 차감하면 재계산 때 같은 비용을 두 번 충당하게 된다.
+   */
+  private long applyCost(RepaymentAllocation result, List<PaymentSchedule> targets,
+                         List<PaymentSchedule> allSchedules, long remain, long outstandingCost) {
     if (outstandingCost <= 0) return remain;
+
+    PaymentSchedule head = !targets.isEmpty() ? targets.get(0)
+                         : (!allSchedules.isEmpty() ? allSchedules.get(0) : null);
+    if (head == null) return remain;
+
     long take = Math.min(remain, outstandingCost);
     result.addCost(take);
+    head.setPaidCost(nz(head.getPaidCost()) + take);
     return remain - take;
   }
 

@@ -39,6 +39,10 @@ public class CompanyApplicationService {
     @Value("${spring.mail.username:}")
     private String senderEmail;
 
+    /** ERP 접속 도메인. 배포 환경에 따라 바뀌므로 하드코딩하지 않는다. */
+    @Value("${app.erp-base-url:https://erp.planbloan.co.kr}")
+    private String erpBaseUrl;
+
     /** 관리자 알림 수신 이메일: 미설정 시 발신자 주소(spring.mail.username) 사용 */
     @Value("${app.admin-email:}")
     private String adminEmail;
@@ -59,7 +63,7 @@ public class CompanyApplicationService {
                 .representativeName(req.getRepresentativeName().trim())
                 .phone(req.getPhone().trim())
                 .email(req.getEmail().trim())
-                .vehicleCount(req.getVehicleCount())
+                .loanBalanceScale(req.getLoanBalanceScale())
                 .inquiry(req.getInquiry())
                 .status("PENDING")
                 .build();
@@ -227,7 +231,7 @@ public class CompanyApplicationService {
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setFrom(senderEmail);
             helper.setTo(a.getEmail());
-            helper.setSubject("[JDEND 렌터카 ERP] 무료체험 계정이 준비되었습니다");
+            helper.setSubject("[JDEND 대부업 ERP] 무료체험 계정이 준비되었습니다");
             helper.setText(buildApprovalHtml(a, loginId, tempPassword), true);
             mailSender.send(message);
             log.info("[온보딩] 승인 이메일 발송 완료 company={} to={}", a.getCompanyName(), a.getEmail());
@@ -251,13 +255,13 @@ public class CompanyApplicationService {
                   <td style="padding:8px;border:1px solid #e5e7eb;">%s</td></tr>
               <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;">이메일</td>
                   <td style="padding:8px;border:1px solid #e5e7eb;">%s</td></tr>
-              <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;">차량 대수</td>
+              <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;">대출채권 잔액 규모</td>
                   <td style="padding:8px;border:1px solid #e5e7eb;">%s</td></tr>
               <tr><td style="padding:8px;border:1px solid #e5e7eb;font-weight:700;">문의사항</td>
                   <td style="padding:8px;border:1px solid #e5e7eb;">%s</td></tr>
             </table>
             <p style="margin-top:16px;">
-              <a href="https://www.rentcarerp.com/admin_users.html" style="color:#2563eb;">
+              <a href="%s/admin_users.html" style="color:#2563eb;">
                 관리자 페이지에서 승인하기
               </a>
             </p>
@@ -267,31 +271,32 @@ public class CompanyApplicationService {
                 a.getRepresentativeName(),
                 a.getPhone(),
                 a.getEmail(),
-                a.getVehicleCount() != null ? a.getVehicleCount() : "-",
-                a.getInquiry() != null ? a.getInquiry() : "-"
+                a.getLoanBalanceScale() != null ? a.getLoanBalanceScale() : "-",
+                a.getInquiry() != null ? a.getInquiry() : "-",
+                erpBaseUrl
         );
     }
 
     private String buildApprovalHtml(CompanyApplication a, String loginId, String tempPassword) {
-        String contactEmail = isBlank(senderEmail) ? "support@rentcarerp.com" : senderEmail;
+        String contactEmail = isBlank(senderEmail) ? "support@planbloan.co.kr" : senderEmail;
         return String.format("""
             <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"></head>
             <body style="font-family:Arial,sans-serif;padding:20px;background:#f5f7fb;">
             <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;
                         overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">
               <div style="background:#1b253a;padding:24px 32px;">
-                <div style="color:#94aac4;font-size:12px;margin-bottom:4px;">JDEND 렌터카 ERP</div>
+                <div style="color:#94aac4;font-size:12px;margin-bottom:4px;">JDEND 대부업 ERP</div>
                 <div style="color:#fff;font-size:20px;font-weight:700;">무료체험 계정이 준비되었습니다</div>
               </div>
               <div style="padding:24px 32px;">
                 <p>안녕하세요, <strong>%s</strong> 대표자님.</p>
-                <p>JDEND 렌터카 ERP 무료체험 신청이 승인되었습니다.<br>
+                <p>JDEND 대부업 ERP 무료체험 신청이 승인되었습니다.<br>
                    아래 계정 정보로 로그인하세요.</p>
                 <table style="border-collapse:collapse;width:100%%;margin:16px 0;">
                   <tr>
                     <td style="padding:10px 16px;background:#f8fafc;font-weight:700;border:1px solid #e5e7eb;">로그인 주소</td>
                     <td style="padding:10px 16px;border:1px solid #e5e7eb;">
-                      <a href="https://www.rentcarerp.com/login.html">https://www.rentcarerp.com/login.html</a>
+                      <a href="%s/login.html">%s/login.html</a>
                     </td>
                   </tr>
                   <tr>
@@ -314,7 +319,8 @@ public class CompanyApplicationService {
             </div>
             </body></html>
             """,
-                a.getRepresentativeName(), loginId, tempPassword, contactEmail, contactEmail
+                a.getRepresentativeName(), erpBaseUrl, erpBaseUrl,
+                loginId, tempPassword, contactEmail, contactEmail
         );
     }
 

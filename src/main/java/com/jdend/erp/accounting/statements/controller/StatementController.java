@@ -66,7 +66,7 @@ public class StatementController {
       @RequestParam(required = false, defaultValue = "계정") String accountName
   ) {
     List<BalanceDetailRowResponse> rows = service.balanceDetails(accountCode, startDate, referenceDate, status);
-    String[] headers = {"전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "차량번호", "메모", "상태"};
+    String[] headers = {"전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = rows.stream().map(r -> new Object[]{
         r.getVoucherDate(), r.getVoucherNo(),
         "DEBIT".equals(r.getLineType()) ? "차변" : "대변",
@@ -88,7 +88,7 @@ public class StatementController {
       @RequestParam LocalDate referenceDate,
       @RequestParam(required = false, defaultValue = "승인") String status
   ) {
-    String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "차량번호", "메모", "상태"};
+    String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = new ArrayList<>();
 
     String[][] categories = {{"10", "자산"}, {"20", "부채"}, {"30", "자본"}};
@@ -119,7 +119,7 @@ public class StatementController {
       @RequestParam LocalDate endDate,
       @RequestParam(required = false, defaultValue = "승인") String status
   ) {
-    String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "차량번호", "메모", "상태"};
+    String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = new ArrayList<>();
 
     String[][] categories = {{"40", "수익"}, {"50", "비용"}};
