@@ -7,10 +7,18 @@ import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.AmortizationCalculator;
 import com.jdend.erp.contract.support.LoanRateValidator;
+import com.jdend.erp.accounting.settings.service.OtherAccountSettingsService;
+import com.jdend.erp.accounting.voucher.dto.VoucherCreateRequest;
+import com.jdend.erp.accounting.voucher.entity.Voucher;
+import com.jdend.erp.accounting.voucher.repository.VoucherRepository;
+import com.jdend.erp.accounting.voucher.service.AccountResolver;
+import com.jdend.erp.accounting.voucher.service.VoucherService;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
+import com.jdend.erp.loan.support.LoanReceivableAccount;
 import com.jdend.erp.payment.schedule.service.PaymentScheduleAutoGeneratorService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 /** 여신계약(대출채권) 등록·수정·조회 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ContractService {
@@ -34,6 +43,16 @@ public class ContractService {
   private final ContractRepository contractRepo;
   private final CustomerRepository customerRepo;
   private final PaymentScheduleAutoGeneratorService scheduleAutoGen;
+  private final VoucherService voucherService;
+  private final VoucherRepository voucherRepository;
+  private final OtherAccountSettingsService accountSettings;
+  private final AccountResolver accountResolver;
+
+  /** 대출 실행 전표를 이 채권에 딸린 것으로 찾기 위한 적요 접두어 */
+  private static final String EXEC_VOUCHER_MEMO = "대출실행";
+  /** 자금이 나가는 계좌 기본값 — 기타계정관리에 설정이 없을 때 */
+  private static final String DEFAULT_BANK_CODE = "100101";
+  private static final String DEFAULT_BANK_NAME = "보통예금";
 
   @Transactional(readOnly = true)
   public List<ContractResponse> list() {
@@ -152,6 +171,7 @@ public class ContractService {
 
     contractRepo.save(c);
     scheduleAutoGen.ensureGenerated(c);
+    createExecutionVoucher(c);
     return toResponse(c);
   }
 
@@ -224,13 +244,88 @@ public class ContractService {
     } else {
       scheduleAutoGen.ensureGenerated(c);
     }
+
+    // 대출금·기간·실행일이 바뀌면 실행 분개의 금액이나 계정(단기/장기)이 달라진다.
+    // 증분으로 고치면 어긋나기 쉬워 지우고 다시 만든다.
+    deleteExecutionVoucher(c.getContractNumber());
+    createExecutionVoucher(c);
+
     return toResponse(c);
   }
 
   @Transactional
   public void delete(Long id) {
-    if (!contractRepo.existsById(id)) throw new RuntimeException("채권 없음 id=" + id);
+    Contract c = contractRepo.findById(id)
+        .orElseThrow(() -> new RuntimeException("채권 없음 id=" + id));
+    deleteExecutionVoucher(c.getContractNumber());
     contractRepo.deleteById(id);
+  }
+
+  // ── 대출 실행 전표 ───────────────────────────────────────────
+
+  /**
+   * 대출 실행 분개.
+   *   (차) 단기대여금 또는 장기대여금 [대출금]  /  (대) 보통예금 [대출금]
+   *
+   * 어느 대여금 계정을 쓸지는 대출기간으로 정한다 — 1년 미만이면 단기, 1년 이상이면 장기.
+   * 판정은 {@link LoanReceivableAccount} 한 곳에 모아 두었다. 수납(원금 회수)·대손상각도
+   * 같은 규칙을 써야 계정별 잔액이 어긋나지 않는다.
+   *
+   * 전표가 실패해도 채권 등록 자체는 살린다. 등록이 통째로 막히는 편이 더 나쁘다.
+   */
+  private void createExecutionVoucher(Contract c) {
+    try {
+      long amount = nvl(c.getLoanAmount());
+      if (amount <= 0) return;
+
+      LocalDate date = c.getExecuteDate() != null ? c.getExecuteDate() : c.getStartDate();
+      if (date == null) {
+        log.warn("대출실행 전표 생략: 실행일·시작일이 모두 없습니다. contractNumber={}", c.getContractNumber());
+        return;
+      }
+
+      String bankName = accountSettings.getPaymentDebitAccount();
+      String bankCode = bankName == null ? null : accountResolver.codeOf(bankName);
+      if (bankName == null || bankCode == null) {
+        bankCode = DEFAULT_BANK_CODE;
+        bankName = DEFAULT_BANK_NAME;
+      }
+
+      voucherService.create(VoucherCreateRequest.builder()
+          .voucherDate(date)
+          .contractNumber(c.getContractNumber())
+          .memo(EXEC_VOUCHER_MEMO + " / 계약번호: " + c.getContractNumber()
+                + (c.getCustomer() != null ? " / 고객명: " + c.getCustomer().getCustomerName() : ""))
+          .debitEntries(List.of(VoucherCreateRequest.VoucherLineRequest.builder()
+              .accountCode(LoanReceivableAccount.codeOf(c))
+              .account(LoanReceivableAccount.nameOf(c))
+              .amount(amount)
+              .description("대출 실행")
+              .build()))
+          .creditEntries(List.of(VoucherCreateRequest.VoucherLineRequest.builder()
+              .accountCode(bankCode)
+              .account(bankName)
+              .amount(amount)
+              .description("대출금 지급")
+              .build()))
+          .build());
+    } catch (Exception e) {
+      log.warn("대출실행 전표 생성 실패 (채권은 그대로 등록됨) contractNumber={} : {}",
+          c.getContractNumber(), e.getMessage());
+    }
+  }
+
+  /** 이 채권의 대출 실행 전표를 지운다. 수납·상각 전표는 건드리지 않는다. */
+  private void deleteExecutionVoucher(String contractNumber) {
+    if (contractNumber == null || contractNumber.isBlank()) return;
+    try {
+      for (Voucher v : voucherRepository.findByMemoStartingWithOrderByIdAsc(
+              EXEC_VOUCHER_MEMO + " / 계약번호: " + contractNumber)) {
+        voucherRepository.delete(v);
+      }
+    } catch (Exception e) {
+      log.warn("대출실행 전표 삭제 실패 contractNumber={} : {}", contractNumber, e.getMessage());
+    }
   }
 
   // ── 검증 / 보조 ──────────────────────────────────────────────

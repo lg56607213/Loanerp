@@ -9,6 +9,7 @@ import com.jdend.erp.loan.dto.LoanSettlementResponse;
 import com.jdend.erp.loan.service.LoanSettlementService;
 import com.jdend.erp.loan.writeoff.dto.WriteOffRequest;
 import com.jdend.erp.loan.writeoff.entity.WriteOff;
+import com.jdend.erp.loan.support.LoanReceivableAccount;
 import com.jdend.erp.loan.writeoff.repository.WriteOffRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,11 +32,11 @@ import java.util.List;
 public class WriteOffService {
 
   /** 대손충당금 (자산 차감) */
-  private static final String ACC_ALLOWANCE = "10030201";
+  // 대손충당금·대여금 계정은 계약의 대출기간에 따라 단기/장기로 갈린다.
+  //   -> LoanReceivableAccount.allowanceCodeOf(contract) / codeOf(contract)
   /** 대손상각비 (판매비와관리비) */
   private static final String ACC_EXPENSE = "500215";
-  /** 장기대여금 (대출채권) */
-  private static final String ACC_LOAN = "100302";
+
 
   private final WriteOffRepository repo;
   private final ContractRepository contractRepo;
@@ -140,11 +141,19 @@ public class WriteOffService {
 
   /**
    * 상각 분개.
-   *   (차) 대손충당금 + 대손상각비  /  (대) 대여금
+   *   (차) 대손충당금 + 대손상각비  /  (대) 단기/장기대여금
    * 상각 대상 이자는 아직 수익으로 인식하지 않았으므로(현금주의) 원금만 제각한다.
    */
   private Long createWriteOffVoucher(WriteOff w) {
     try {
+      // 실행 전표에서 쓴 대여금 계정과 짝을 맞춘다. 단기로 실행한 채권을
+      // 장기대여금에서 제각하면 두 계정 모두 잔액이 틀어진다.
+      Contract c = contractRepo.findByContractNumber(w.getContractNumber()).orElse(null);
+      String loanCode = LoanReceivableAccount.codeOf(c);
+      String loanName = LoanReceivableAccount.nameOf(c);
+      String allowanceCode = LoanReceivableAccount.allowanceCodeOf(c);
+      String allowanceName = LoanReceivableAccount.allowanceNameOf(c);
+
       List<VoucherCreateRequest.VoucherLineRequest> debits = new ArrayList<>();
 
       long allowance = Math.min(nz(w.getAllowanceUsed()), nz(w.getWriteOffPrincipal()));
@@ -152,7 +161,7 @@ public class WriteOffService {
 
       if (allowance > 0) {
         debits.add(VoucherCreateRequest.VoucherLineRequest.builder()
-            .accountCode(ACC_ALLOWANCE).account("장기대여금 대손충당금")
+            .accountCode(allowanceCode).account(allowanceName)
             .amount(allowance).description("대손상각 충당금 상계").build());
       }
       if (expense > 0) {
@@ -164,7 +173,7 @@ public class WriteOffService {
 
       List<VoucherCreateRequest.VoucherLineRequest> credits = List.of(
           VoucherCreateRequest.VoucherLineRequest.builder()
-              .accountCode(ACC_LOAN).account("장기대여금")
+              .accountCode(loanCode).account(loanName)
               .amount(nz(w.getWriteOffPrincipal())).description("대손상각 원금 제각").build());
 
       var res = voucherService.create(VoucherCreateRequest.builder()

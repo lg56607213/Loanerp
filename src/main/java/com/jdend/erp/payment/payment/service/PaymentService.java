@@ -11,6 +11,7 @@ import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.loan.repayment.RepaymentAllocation;
+import com.jdend.erp.loan.support.LoanReceivableAccount;
 import com.jdend.erp.loan.repayment.RepaymentPostingService;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
@@ -215,8 +216,10 @@ public class PaymentService {
     repaymentPosting.recompute(p.getContractNumber());
   }
 
-  /** 대여금 (대출채권) */
-  private static final String ACC_LOAN_RECEIVABLE = "100302";
+  // 대여금(대출채권) 계정은 계약마다 다르다.
+  // 대출기간 1년 미만이면 단기대여금, 1년 이상이면 장기대여금.
+  // 실행 전표에서 차변으로 잡은 계정과 반드시 같아야 계정 잔액이 맞는다.
+  //   -> LoanReceivableAccount.codeOf(contract)
   /** 이자수익 (영업수익) */
   private static final String ACC_INTEREST_REVENUE = "400101";
   /** 연체이자수익 (영업수익) */
@@ -230,7 +233,7 @@ public class PaymentService {
    * 수납 전표를 변제충당 결과에 맞춰 항목별로 나눠 생성한다.
    *
    *   (차) 보통예금 [입금 전액]
-   *   (대) 대여금 [원금] + 이자수익 [이자] + 연체이자수익 [지연배상금]
+   *   (대) 단기/장기대여금 [원금] + 이자수익 [이자] + 연체이자수익 [지연배상금]
    *        + 법무비용 [비용 회수] + 선수금 [초과분]
    *
    * 상각 채권 회수는 원금·이자를 가리지 않고 상각채권추심이익으로 인식한다.
@@ -295,7 +298,11 @@ public class PaymentService {
         order = addCredit(voucher, ACC_INTEREST_REVENUE, "이자수익", alloc.getInterest(), "이자 수납", order);
       }
       if (alloc.getPrincipal() > 0) {
-        order = addCredit(voucher, ACC_LOAN_RECEIVABLE, "장기대여금", alloc.getPrincipal(), "원금 회수", order);
+        Contract loanContract = contractRepo.findByContractNumber(payment.getContractNumber()).orElse(null);
+        order = addCredit(voucher,
+            LoanReceivableAccount.codeOf(loanContract),
+            LoanReceivableAccount.nameOf(loanContract),
+            alloc.getPrincipal(), "원금 회수", order);
       }
     }
     if (alloc.getExcess() > 0) {
