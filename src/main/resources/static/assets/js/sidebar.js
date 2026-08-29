@@ -9,7 +9,7 @@ function loadSidebar() {
   const sidebarHTML = `
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
-        <a href="${basePath}index.html" class="sidebar-title">JDEND <span class="erp-logo">ERP</span></a>
+        <a href="${basePath}index.html" class="sidebar-title">LOAN <span class="erp-logo">ERP</span></a>
         <button class="sidebar-toggle" id="sidebarToggle">
           <span class="toggle-icon"></span>
           <span class="toggle-icon"></span>
