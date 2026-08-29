@@ -132,8 +132,6 @@ SELECT 'is', 'EXPENSE', 3, id, '500212', '지급수수료', '판매비와관리�
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500213', '임차료', '판매비와관리비', 13, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
-SELECT 'is', 'EXPENSE', 3, id, '500214', '미상각잔액', '판매비와관리비', 14, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5002';
-INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500101', '이자비용', '영업비용', 1, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5001';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'is', 'EXPENSE', 3, id, '500302', '기타비용', '영업외비용', 2, '사용', '사용' FROM financial_statement_accounts WHERE account_code = '5003';
@@ -174,7 +172,6 @@ UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_co
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '100404'; -- 감가상각누계액
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500202'; -- 감가상각비
 UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500203'; -- 차량유지비
-UPDATE financial_statement_accounts SET is_active = '미사용' WHERE account_code = '500214'; -- 미상각잔액
 
 -- ========== 4) 소소분류 (대손충당금) ==========
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
@@ -185,3 +182,60 @@ INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level
 SELECT 'bs', 'ASSET', 4, id, '10030101', '단기대여금 대손충당금', '대출채권', 1, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '100301';
 INSERT IGNORE INTO financial_statement_accounts (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
 SELECT 'bs', 'ASSET', 4, id, '10030201', '장기대여금 대손충당금', '대출채권', 1, '미사용', '사용' FROM financial_statement_accounts WHERE account_code = '100302';
+
+-- ========== 대부업 계정과목 정비 ==========
+-- 렌터카 계정구조를 이어받으며 생긴 차이를 여기서 맞춘다.
+-- (같은 내용을 기존 테넌트에 적용하려면 sql/migrate_loan_chart_of_accounts.sql 을 쓴다)
+
+-- 사무실을 운영하면 실제로 쓰는 계정. 꺼져 있으면 전표에서 고를 수 없다.
+UPDATE financial_statement_accounts SET is_active = '사용'
+ WHERE account_code IN ('100402','100404','100505','500202','500205','500206','500207','500208','500209','500210');
+
+-- 대손충당금 — 대손상각 시 반드시 상계에 쓰는 계정인데 '미사용'으로 남아 있었다.
+-- 시드 파일에서 활성화 UPDATE 가 해당 INSERT 보다 앞서 있어 효과가 없었다(순서 버그).
+UPDATE financial_statement_accounts SET is_active = '사용'
+ WHERE account_code IN ('10030101','10030201');
+
+-- 미수이자 — 대출채권에서 발생했지만 아직 못 받은 이자.
+-- 현금주의라 평소에는 쓰지 않으므로 기본 '미사용'. 결산에 필요하면 켠다.
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'bs', 'ASSET', 3, id, '100303', '미수이자', '대출채권', 3, '미사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '1003';
+
+-- 예수금 — 급여 원천징수분과 4대보험 본인부담분. 급여를 주는 순간 필요하다.
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'bs', 'LIABILITY', 3, id, '200106', '예수금', '유동부채', 6, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '2001';
+
+-- 대손충당금환입 — 쌓아둔 충당금을 되돌릴 때. 영업수익으로 본다.
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'REVENUE', 3, id, '400105', '대손충당금환입', '영업수익', 5, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '4001';
+
+-- 소모품비 · 광고선전비 (대부업법상 표시광고 비용이 여기로 온다)
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500218', '소모품비', '판매비와관리비', 18, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '5002';
+
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500219', '광고선전비', '판매비와관리비', 19, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '5002';
+
+-- 영업외비용이 '기타비용' 하나뿐이었다. 이자비용을 영업비용으로 옮기면서 비었다.
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500301', '기부금', '영업외비용', 1, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '5003';
+
+-- 법인세: 중분류(5004)는 전표 입력을 막고 그 아래 계상 계정을 둔다.
+INSERT IGNORE INTO financial_statement_accounts
+  (statement_type, category, level, parent_id, account_code, account_name, account_type, display_order, is_active, is_postable)
+SELECT 'is', 'EXPENSE', 3, id, '500401', '법인세비용', '법인세', 1, '사용', '사용'
+  FROM financial_statement_accounts WHERE account_code = '5004';
+
+UPDATE financial_statement_accounts SET is_postable = '미사용' WHERE account_code = '5004';

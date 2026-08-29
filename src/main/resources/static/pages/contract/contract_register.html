@@ -37,6 +37,70 @@
     .st-상각{ background:#e5e7eb; color:#374151; }
     .st-종료{ background:#e0e7ff; color:#3730a3; }
 
+    /* ── 목록 테이블 ──────────────────────────────────────────
+       이 페이지의 표는 클래스가 없어 브라우저 기본 스타일로 나왔다(= 글자 덩어리).
+       .data-table 규칙이 CSS 에 있었는데 마크업에서 안 쓰고 있었다.          */
+    .data-table{
+      width:100%; border-collapse:separate; border-spacing:0;
+      font-size:13.5px; color:#334155;
+    }
+    .data-table thead th{
+      position:sticky; top:0; z-index:2;
+      padding:11px 14px; background:#f1f5f9;
+      font-size:12px; font-weight:700; color:#475569; letter-spacing:.02em;
+      text-align:left; white-space:nowrap;
+      border-bottom:1px solid #cbd5e1;
+    }
+    .data-table tbody td{
+      padding:12px 14px; border-bottom:1px solid #eef2f7;
+      vertical-align:middle; background:#fff;
+    }
+    .data-table tbody tr:hover td{ background:#f8fafc; }
+    .data-table tbody tr:last-child td{ border-bottom:none; }
+
+    /* 금액·숫자는 자릿수가 흔들리지 않게 등폭 숫자로 우측 정렬 */
+    .data-table .num{
+      text-align:right; white-space:nowrap;
+      font-variant-numeric:tabular-nums; font-feature-settings:"tnum";
+    }
+    .data-table .num-strong{ font-weight:700; color:#0f172a; }
+    .cell-main{ font-weight:600; color:#0f172a; line-height:1.35; }
+    .cell-sub{ font-size:11.5px; color:#94a3b8; margin-top:2px; line-height:1.35; }
+    .cell-no{
+      font-family:'Consolas','D2Coding',ui-monospace,monospace;
+      font-weight:700; color:#1d4ed8; letter-spacing:-.01em;
+    }
+    .rate-main{ font-weight:600; color:#0f172a; }
+    .rate-sub{ font-size:11.5px; color:#b45309; }
+
+    /* 잔여원금 아래 회수 진행 막대 — 얼마나 갚았는지 한눈에 */
+    .repay-bar{
+      margin-top:5px; height:3px; border-radius:2px;
+      background:#e2e8f0; overflow:hidden;
+    }
+    .repay-bar > i{ display:block; height:100%; background:#3b82f6; border-radius:2px; }
+
+    /* 행 안의 작은 버튼. btn-sm / btn-danger 정의가 없어 거대한 .btn 이 적용되고 있었다 */
+    .row-actions{ display:flex; gap:6px; white-space:nowrap; }
+    .btn-row{
+      padding:6px 12px; border-radius:6px; border:1px solid #cbd5e1;
+      background:#fff; color:#475569;
+      font-size:12.5px; font-weight:600; font-family:inherit;
+      letter-spacing:normal; text-transform:none;
+      cursor:pointer; transition:all .15s;
+    }
+    .btn-row:hover{ background:#f1f5f9; border-color:#94a3b8; }
+    .btn-row.danger{ color:#b91c1c; border-color:#fecaca; }
+    .btn-row.danger:hover{ background:#fef2f2; border-color:#f87171; }
+
+    /* 비어 있을 때 */
+    .empty-state{ text-align:center; padding:52px 20px; color:#64748b; }
+    .empty-state .ico{ font-size:34px; opacity:.35; display:block; margin-bottom:10px; }
+    .empty-state .msg{ font-size:14px; font-weight:600; color:#475569; }
+    .empty-state .hint{ font-size:12.5px; margin-top:6px; }
+
+    .status-badge{ white-space:nowrap; }
+
     /* 고객 선택 모달 — 기한이익상실 화면의 채권 선택과 같은 형태 */
     .modal-backdrop{
       display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
@@ -76,22 +140,18 @@
 
       <div class="card-body">
         <div class="table-container">
-          <table>
+          <table class="data-table">
             <thead>
               <tr>
-                <th>채권번호</th>
-                <th>고객명</th>
-                <th>대출구분</th>
-                <th class="amount-cell">대출금</th>
-                <th>이자율</th>
-                <th>상환방식</th>
-                <th>시작일자</th>
-                <th>종료일자</th>
-                <th>납입일</th>
-                <th class="amount-cell">월납입액</th>
-                <th class="amount-cell">잔여원금</th>
-                <th>상태</th>
-                <th>관리</th>
+                <th style="min-width:150px;">채권번호</th>
+                <th style="min-width:120px;">고객</th>
+                <th class="num" style="min-width:110px;">대출금</th>
+                <th class="num" style="min-width:130px;">잔여원금</th>
+                <th style="min-width:90px;">이자율</th>
+                <th style="min-width:150px;">기간</th>
+                <th class="num" style="min-width:110px;">월납입액</th>
+                <th style="min-width:70px;">상태</th>
+                <th style="min-width:110px;">관리</th>
               </tr>
             </thead>
             <tbody id="contractTableBody"></tbody>
@@ -276,7 +336,7 @@
         <button type="button" class="btn btn-primary" id="btnCustSearch">검색</button>
       </div>
       <div class="table-container" style="max-height:420px;overflow:auto;">
-        <table>
+        <table class="data-table">
           <thead>
             <tr>
               <th style="width:130px;">고객번호</th>
@@ -456,27 +516,59 @@
       const rows = filtered.slice(start, start + itemsPerPage);
 
       if (rows.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;color:#64748b;padding:24px;">등록된 채권이 없습니다.</td></tr>`;
+        tbody.innerHTML = `
+          <tr><td colspan="9">
+            <div class="empty-state">
+              <span class="ico">📄</span>
+              <div class="msg">등록된 채권이 없습니다.</div>
+              <div class="hint">오른쪽 위 <b>+ 대출 추가</b>로 첫 대출을 등록하세요.</div>
+            </div>
+          </td></tr>`;
       } else {
-        tbody.innerHTML = rows.map(c => `
+        tbody.innerHTML = rows.map(c => {
+          // 회수 진행률 — 원금을 얼마나 갚았는지. 잔여원금 아래 얇은 막대로 보여준다.
+          const loan = Number(c.loanAmount || 0);
+          const left = Number(c.remainingPrincipal || 0);
+          const repaid = loan > 0 ? Math.min(100, Math.max(0, (loan - left) / loan * 100)) : 0;
+
+          const period = (c.startDate || '-') + ' ~ ' + (c.endDate || '-');
+          const payDay = c.paymentDay != null ? ('매월 ' + c.paymentDay + '일') : '납입일 미지정';
+          const rate = c.interestRate != null ? ('연 ' + c.interestRate + '%') : '-';
+          const odRate = c.overdueRate != null ? ('연체 ' + c.overdueRate + '%') : '';
+
+          return `
           <tr>
-            <td>${escHtml(c.contractNumber)}</td>
-            <td>${escHtml(c.customerName || '-')}</td>
-            <td>${escHtml(c.loanType || '-')}</td>
-            <td class="amount-cell">${money(c.loanAmount)}</td>
-            <td>${c.interestRate != null ? c.interestRate + '%' : '-'}</td>
-            <td>${escHtml(c.repaymentMethod || '-')}</td>
-            <td>${c.startDate || '-'}</td>
-            <td>${c.endDate || '-'}</td>
-            <td>${c.paymentDay != null ? c.paymentDay + '일' : '-'}</td>
-            <td class="amount-cell">${money(c.monthlyPayment)}</td>
-            <td class="amount-cell">${money(c.remainingPrincipal)}</td>
+            <td>
+              <div class="cell-no">${escHtml(c.contractNumber)}</div>
+              <div class="cell-sub">${escHtml(c.loanType || '-')}</div>
+            </td>
+            <td>
+              <div class="cell-main">${escHtml(c.customerName || '-')}</div>
+              <div class="cell-sub">${escHtml(c.repaymentMethod || '-')}</div>
+            </td>
+            <td class="num">${money(c.loanAmount)}</td>
+            <td class="num">
+              <div class="num-strong">${money(c.remainingPrincipal)}</div>
+              <div class="repay-bar"><i style="width:${repaid.toFixed(1)}%"></i></div>
+            </td>
+            <td>
+              <div class="rate-main">${escHtml(rate)}</div>
+              ${odRate ? `<div class="rate-sub">${escHtml(odRate)}</div>` : ''}
+            </td>
+            <td>
+              <div class="cell-main" style="font-weight:500;">${escHtml(period)}</div>
+              <div class="cell-sub">${escHtml(payDay)}</div>
+            </td>
+            <td class="num">${money(c.monthlyPayment)}</td>
             <td><span class="status-badge st-${escHtml(c.status || '정상')}">${escHtml(c.status || '정상')}</span></td>
             <td>
-              <button type="button" class="btn btn-sm btn-secondary" data-edit="${c.id}">수정</button>
-              <button type="button" class="btn btn-sm btn-danger" data-del="${c.id}">삭제</button>
+              <div class="row-actions">
+                <button type="button" class="btn-row" data-edit="${c.id}">수정</button>
+                <button type="button" class="btn-row danger" data-del="${c.id}">삭제</button>
+              </div>
             </td>
-          </tr>`).join('');
+          </tr>`;
+        }).join('');
       }
       renderPagination();
     }
