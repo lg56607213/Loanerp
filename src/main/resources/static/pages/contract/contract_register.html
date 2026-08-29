@@ -36,6 +36,18 @@
     .st-해지{ background:#ffedd5; color:#9a3412; }
     .st-상각{ background:#e5e7eb; color:#374151; }
     .st-종료{ background:#e0e7ff; color:#3730a3; }
+
+    /* 고객 선택 모달 — 기한이익상실 화면의 채권 선택과 같은 형태 */
+    .modal-backdrop{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.45);
+      align-items:center; justify-content:center; z-index:9999;
+    }
+    .modal-backdrop.open{ display:flex; }
+    .modal-box{ width:min(880px, calc(100vw - 24px)); background:#fff; border-radius:12px; padding:18px; }
+    .pick-row{ cursor:pointer; }
+    .pick-row:hover td{ background:#f8fafc; }
+    /* 고객번호는 직접 타이핑하지 않고 목록에서 고른다 */
+    #customerCode{ cursor:pointer; background:#fff; }
   </style>
 </head>
 <body>
@@ -125,7 +137,7 @@
               <div class="form-group">
                 <label for="customerCode" class="required">고객번호</label>
                 <div class="input-group">
-                  <input type="text" id="customerCode" placeholder="고객번호 입력" required>
+                  <input type="text" id="customerCode" placeholder="클릭해서 고객 선택" required readonly>
                   <button type="button" class="btn-icon" id="btnCustomerSearch" title="고객 조회">🔍</button>
                 </div>
               </div>
@@ -249,6 +261,39 @@
           </div>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- 고객 선택 모달 -->
+  <div class="modal-backdrop" id="custBackdrop">
+    <div class="modal-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="margin:0;">고객 선택</h3>
+        <button type="button" class="btn btn-secondary" id="btnCloseCust">닫기</button>
+      </div>
+      <div class="input-group" style="margin-bottom:10px;">
+        <input type="text" id="custKw" placeholder="고객번호 / 고객명 / 연락처" style="flex:1;">
+        <button type="button" class="btn btn-primary" id="btnCustSearch">검색</button>
+      </div>
+      <div class="table-container" style="max-height:420px;overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:130px;">고객번호</th>
+              <th style="width:80px;">구분</th>
+              <th>고객명</th>
+              <th style="width:150px;">연락처</th>
+              <th>주소</th>
+            </tr>
+          </thead>
+          <tbody id="custBody">
+            <tr><td colspan="5" style="text-align:center;padding:16px;">불러오는 중...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin:10px 0 0;font-size:12.5px;color:#6b7280;">
+        찾는 고객이 없으면 <a href="../customer/customer_register.html" style="color:#2563eb;font-weight:600;">고객등록</a>에서 먼저 등록하세요.
+      </p>
     </div>
   </div>
 
@@ -469,19 +514,67 @@
       refreshSimulation();
     }
 
-    async function fillCustomer(customerNumber) {
-      if (!customerNumber) return;
+    // ── 고객 선택 모달 ─────────────────────────────────────────
+    function openCustomerPicker() {
+      $('custBackdrop').classList.add('open');
+      $('custKw').value = '';
+      searchCustomers('');
+      setTimeout(() => $('custKw').focus(), 0);
+    }
+
+    function closeCustomerPicker() {
+      $('custBackdrop').classList.remove('open');
+    }
+
+    async function searchCustomers(kw) {
+      const body = $('custBody');
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;">불러오는 중...</td></tr>';
       try {
-        const c = await api('/customers/lookup?customerNumber=' + encodeURIComponent(customerNumber));
-        if (!c) return;
-        $('customerName').value = c.customerName || '';
-        $('customerPhone').value = c.phone || '';
-        $('idNumber').value = c.registrationNumber || '';
+        const list = await api('/customers/search?kw=' + encodeURIComponent(kw || ''));
+        renderCustomers(Array.isArray(list) ? list : []);
       } catch (e) {
-        $('customerName').value = '';
-        $('customerPhone').value = '';
-        $('idNumber').value = '';
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#b91c1c;">'
+          + escHtml(e.message) + '</td></tr>';
       }
+    }
+
+    function renderCustomers(list) {
+      const body = $('custBody');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;">'
+          + '등록된 고객이 없습니다. 고객등록에서 먼저 등록하세요.</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(function (c) {
+        // 법인은 phone 칸에 법인등록번호가 들어가 있어 연락처는 담당자 번호를 쓴다
+        var tel = c.customerType === '법인'
+          ? (c.managerPhone || '-')
+          : (c.phone || c.managerPhone || '-');
+        var pick = {
+          customerNumber: c.customerNumber || '',
+          customerName: c.customerName || '',
+          customerType: c.customerType || '개인',
+          phone: tel === '-' ? '' : tel,
+          registrationNumber: c.registrationNumber || ''
+        };
+        return '<tr class="pick-row" data-cust="' + escHtml(JSON.stringify(pick)) + '">'
+          + '<td>' + escHtml(c.customerNumber || '-') + '</td>'
+          + '<td>' + escHtml(c.customerType || '-') + '</td>'
+          + '<td>' + escHtml(c.customerName || '-') + '</td>'
+          + '<td>' + escHtml(tel) + '</td>'
+          + '<td>' + escHtml(c.address || '-') + '</td>'
+          + '</tr>';
+      }).join('');
+    }
+
+    function pickCustomer(c) {
+      $('customerCode').value = c.customerNumber || '';
+      $('customerName').value = c.customerName || '';
+      $('customerPhone').value = c.phone || '';
+      $('idNumber').value = c.registrationNumber || '';
+      // 고객구분은 고객 등록값을 그대로 따라간다 (손으로 다시 고르면 어긋난다)
+      if (c.customerType) $('customerType').value = c.customerType;
+      closeCustomerPicker();
     }
 
     function buildPayload() {
@@ -558,10 +651,25 @@
       } catch (e) {}
     });
 
-    $('customerCode').addEventListener('change', () => fillCustomer($('customerCode').value.trim()));
-    $('btnCustomerSearch').addEventListener('click', () => {
-      const v = prompt('고객번호를 입력하세요 (예: C001)');
-      if (v) { $('customerCode').value = v.trim(); fillCustomer(v.trim()); }
+    // 고객번호는 등록된 고객 중에서만 고를 수 있게 한다.
+    // 직접 타이핑하면 없는 번호가 들어가 등록이 실패하거나 엉뚱한 고객에 붙는다.
+    $('customerCode').addEventListener('click', openCustomerPicker);
+    $('btnCustomerSearch').addEventListener('click', openCustomerPicker);
+    $('btnCloseCust').addEventListener('click', closeCustomerPicker);
+    $('btnCustSearch').addEventListener('click', () => searchCustomers($('custKw').value.trim()));
+    $('custKw').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); searchCustomers($('custKw').value.trim()); }
+    });
+    $('custBackdrop').addEventListener('click', (e) => {
+      if (e.target === $('custBackdrop')) closeCustomerPicker();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && $('custBackdrop').classList.contains('open')) closeCustomerPicker();
+    });
+    $('custBody').addEventListener('click', (e) => {
+      const row = e.target.closest('tr[data-cust]');
+      if (!row) return;
+      pickCustomer(JSON.parse(row.getAttribute('data-cust')));
     });
 
     ['loanAmount', 'monthlyPayment'].forEach(id => {
