@@ -31,7 +31,21 @@ public class PaymentSchedule {
   public static final String LINE_PARTIAL  = "부분납";
   public static final String LINE_PAID     = "완납";
   /** 기한이익상실로 잔여원금을 일괄 청구해 개별 회차 청구를 멈춘 상태 */
+  /**
+   * 청구중지 — 기한이익상실 이전 방식의 잔재. 미래 회차를 지우지 않고 멈춰만 두던 때 쓰였다.
+   * 지금은 회차를 접어 '일시청구' 1건으로 만들지만, 기존 데이터가 있어 계속 인식한다.
+   */
   public static final String LINE_SUSPENDED = "청구중지";
+
+  /**
+   * 일시청구 — 기한이익상실로 조기 변제기가 도래한 원금을 한 건으로 접은 회차.
+   *
+   * <p>원금은 갚을 수 있어야 하므로 변제충당 대상이지만,
+   * <b>약정이자도 지연배상금도 붙지 않는다.</b>
+   * 조기 상환된 구간의 이자는 애초에 발생하지 않았고, 원래 납기일이 도래하지 않은
+   * 원금에 연체가산이자를 붙이는 것은 개인채무자보호법이 막는다.
+   */
+  public static final String LINE_CALLED = "일시청구";
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -96,7 +110,7 @@ public class PaymentSchedule {
   @Column(name="paid_cost")
   private Long paidCost;
 
-  /** 미납 / 부분납 / 완납 / 청구중지 */
+  /** 미납 / 부분납 / 완납 / 청구중지 / 일시청구 */
   @Column(name="line_status", length=10)
   private String lineStatus;
 
@@ -143,9 +157,17 @@ public class PaymentSchedule {
     return v > 0 ? v : 0L;
   }
 
-  /** 충당 결과에 맞춰 회차 상태를 다시 계산한다. 청구중지는 유지한다. */
+  /**
+   * 기한이익상실로 개별 청구가 멈춘 회차인가.
+   * 이자·지연배상금 산정에서 빼되 원금 충당에는 넣어야 하는 회차다.
+   */
+  public boolean isAcceleratedLine() {
+    return LINE_SUSPENDED.equals(lineStatus) || LINE_CALLED.equals(lineStatus);
+  }
+
+  /** 충당 결과에 맞춰 회차 상태를 다시 계산한다. 기한이익상실 회차는 유지한다. */
   public void refreshLineStatus() {
-    if (LINE_SUSPENDED.equals(lineStatus)) return;
+    if (isAcceleratedLine()) return;
     long due = dueTotal();
     long paid = paidTotal();
     if (due > 0 && paid >= due) lineStatus = LINE_PAID;

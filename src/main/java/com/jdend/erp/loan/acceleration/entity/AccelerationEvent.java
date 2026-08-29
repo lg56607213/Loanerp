@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  * 기한이익상실(EOD).
  *
  * 등록하면 채권 상태가 '해지'가 되고, 그 시점부터 잔여원금 전액이 즉시 청구 대상이 된다.
- * 미래 회차는 개별 청구를 멈추고(청구중지) 잔여원금을 일괄 채권으로 본다.
+ * 미래 회차는 '일시청구' 1건으로 접고 상환방식을 만기일시로 바꾼다.
  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
@@ -66,7 +66,14 @@ public class AccelerationEvent {
   @Column(name = "total_called")
   private Long totalCalled;
 
-  /** 청구중지로 전환한 미래 회차 수 */
+  /**
+   * 상실 전 상환방식. 취소 시 원래대로 되돌리려고 보관한다.
+   * 기한이익상실이 나면 상환방식이 '만기일시'로 바뀐다.
+   */
+  @Column(name = "previous_repayment_method", length = 20)
+  private String previousRepaymentMethod;
+
+  /** 일시청구 1건으로 접은 미래 회차 수 */
   @Column(name = "suspended_installments")
   private Integer suspendedInstallments;
 

@@ -76,7 +76,7 @@ public class RepaymentAllocator {
     // 이자·지연배상금 충당 대상. 청구중지 회차는 여기 들어가지 않는다.
     // 조기 상환된 구간의 약정이자는 발생하지 않았고, 미도래 원금에는 가산이자도 붙지 않는다.
     List<PaymentSchedule> targets = schedules.stream()
-        .filter(ps -> !PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus()))
+        .filter(ps -> !ps.isAcceleratedLine())
         .sorted(Comparator.comparing(RepaymentAllocator::dueDateOf,
             Comparator.nullsLast(Comparator.naturalOrder())))
         .toList();

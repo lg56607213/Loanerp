@@ -156,7 +156,7 @@ public class LoanDashboardService {
     long due = 0L, paid = 0L;
     int count = 0;
     for (PaymentSchedule ps : scheduleRepo.findByContractNumberIn(numbers)) {
-      if (PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) continue;
+      if (ps.isAcceleratedLine()) continue;
       LocalDate d = ps.getPaymentDate() != null ? ps.getPaymentDate() : ps.getTaxInvoiceDate();
       if (d == null || d.isBefore(from) || d.isAfter(to)) continue;
       due += ps.dueTotal();

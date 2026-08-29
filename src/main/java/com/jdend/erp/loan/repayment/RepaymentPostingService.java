@@ -110,8 +110,8 @@ public class RepaymentPostingService {
       ps.setPaidInterest(0L);
       ps.setPaidOverdueInterest(0L);
       ps.setPaidCost(0L);
-      // 청구중지(기한이익상실)는 수납과 무관한 상태라 유지한다.
-      if (!PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) {
+      // 기한이익상실 회차(청구중지·일시청구)는 수납과 무관한 상태라 유지한다.
+      if (!ps.isAcceleratedLine()) {
         ps.setLineStatus(PaymentSchedule.LINE_UNPAID);
       }
     }

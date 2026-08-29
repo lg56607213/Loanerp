@@ -183,6 +183,19 @@ public class ContractService {
   public ContractResponse update(Long id, ContractUpdateRequest req) {
     Contract c = findById(id);
 
+    // 기한이익상실·상각 채권은 스케줄이 이미 재편됐다.
+    // 여기서 상환방식·기간·금액을 고치면 스케줄이 재생성되면서 접어 둔 '일시청구' 회차가
+    // 풀리고, 청구중지 표시가 사라져 미도래 원금에까지 지연배상금이 붙는다.
+    // 조건을 고쳐야 하면 기한이익상실을 먼저 취소해야 한다.
+    if (ContractStatus.ACCELERATED.equals(c.getStatus())
+        || ContractStatus.WRITTEN_OFF.equals(c.getStatus())) {
+      if (changesSchedule(req, c)) {
+        throw new IllegalArgumentException(
+            "'" + c.getStatus() + "' 상태 채권은 대출금·이율·기간·상환방식을 바꿀 수 없습니다. "
+                + "기한이익상실(또는 대손상각)을 먼저 취소해주세요.");
+      }
+    }
+
     boolean scheduleAffected = false;
 
     if (isNotBlank(req.getCustomerNumber()) && !req.getCustomerNumber().equals(c.getCustomerNumber())) {
@@ -334,6 +347,17 @@ public class ContractService {
   }
 
   // ── 검증 / 보조 ──────────────────────────────────────────────
+
+  /** 스케줄을 다시 만들게 되는 변경인지 */
+  private boolean changesSchedule(ContractUpdateRequest req, Contract c) {
+    return (req.getLoanAmount() != null && !req.getLoanAmount().equals(c.getLoanAmount()))
+        || (req.getInterestRate() != null && !safeEq(req.getInterestRate(), c.getInterestRate()))
+        || (isNotBlank(req.getRepaymentMethod()) && !req.getRepaymentMethod().equals(c.getRepaymentMethod()))
+        || (req.getStartDate() != null && !req.getStartDate().equals(c.getStartDate()))
+        || (req.getEndDate() != null && !req.getEndDate().equals(c.getEndDate()))
+        || (req.getPaymentDay() != null && !req.getPaymentDay().equals(c.getPaymentDay()))
+        || (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount()));
+  }
 
   private void validateRequired(ContractRequest req) {
     if (isBlank(req.customerNumber)) throw new RuntimeException("고객번호(customerNumber) 필수");

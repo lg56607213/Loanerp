@@ -51,7 +51,9 @@
     <div class="card-body">
       <div class="warn-box">
         기한이익상실을 등록하면 채권 상태가 <b>해지</b>로 바뀌고, 그 시점부터 <b>잔여원금 전액</b>이 즉시 청구 대상이 됩니다.
-        상실일 이후의 미래 회차는 <b>청구중지</b>로 전환되어 개별 청구가 멈춥니다.
+        분할 상환이 끝나므로 <b>상환방식이 '만기일시'로 바뀌고</b>, 아직 납기일이 오지 않은 회차들은
+        <b>'일시청구' 1건으로 합쳐집니다.</b> 원금은 그대로 옮겨오므로 잔여원금은 변하지 않습니다.
+        이미 납기일이 지난 미납 회차는 그대로 두어 연체일수가 정확히 유지됩니다.
       </div>
       <div class="warn-box" style="background:#f1f5f9;border-color:#cbd5e1;color:#334155;">
         <b>자동 등록은 하지 않습니다.</b> 연체가 몇 개월 쌓여도 시스템이 알아서 기한이익상실을 걸지 않습니다.
@@ -131,7 +133,7 @@
               <th class="amount-cell">미수이자</th>
               <th class="amount-cell">지연배상금</th>
               <th class="amount-cell">청구총액</th>
-              <th>청구중지</th>
+              <th>접은 회차</th>
               <th>관리</th>
             </tr>
           </thead>
@@ -336,7 +338,7 @@
   $('listBody').addEventListener('click', async (e) => {
     const id = e.target.getAttribute('data-cancel');
     if (!id) return;
-    if (!confirm('기한이익상실을 취소하면 청구중지된 회차가 되살아나고 채권 상태가 정상으로 돌아갑니다. 진행하시겠습니까?')) return;
+    if (!confirm('기한이익상실을 취소하면 상환방식이 원래대로 돌아가고 접었던 회차가 다시 펼쳐집니다.\n스케줄을 다시 만든 뒤 수납을 재계산하므로 잔여원금은 그대로 유지됩니다.\n\n진행하시겠습니까?')) return;
     try {
       await api('/api/accelerations/' + id, 'DELETE');
       await loadList();

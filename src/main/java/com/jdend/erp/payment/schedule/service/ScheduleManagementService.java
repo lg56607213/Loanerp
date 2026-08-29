@@ -57,8 +57,8 @@ public class ScheduleManagementService {
       long receivable = (dueDate != null && dueDate.isBefore(today)) ? unpaid : 0L;
 
       String status;
-      if (PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) {
-        status = "청구중지";
+      if (ps.isAcceleratedLine()) {
+        status = ps.getLineStatus();
       } else if (unpaid == 0L && ps.dueTotal() > 0) {
         status = "완납";
       } else if (dueDate == null || !dueDate.isBefore(today)) {

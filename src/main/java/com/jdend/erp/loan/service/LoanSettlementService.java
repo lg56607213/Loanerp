@@ -113,7 +113,7 @@ public class LoanSettlementService {
    * '미도래 원금에 연체가산이자 부과 금지'를 지켜 주는 지점이다.
    */
   private boolean isDue(PaymentSchedule ps, LocalDate asOf) {
-    if (PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) return false;
+    if (ps.isAcceleratedLine()) return false;
     LocalDate due = ps.getPaymentDate() != null ? ps.getPaymentDate() : ps.getTaxInvoiceDate();
     return due != null && !due.isAfter(asOf);
   }

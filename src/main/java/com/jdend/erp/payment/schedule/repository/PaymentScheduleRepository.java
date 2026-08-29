@@ -23,6 +23,10 @@ public interface PaymentScheduleRepository extends JpaRepository<PaymentSchedule
   // ✅ 청구생성 핵심: 세금계산서일자 기간
   List<PaymentSchedule> findByTaxInvoiceDateBetween(LocalDate taxStartDate, LocalDate taxEndDate);
 
+  /** 채권의 스케줄을 전부 지운다. 기한이익상실 취소 후 원래 스케줄로 재생성할 때 쓴다. */
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  void deleteByContractNumber(String contractNumber);
+
   // BUG-05: 계약 수정 시 미래 미수납 스케줄만 삭제 (billStartDate >= 기준일인 건)
   @Modifying
   @Query("delete from PaymentSchedule ps where ps.contractNumber = :contractNumber and ps.billStartDate >= :fromDate")
