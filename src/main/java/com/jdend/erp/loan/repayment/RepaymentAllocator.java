@@ -3,6 +3,7 @@ package com.jdend.erp.loan.repayment;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.support.DailyInterestCalculator;
+import com.jdend.erp.loan.policy.AcceleratedRepaymentPolicy;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import org.springframework.stereotype.Component;
 
@@ -54,17 +55,41 @@ public class RepaymentAllocator {
   public RepaymentAllocation allocate(Contract contract, List<PaymentSchedule> schedules,
                                       long amount, LocalDate paymentDate, long outstandingCost,
                                       boolean writeOffOrder) {
+    return allocate(contract, schedules, amount, paymentDate, outstandingCost, writeOffOrder,
+        AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL);
+  }
+
+  /**
+   * @param acceleratedPolicy 기한이익상실로 청구중지된 회차의 원금을 갚을 수 있게 할지.
+   *   기본값 REDUCE_PRINCIPAL. HOLD_AS_PREPAID 면 도래 회차만 충당하고 나머지는 선수금으로 남는다.
+   */
+  public RepaymentAllocation allocate(Contract contract, List<PaymentSchedule> schedules,
+                                      long amount, LocalDate paymentDate, long outstandingCost,
+                                      boolean writeOffOrder,
+                                      AcceleratedRepaymentPolicy acceleratedPolicy) {
     RepaymentAllocation result = new RepaymentAllocation();
     if (amount <= 0) return result;
 
     LocalDate asOf = paymentDate != null ? paymentDate : LocalDate.now();
     boolean overdueCharged = !Boolean.FALSE.equals(contract.getOverdueChargeYn());
 
+    // 이자·지연배상금 충당 대상. 청구중지 회차는 여기 들어가지 않는다.
+    // 조기 상환된 구간의 약정이자는 발생하지 않았고, 미도래 원금에는 가산이자도 붙지 않는다.
     List<PaymentSchedule> targets = schedules.stream()
         .filter(ps -> !PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus()))
         .sorted(Comparator.comparing(RepaymentAllocator::dueDateOf,
             Comparator.nullsLast(Comparator.naturalOrder())))
         .toList();
+
+    // 원금 충당 대상. 기본 정책에서는 청구중지 회차의 원금도 갚을 수 있어야 한다.
+    // '청구를 중지한다'와 '변제를 받지 않는다'는 다른 이야기다.
+    List<PaymentSchedule> principalTargets =
+        acceleratedPolicy == AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL
+            ? schedules.stream()
+                .sorted(Comparator.comparing(RepaymentAllocator::dueDateOf,
+                    Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList()
+            : targets;
 
     long remain = amount;
     List<Step> order = writeOffOrder ? ORDER_WRITTEN_OFF : ORDER_GENERAL;
@@ -75,7 +100,7 @@ public class RepaymentAllocator {
         case COST -> applyCost(result, targets, schedules, remain, outstandingCost);
         case OVERDUE_INTEREST -> applyOverdueInterest(result, targets, remain, contract, asOf, overdueCharged);
         case INTEREST -> applyInterest(result, targets, remain, asOf);
-        case PRINCIPAL -> applyPrincipal(result, targets, remain, asOf);
+        case PRINCIPAL -> applyPrincipal(result, principalTargets, remain, asOf);
       };
     }
 

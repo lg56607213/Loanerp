@@ -6,6 +6,7 @@ import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.AmortizationCalculator;
+import com.jdend.erp.contract.support.DebtTypeCode;
 import com.jdend.erp.contract.support.LoanRateValidator;
 import com.jdend.erp.accounting.settings.service.OtherAccountSettingsService;
 import com.jdend.erp.accounting.voucher.dto.VoucherCreateRequest;
@@ -153,6 +154,9 @@ public class ContractService {
         .customerNumber(req.customerNumber)
         .customerType(req.customerType)
         .loanType(req.loanType)
+        .debtType(DebtTypeCode.normalize(req.debtType) != null
+            ? DebtTypeCode.normalize(req.debtType)
+            : DebtTypeCode.defaultFor(req.customerType, req.loanAmount))
         .loanAmount(nvl(req.loanAmount))
         .executeDate(req.executeDate != null ? req.executeDate : req.startDate)
         .interestRate(req.interestRate)
@@ -187,6 +191,7 @@ public class ContractService {
     }
     if (isNotBlank(req.getCustomerType())) c.setCustomerType(req.getCustomerType());
     if (isNotBlank(req.getLoanType()))     c.setLoanType(req.getLoanType());
+    if (isNotBlank(req.getDebtType()))     c.setDebtType(DebtTypeCode.normalize(req.getDebtType()));
     if (req.getExecuteDate() != null)      c.setExecuteDate(req.getExecuteDate());
     if (req.getRemarks() != null)          c.setRemarks(req.getRemarks());
 
@@ -410,6 +415,7 @@ public class ContractService {
         .customerName(c.getCustomer() != null ? c.getCustomer().getCustomerName() : null)
         .customerType(c.getCustomerType())
         .loanType(c.getLoanType())
+        .debtType(c.getDebtType())
         .loanAmount(c.getLoanAmount())
         .executeDate(c.getExecuteDate())
         .interestRate(c.getInterestRate())
@@ -439,6 +445,7 @@ public class ContractService {
         .customerRegistrationNumber(cu != null ? cu.getRegistrationNumber() : null)
         .customerType(c.getCustomerType())
         .loanType(c.getLoanType())
+        .debtType(c.getDebtType())
         .loanAmount(nvl(c.getLoanAmount()))
         .executeDate(c.getExecuteDate())
         .interestRate(c.getInterestRate())

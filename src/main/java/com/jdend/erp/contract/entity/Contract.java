@@ -1,6 +1,7 @@
 package com.jdend.erp.contract.entity;
 
 import com.jdend.erp.customer.Customer;
+import com.jdend.erp.contract.support.DebtTypeCode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -45,6 +46,16 @@ public class Contract {
   /** 신용대출 / 담보대출 / 사업자대출 */
   @Column(name="loan_type", length=20)
   private String loanType;
+
+  /**
+   * 개인금융채권 / 기타 — 개인채무자보호법 적용 판정에 쓴다.
+   *
+   * 최초원금 5,000만원 미만 + 개인 + 개인금융채권이면 기한이익상실 이후에도
+   * 원래 납기일이 도래하지 않은 원금에는 연체가산이자를 붙일 수 없다.
+   * 나머지 두 조건은 loanAmount·customerType 으로 판정되고 이 값만 없었다.
+   */
+  @Column(name="debt_type", length=20)
+  private String debtType;
 
   // ── 여신 조건 ───────────────────────────────────────────────
 
@@ -123,6 +134,7 @@ public class Contract {
     if (overdueChargeYn == null) overdueChargeYn = Boolean.TRUE;
     if (repaymentMethod == null || repaymentMethod.isBlank()) repaymentMethod = RepaymentMethod.EQUAL_PAYMENT;
     if (loanAmount == null) loanAmount = 0L;
+    if (debtType == null || debtType.isBlank()) debtType = DebtTypeCode.defaultFor(customerType, loanAmount);
     if (monthlyPayment == null) monthlyPayment = 0L;
     if (installmentCount == null) installmentCount = 0;
     if (remainingPrincipal == null) remainingPrincipal = loanAmount;

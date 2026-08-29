@@ -11,8 +11,16 @@
 --   앱을 한 번 띄워 새 컬럼이 생긴 뒤에 아래를 실행한다.
 
 -- 1) 새 컬럼이 없으면 만든다 (앱을 아직 안 띄운 경우 대비)
-ALTER TABLE company_applications
-  ADD COLUMN IF NOT EXISTS loan_balance_scale VARCHAR(30) NULL;
+-- MySQL 은 ALTER TABLE ... ADD COLUMN IF NOT EXISTS 를 지원하지 않는다(MariaDB 문법).
+-- information_schema 로 존재 여부를 보고 동적 SQL 로 처리한다.
+SET @ddl := (SELECT IF(COUNT(*) > 0,
+  'SELECT ''loan_balance_scale 컬럼이 이미 있습니다''',
+  'ALTER TABLE company_applications ADD COLUMN loan_balance_scale VARCHAR(30) NULL'
+) FROM information_schema.columns
+ WHERE table_schema = DATABASE() AND table_name = 'company_applications' AND column_name = 'loan_balance_scale');
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
 -- 2) 기존 값 이관 — 차량 대수 표기는 대부업에서 의미가 없으므로 원문을 그대로 옮겨
 --    이력만 보존한다. 신규 신청부터 새 구간 값이 들어온다.

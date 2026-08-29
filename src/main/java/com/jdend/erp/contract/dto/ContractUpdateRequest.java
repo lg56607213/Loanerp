@@ -14,6 +14,7 @@ public class ContractUpdateRequest {
   private String customerNumber;
   private String customerType;
   private String loanType;
+  private String debtType;      // 개인금융채권 / 기타
 
   private Long loanAmount;
   private LocalDate executeDate;

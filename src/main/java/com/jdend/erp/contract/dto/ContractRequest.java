@@ -14,6 +14,7 @@ public class ContractRequest {
   public String customerNumber;   // 고객번호(C001)
   public String customerType;     // 개인 / 법인
   public String loanType;         // 신용대출 / 담보대출 / 사업자대출
+  public String debtType;         // 개인금융채권 / 기타 (미입력 시 자동 판정)
 
   public Long loanAmount;         // 대출금(원금)
   public LocalDate executeDate;   // 실행일

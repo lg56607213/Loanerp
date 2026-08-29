@@ -1,8 +1,12 @@
 package com.jdend.erp.loan.service;
 
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.DailyInterestCalculator;
+import com.jdend.erp.contract.support.DebtTypeCode;
+import com.jdend.erp.loan.policy.DebtorType;
+import com.jdend.erp.loan.policy.PersonalDebtorProtection;
 import com.jdend.erp.loan.dto.LoanSettlementResponse;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
@@ -19,6 +23,12 @@ import java.util.List;
  *
  * 정기 회차 스케줄은 월할이지만, 정산은 실제 경과일수 기준이라 반드시 일할(365일)로 다시 계산한다.
  * 월할 그대로 쓰면 정산일이 회차 중간일 때 이자가 며칠치 어긋난다.
+ *
+ * <p><b>기한이익상실 이후 지연배상금.</b> 개인채무자보호법(개인금융채권의 관리 및
+ * 개인금융채무자의 보호에 관한 법률)상, 최초원금 5,000만원 미만인 개인금융채권은
+ * 기한이익상실이 나더라도 <b>원래 납기일이 도래하지 않은 원금에 연체가산이자를
+ * 붙일 수 없다.</b> 그래서 지연배상금은 언제나 '원래 납기일이 도래한 미납 회차'에만
+ * 붙인다. 잔여원금 전액에 일할 기산하지 않는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -51,6 +61,7 @@ public class LoanSettlementService {
         remainingPrincipal, c.getInterestRate(), accrualFrom, asOf);
 
     boolean charged = !Boolean.FALSE.equals(c.getOverdueChargeYn());
+    boolean protectionApplies = protectionApplies(c);
     long overdueInterest = overdueInterest(c, schedules, asOf, charged);
 
     long total = remainingPrincipal + unpaidInterest + accruedInterest + overdueInterest;
@@ -68,8 +79,19 @@ public class LoanSettlementService {
         .overdueCharged(charged)
         .legalCost(0L)
         .totalDue(total)
-        .note(buildNote(c, accrualFrom, asOf, accrualDays, charged))
+        .note(buildNote(c, accrualFrom, asOf, accrualDays, charged, protectionApplies))
         .build();
+  }
+
+  /**
+   * 개인채무자보호법 적용 여부.
+   * 최초원금(대출금) 5,000만원 미만 + 개인 + 개인금융채권이면 적용된다.
+   */
+  private boolean protectionApplies(Contract c) {
+    return PersonalDebtorProtection.applies(
+        c.getLoanAmount() == null ? 0L : c.getLoanAmount(),
+        "법인".equals(c.getCustomerType()) ? DebtorType.CORPORATE : DebtorType.INDIVIDUAL,
+        DebtTypeCode.toDebtType(c.getDebtType()));
   }
 
   /**
@@ -83,7 +105,13 @@ public class LoanSettlementService {
     return schedules.stream().mapToLong(PaymentSchedule::unpaidPrincipal).sum();
   }
 
-  /** 정산일까지 도래한 회차인지 (청구중지 회차는 개별 청구 대상이 아니다) */
+  /**
+   * 정산일까지 '원래 납기일'이 도래한 회차인지.
+   *
+   * <p>청구중지(기한이익상실로 조기 변제기가 온) 회차는 제외한다. 조기 변제기가 왔다고
+   * 연체가 된 것이 아니기 때문이다. 이 한 줄이 개인채무자보호법상
+   * '미도래 원금에 연체가산이자 부과 금지'를 지켜 주는 지점이다.
+   */
   private boolean isDue(PaymentSchedule ps, LocalDate asOf) {
     if (PaymentSchedule.LINE_SUSPENDED.equals(ps.getLineStatus())) return false;
     LocalDate due = ps.getPaymentDate() != null ? ps.getPaymentDate() : ps.getTaxInvoiceDate();
@@ -116,7 +144,8 @@ public class LoanSettlementService {
         .orElse(fallback);
   }
 
-  private String buildNote(Contract c, LocalDate from, LocalDate asOf, long days, boolean charged) {
+  private String buildNote(Contract c, LocalDate from, LocalDate asOf, long days,
+                          boolean charged, boolean protectionApplies) {
     StringBuilder sb = new StringBuilder();
     sb.append("경과이자는 ").append(from).append(" 다음날부터 ").append(asOf)
       .append("까지 ").append(days).append("일간 일할(365일) 계산했습니다.");
@@ -128,6 +157,14 @@ public class LoanSettlementService {
     } else if (c.getOverdueRate() != null) {
       sb.append(" 지연배상금은 연체 회차별 미납액에 연 ")
         .append(c.getOverdueRate()).append("%를 D+1부터 일할 적용했습니다.");
+    }
+    if (charged && ContractStatus.ACCELERATED.equals(c.getStatus())) {
+      sb.append(protectionApplies
+          ? " 이 채권은 개인채무자보호법 적용 대상(최초원금 5,000만원 미만 개인금융채권)이라,"
+            + " 기한이익상실로 조기 변제기가 도래한 원금에는 연체가산이자를 붙이지 않았습니다."
+            + " 원래 납기일이 지난 미납 회차에만 연체이율을 적용했습니다."
+          : " 기한이익상실 채권입니다. 조기 변제기가 도래한 원금에는 연체가산이자를 붙이지 않고,"
+            + " 원래 납기일이 지난 미납 회차에만 연체이율을 적용했습니다.");
     }
     return sb.toString();
   }

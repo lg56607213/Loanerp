@@ -171,8 +171,14 @@ class RepaymentAllocatorTest {
     assertThat(alloc.getCost()).isEqualTo(180_000L);
     // 기록할 곳이 없다고 금액만 차감하면 재계산 때 같은 비용을 두 번 충당한다
     assertThat(schedules.get(0).getPaidCost()).isEqualTo(180_000L);
-    // 청구중지 회차는 충당 대상이 아니므로 나머지는 선수금으로 남는다
-    assertThat(alloc.getExcess()).isEqualTo(20_000L);
+
+    // 법적비용을 뺀 20,000원은 청구중지 회차의 원금으로 간다.
+    // (기본 정책 REDUCE_PRINCIPAL — 조기 변제기가 도래한 원금이므로 갚을 수 있어야 한다.
+    //  예전에는 여기서 선수금으로 남아, 잔여원금 전액을 청구해 놓고 갚을 수가 없었다.)
+    assertThat(alloc.getPrincipal()).isEqualTo(20_000L);
+    assertThat(alloc.getExcess()).isZero();
+
+    // 원금을 받아도 청구중지 상태는 유지된다 (청구를 재개하는 것이 아니다)
     assertThat(schedules.get(0).getLineStatus()).isEqualTo(PaymentSchedule.LINE_SUSPENDED);
   }
 

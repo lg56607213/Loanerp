@@ -221,6 +221,17 @@
                 </select>
                 <div class="field-hint">금소법상 개인 고객은 연체이자 부과가 제한될 수 있습니다.</div>
               </div>
+              <div class="form-group">
+                <label class="required">채권성격</label>
+                <select id="debtType" required>
+                  <option value="개인금융채권">개인금융채권</option>
+                  <option value="기타">기타</option>
+                </select>
+                <div class="field-hint" id="debtTypeHint">
+                  개인 · 최초원금 5,000만원 미만 · 개인금융채권이면 개인채무자보호법 대상입니다.
+                  기한이익상실이 나도 아직 납기일이 오지 않은 원금에는 연체가산이자를 붙이지 않습니다.
+                </div>
+              </div>
             </div>
           </div>
 
@@ -599,6 +610,7 @@
       $('customerPhone').value = '';
       $('idNumber').value = '';
       $('paymentDay').value = '25';
+      $('debtType').value = '개인금융채권';
       $('editBadge').classList.add('hidden');
       $('formTitle').textContent = '대출 등록';
       $('submitBtn').textContent = '등록';
@@ -673,6 +685,7 @@
       return {
         customerNumber: strVal('customerCode'),
         customerType: strVal('customerType'),
+        debtType: strVal('debtType'),
         loanType: strVal('loanType'),
         loanAmount: numVal('loanAmount'),
         interestRate: $('interestRate').value === '' ? null : Number($('interestRate').value),
@@ -698,6 +711,7 @@
       $('customerPhone').value = c.customerPhone || '';
       $('idNumber').value = c.customerRegistrationNumber || '';
       $('customerType').value = c.customerType || '개인';
+      $('debtType').value = c.debtType || '개인금융채권';
       $('loanType').value = c.loanType || '신용대출';
       $('loanAmount').value = money(c.loanAmount);
       $('interestRate').value = c.interestRate != null ? c.interestRate : '';
@@ -771,6 +785,36 @@
         if (id === 'loanAmount') refreshSimulation();
       });
     });
+
+    // 개인채무자보호법 적용 여부는 고객구분·대출금·채권성격 세 가지로 갈린다.
+    // 등록 시점에 바로 보이게 해 두면 나중에 "왜 가산이자가 안 붙지" 를 묻지 않아도 된다.
+    function refreshDebtTypeHint() {
+      const hint = $('debtTypeHint');
+      if (!hint) return;
+      const individual = $('customerType').value === '개인';
+      const amount = numVal('loanAmount') || 0;
+      const personal = $('debtType').value === '개인금융채권';
+      const applies = individual && personal && amount > 0 && amount < 50000000;
+
+      if (amount <= 0) {
+        hint.textContent = '개인 · 최초원금 5,000만원 미만 · 개인금융채권이면 개인채무자보호법 대상입니다.';
+        hint.style.color = '#64748b';
+        return;
+      }
+      if (applies) {
+        hint.textContent = '개인채무자보호법 적용 대상입니다. 기한이익상실이 나도 아직 납기일이 오지 않은 원금에는 연체가산이자를 붙이지 않습니다.';
+      } else {
+        const reasons = [];
+        if (!individual) reasons.push('법인 채무자');
+        if (!personal) reasons.push('개인금융채권 아님');
+        if (amount >= 50000000) reasons.push('최초원금 5,000만원 이상');
+        hint.textContent = '개인채무자보호법 비적용입니다. (' + reasons.join(', ') + ')';
+      }
+      hint.style.color = applies ? '#166534' : '#9a3412';
+    }
+    ['customerType', 'debtType'].forEach(id =>
+      $(id).addEventListener('change', refreshDebtTypeHint));
+    $('loanAmount').addEventListener('input', refreshDebtTypeHint);
 
     ['interestRate', 'overdueRate'].forEach(id => {
       $(id).addEventListener('input', () => { validateRates(); refreshSimulation(); });

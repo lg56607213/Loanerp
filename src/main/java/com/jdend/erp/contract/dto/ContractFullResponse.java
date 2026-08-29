@@ -22,6 +22,7 @@ public class ContractFullResponse {
   public String customerType;
 
   public String loanType;
+  public String debtType;
 
   public Long loanAmount;
   public LocalDate executeDate;
