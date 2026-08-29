@@ -119,18 +119,21 @@ public class LoanSettlementService {
   }
 
   /**
-   * 지연배상금 — 연체된 회차마다 그 회차의 미납액에 대해 D+1부터 정산일까지 일할로 계산한다.
-   * 회차별로 연체일수가 다르므로 합산해야 정확하다.
+   * 지연배상금 — 연체된 회차마다 그 회차의 <b>미납 원금</b>에 대해
+   * D+1부터 정산일까지 일할로 계산한다. 회차별로 연체일수가 다르므로 합산해야 정확하다.
+   *
+   * <p>기준액은 미납 <b>원금</b>이다. 미납 이자에까지 지연배상금을 붙이면 이자에 이자를
+   * 물리는 복리가 되어 이자제한법 제한을 받는다. 지연손해금은 원본에 대해 발생한다(민법 제397조).
    */
   private long overdueInterest(Contract c, List<PaymentSchedule> schedules, LocalDate asOf, boolean charged) {
     if (!charged) return 0L;
     long sum = 0L;
     for (PaymentSchedule ps : schedules) {
       if (!isDue(ps, asOf)) continue;
-      long unpaid = ps.unpaidTotal();
-      if (unpaid <= 0) continue;
+      long overduePrincipal = ps.unpaidPrincipal();
+      if (overduePrincipal <= 0) continue;
       LocalDate due = ps.getPaymentDate() != null ? ps.getPaymentDate() : ps.getTaxInvoiceDate();
-      sum += DailyInterestCalculator.overdueInterest(true, unpaid, c.getOverdueRate(), due, asOf);
+      sum += DailyInterestCalculator.overdueInterest(true, overduePrincipal, c.getOverdueRate(), due, asOf);
     }
     return sum;
   }
@@ -155,8 +158,9 @@ public class LoanSettlementService {
     if (!charged) {
       sb.append(" 이 채권은 연체이자 미부과 대상이라 지연배상금을 산정하지 않았습니다.");
     } else if (c.getOverdueRate() != null) {
-      sb.append(" 지연배상금은 연체 회차별 미납액에 연 ")
-        .append(c.getOverdueRate()).append("%를 D+1부터 일할 적용했습니다.");
+      sb.append(" 지연배상금은 연체 회차별 미납 원금에 연 ")
+        .append(c.getOverdueRate())
+        .append("%를 D+1부터 일할 적용했습니다. 미납 이자에는 지연배상금을 붙이지 않습니다.");
     }
     if (charged && ContractStatus.ACCELERATED.equals(c.getStatus())) {
       sb.append(protectionApplies

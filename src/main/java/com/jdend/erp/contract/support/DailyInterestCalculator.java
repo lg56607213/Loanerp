@@ -47,7 +47,8 @@ public final class DailyInterestCalculator {
    * 지연배상금. 연체이자 미부과 계약(overdueChargeYn = false)이면 0을 반환한다.
    *
    * @param overdueCharged 계약의 연체이자 부과 여부
-   * @param overduePrincipal 연체된 원금
+   * @param overduePrincipal 연체된 <b>원금</b>. 미납 이자는 넣지 않는다 —
+   *        이자에 지연배상금을 붙이면 복리가 되어 이자제한법 제한을 받는다.
    * @param overdueRatePercent 연체이율(%)
    * @param dueDate 납입예정일 — 연체는 D+1부터 기산한다
    * @param asOf 기준일

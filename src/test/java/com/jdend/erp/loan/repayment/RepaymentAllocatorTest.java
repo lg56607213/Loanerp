@@ -133,8 +133,8 @@ class RepaymentAllocatorTest {
         .build();
     List<PaymentSchedule> schedules = oneDueInstallment(800_000L, 200_000L, LocalDate.of(2026, 7, 10));
 
-    // 45일 연체. 지연배상금 = 100만 × 20% ÷ 365 × 45
-    long expectedOverdue = 1_000_000L * 20 / 100 * 45 / 365;
+    // 45일 연체. 기준액은 '미납 원금' 80만이다 (이자 20만은 넣지 않는다).
+    long expectedOverdue = 800_000L * 20 / 100 * 45 / 365;
 
     RepaymentAllocation alloc = allocator.allocate(
         c, schedules, 100_000L, LocalDate.of(2026, 8, 24), 0L);
@@ -143,6 +143,50 @@ class RepaymentAllocatorTest {
     assertThat(alloc.getOverdueInterest()).isEqualTo(expectedOverdue);
     assertThat(alloc.getInterest()).isEqualTo(100_000L - expectedOverdue);
     assertThat(alloc.getPrincipal()).isZero();
+  }
+
+  @Test
+  @DisplayName("지연배상금은 미납 원금에만 붙는다 — 미납 이자에 이자를 물리지 않는다")
+  void overdueInterestAccruesOnUnpaidPrincipalOnly() {
+    Contract c = Contract.builder()
+        .contractNumber("L-TEST-0001")
+        .customerNumber("C-0001")
+        .status(ContractStatus.OVERDUE)
+        .interestRate(new BigDecimal("20.00"))
+        .overdueRate(new BigDecimal("20.00"))
+        .overdueChargeYn(Boolean.TRUE)
+        .build();
+    List<PaymentSchedule> schedules = oneDueInstallment(800_000L, 200_000L, LocalDate.of(2026, 7, 10));
+
+    RepaymentAllocation alloc = allocator.allocate(
+        c, schedules, 100_000L, LocalDate.of(2026, 8, 24), 0L);
+
+    long onPrincipalOnly = 800_000L * 20 / 100 * 45 / 365;      // 19,726
+    long onPrincipalPlusInterest = 1_000_000L * 20 / 100 * 45 / 365;  // 24,657 (옛 계산)
+
+    assertThat(alloc.getOverdueInterest()).isEqualTo(onPrincipalOnly);
+    assertThat(alloc.getOverdueInterest()).isLessThan(onPrincipalPlusInterest);
+  }
+
+  @Test
+  @DisplayName("원금은 다 갚고 이자만 남은 회차에는 지연배상금이 붙지 않는다")
+  void noOverdueInterestWhenOnlyInterestRemains() {
+    Contract c = Contract.builder()
+        .contractNumber("L-TEST-0001")
+        .customerNumber("C-0001")
+        .status(ContractStatus.OVERDUE)
+        .interestRate(new BigDecimal("20.00"))
+        .overdueRate(new BigDecimal("20.00"))
+        .overdueChargeYn(Boolean.TRUE)
+        .build();
+    List<PaymentSchedule> schedules = oneDueInstallment(800_000L, 200_000L, LocalDate.of(2026, 7, 10));
+    schedules.get(0).setPaidPrincipal(800_000L);   // 원금은 완납, 이자 20만만 미납
+
+    RepaymentAllocation alloc = allocator.allocate(
+        c, schedules, 100_000L, LocalDate.of(2026, 8, 24), 0L);
+
+    assertThat(alloc.getOverdueInterest()).isZero();
+    assertThat(alloc.getInterest()).isEqualTo(100_000L);
   }
 
   @Test

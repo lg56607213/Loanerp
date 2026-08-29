@@ -141,11 +141,13 @@ public class RepaymentAllocator {
       if (remain <= 0) break;
       if (!isDue(ps, asOf)) continue;
 
-      long unpaid = ps.unpaidTotal();
-      if (unpaid <= 0) continue;
+      // 지연배상금은 '미납 원금'에만 붙인다. 미납 이자에까지 붙이면 이자에 이자를
+      // 물리는 복리가 되어 이자제한법에 걸린다. 지연손해금은 원본에 대해 발생한다.
+      long overduePrincipal = ps.unpaidPrincipal();
+      if (overduePrincipal <= 0) continue;
 
       long accrued = DailyInterestCalculator.overdueInterest(
-          true, unpaid, contract.getOverdueRate(), dueDateOf(ps), asOf);
+          true, overduePrincipal, contract.getOverdueRate(), dueDateOf(ps), asOf);
       long already = nz(ps.getPaidOverdueInterest());
       long due = accrued - already;
       if (due <= 0) continue;
