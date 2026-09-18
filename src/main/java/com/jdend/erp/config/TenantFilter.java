@@ -67,15 +67,23 @@ public class TenantFilter implements Filter {
                 HttpSession session = req.getSession(false);
                 boolean isPublic = PUBLIC_API_PREFIXES.stream().anyMatch(uri::startsWith);
 
-                if (session == null && !isPublic) {
+                // 세션이 존재한다는 것만으로는 인증이 아니다. 로그인에 실패해도 컨트롤러가
+                // HttpSession 파라미터를 받으면서 JSESSIONID 가 발급되므로, 그 빈 세션으로
+                // 이 분기를 그대로 통과할 수 있었다(인증 우회).
+                // 위의 다른 분기들과 동일하게 로그인 여부(SESSION_LOGIN_ID)까지 확인한다.
+                boolean loggedIn = session != null
+                        && session.getAttribute(AuthService.SESSION_LOGIN_ID) != null;
+
+                if (!loggedIn && !isPublic) {
                     res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     res.setContentType("application/json;charset=UTF-8");
                     res.getWriter().write("{\"message\":\"로그인이 필요합니다.\"}");
                     return;
                 }
 
-                String targetDb = session == null ? null
-                        : (String) session.getAttribute(AuthService.SESSION_TARGET_DB);
+                String targetDb = loggedIn
+                        ? (String) session.getAttribute(AuthService.SESSION_TARGET_DB)
+                        : null;
                 TenantContext.setCurrentDb(
                         targetDb == null || targetDb.isBlank() ? "auth" : targetDb
                 );
