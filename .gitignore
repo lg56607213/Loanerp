@@ -41,3 +41,9 @@ src/main/resources/application-prod.yml
 src/main/resources/application.properties
 run-local.bat
 local/run-local.bat
+
+# 배포 — 서버별 비밀값과 로그/백업은 커밋하지 않는다
+deploy/server-env.ps1
+deploy/logs/
+deploy/backups/
+deploy/.last-deployed
