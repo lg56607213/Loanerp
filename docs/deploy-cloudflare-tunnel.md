@@ -1,5 +1,8 @@
 # 배포 안내서 — Cloudflare Tunnel (B안)
 
+> 실제로 구축해보며 겉에 드러난 함정(서비스 실행 인자 누락, 설정 파일 BOM·인코딩 깨짐,
+> 터널 이전)은 [`server-pc-setup.md`](server-pc-setup.md) §1-6, §1-7, §3 에 정리되어 있다.
+
 > 대상 도메인: `erp.planbloan.co.kr`
 > 방식: 이 PC에서 ERP를 띄우고 Cloudflare Tunnel로 노출한다. 서버 비용 0원.
 > 공인 IP·포트 개방 불필요, HTTPS는 Cloudflare가 자동 처리.
@@ -144,5 +147,9 @@ mysqldump -u root -p --databases loan_erp loan_company_planb > loan_backup.sql
 
 ### MySQL
 
-3306/33060 인바운드는 Windows 방화벽에서 차단해 두었다(로컬 접속은 영향 없음).
+~~3306/33060 인바운드는 Windows 방화벽에서 차단해 두었다~~ — **사실이 아니었다.**
+2026-09 확인 결과 `Port 3306` 규칙이 `Profile=Any, RemoteAddress=Any`로 살아 있었고,
+MySQL은 `0.0.0.0:3306`에 바인딩되어 같은 네트워크에서 root로 접근이 가능했다.
+서버 PC를 새로 구축할 때마다 직접 확인할 것 (`server-pc-setup.md` §5-1).
+참고로 Cloudflare Tunnel 자체는 ingress 경로만 통과시키므로 3306을 노출하지 않는다.
 AWS로 옮길 때도 보안그룹에서 3306을 절대 열지 말 것.
