@@ -25,7 +25,39 @@ public final class ExcelReader {
 
     private ExcelReader() {}
 
+    /** 엑셀 행 하나 — 실제 엑셀 행 번호(1-based)를 함께 들고 있다. */
+    public static final class IndexedRow {
+        private final int rowNumber;
+        private final Map<String, String> values;
+        IndexedRow(int rowNumber, Map<String, String> values) {
+            this.rowNumber = rowNumber;
+            this.values = values;
+        }
+        /** 엑셀에서 보이는 행 번호(헤더가 1행). 오류 메시지에 그대로 쓴다. */
+        public int getRowNumber() { return rowNumber; }
+        public Map<String, String> getValues() { return values; }
+    }
+
+    /** 헤더와 데이터 행을 함께 담는다. 필수 열 누락 판별에 헤더가 필요하다. */
+    public static final class Sheet {
+        private final List<String> headers;
+        private final List<IndexedRow> rows;
+        Sheet(List<String> headers, List<IndexedRow> rows) {
+            this.headers = headers;
+            this.rows = rows;
+        }
+        public List<String> getHeaders() { return headers; }
+        public List<IndexedRow> getRows() { return rows; }
+    }
+
+    /** 기존 호출부 호환용 — 행 번호가 필요 없을 때 쓴다. */
     public static List<Map<String, String>> readRows(InputStream is) {
+        List<Map<String, String>> out = new ArrayList<>();
+        for (IndexedRow r : readSheet(is).getRows()) out.add(r.getValues());
+        return out;
+    }
+
+    public static Sheet readSheet(InputStream is) {
         Path tmp = null;
         try {
             // OPCPackage는 seekable 스트림이 필요하므로 임시파일에 먼저 기록
@@ -51,7 +83,7 @@ public final class ExcelReader {
                         xmlReader.parse(new InputSource(sheetStream));
                     }
                 }
-                return handler.getRows();
+                return new Sheet(handler.getHeaders(), handler.getRows());
             }
         } catch (IllegalArgumentException e) {
             throw e;
@@ -65,7 +97,7 @@ public final class ExcelReader {
     }
 
     private static final class RowCollector implements XSSFSheetXMLHandler.SheetContentsHandler {
-        private final List<Map<String, String>> rows = new ArrayList<>();
+        private final List<IndexedRow> rows = new ArrayList<>();
         private List<String> headers = null;
         private final Map<Integer, String> currentCells = new TreeMap<>();
 
@@ -93,7 +125,8 @@ public final class ExcelReader {
                             map.put(h, currentCells.getOrDefault(i, "").trim());
                         }
                     }
-                    rows.add(map);
+                    // rowNum 은 0-based 이므로 엑셀에서 보이는 번호로 +1 한다.
+                    rows.add(new IndexedRow(rowNum + 1, map));
                 }
             }
         }
@@ -105,6 +138,7 @@ public final class ExcelReader {
             currentCells.put((int) ref.getCol(), formattedValue);
         }
 
-        public List<Map<String, String>> getRows() { return rows; }
+        public List<IndexedRow> getRows() { return rows; }
+        public List<String> getHeaders() { return headers == null ? List.of() : headers; }
     }
 }

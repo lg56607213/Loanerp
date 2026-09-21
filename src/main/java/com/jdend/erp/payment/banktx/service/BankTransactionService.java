@@ -58,23 +58,47 @@ public class BankTransactionService {
     String an = accountNo.trim();
     String batchId = UUID.randomUUID().toString().replace("-", "");
 
-    List<Map<String, String>> rows;
+    ExcelReader.Sheet sheet;
     try {
-      rows = ExcelReader.readRows(file.getInputStream());
+      sheet = ExcelReader.readSheet(file.getInputStream());
     } catch (Exception e) {
       throw new RuntimeException("엑셀 파일을 읽을 수 없습니다: " + e.getMessage());
     }
 
-    int inserted = 0, skipped = 0;
+    // 필수 열이 아예 없으면 행을 하나씩 따질 것도 없이 바로 알려준다.
+    // (예전에는 헤더가 틀려도 전 행이 조용히 걸러져 "0건"만 나왔다)
+    List<String> missing = new ArrayList<>();
+    for (String required : List.of("일자")) {
+      if (sheet.getHeaders().stream().noneMatch(h -> h.equals(required))) missing.add(required);
+    }
+    if (!missing.isEmpty()) {
+      throw new RuntimeException(
+          "엑셀 첫 행에 필수 열이 없습니다: " + String.join(", ", missing)
+          + " (현재 첫 행: " + String.join(" | ", sheet.getHeaders()) + ")"
+          + " — '양식 다운로드'로 받은 서식을 사용하세요.");
+    }
 
-    for (Map<String, String> row : rows) {
+    List<ExcelReader.IndexedRow> rows = sheet.getRows();
+    int inserted = 0, skipped = 0;
+    List<UploadResultResponse.RowError> errors = new ArrayList<>();
+
+    for (ExcelReader.IndexedRow indexed : rows) {
+      Map<String, String> row = indexed.getValues();
+      int rowNo = indexed.getRowNumber();
+
       String dateStr = safe(row.get("일자"));
-      if (dateStr.isBlank()) continue;
+      if (dateStr.isBlank()) {
+        errors.add(rowError(rowNo, "일자가 비어 있습니다.", ""));
+        continue;
+      }
 
       LocalDate txDate;
       try {
         txDate = parseDate(dateStr);
       } catch (Exception e) {
+        errors.add(rowError(rowNo,
+            "일자를 날짜로 읽을 수 없습니다. 엑셀에서 해당 셀 서식을 '2026-01-31' 형태로 바꿔주세요.",
+            dateStr));
         continue;
       }
 
@@ -82,6 +106,12 @@ public class BankTransactionService {
       long withdrawal = parseMoney(row.get("출금액"));
       long balance    = parseMoney(row.get("잔액"));
       String summary  = safe(row.get("적요"));
+
+      if (deposit == 0 && withdrawal == 0) {
+        errors.add(rowError(rowNo, "입금액과 출금액이 모두 비어 있습니다.",
+            "입금=" + safe(row.get("입금액")) + " / 출금=" + safe(row.get("출금액"))));
+        continue;
+      }
 
       String rowHash = sha256(String.join("|", bn, an, txDate.toString(),
           String.valueOf(deposit), String.valueOf(withdrawal), summary));
@@ -107,7 +137,14 @@ public class BankTransactionService {
         .parsedRows(rows.size())
         .insertedRows(inserted)
         .skippedDuplicates(skipped)
+        .failedRows(errors.size())
+        .errors(errors)
         .build();
+  }
+
+  private UploadResultResponse.RowError rowError(int rowNumber, String reason, String value) {
+    return UploadResultResponse.RowError.builder()
+        .rowNumber(rowNumber).reason(reason).value(value).build();
   }
 
   public void updateRemarksBulk(List<RemarksUpdateRequest> list) {
@@ -139,12 +176,64 @@ public class BankTransactionService {
   private String safe(String s) { return s == null ? "" : s.trim(); }
   private boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
 
+  /**
+   * 은행에서 받은 파일은 날짜 표기가 제각각이라 넓게 받는다.
+   * POI 는 셀 서식대로 문자열을 만들어 주므로, 서식이 m/d/yyyy 인 셀은
+   * "8/7/2023" 처럼 넘어온다. 예전에는 yyyy-MM-dd 만 받아 이런 행이 전부 탈락했다.
+   */
   private LocalDate parseDate(String s) {
-    String v = safe(s).replace(".", "-").replace("/", "-").replace(" ", "");
+    String raw = safe(s);
+    if (raw.isBlank()) throw new IllegalArgumentException("빈 값");
+
+    // 엑셀 날짜 일련번호가 서식 없이 그대로 넘어온 경우.
+    // 엑셀은 1900-02-29 를 존재한 날처럼 세므로 기준일이 1899-12-30 이다.
+    if (raw.matches("^\\d{5}(\\.0+)?$")) {
+      long serial = (long) Double.parseDouble(raw);
+      return LocalDate.of(1899, 12, 30).plusDays(serial);
+    }
+
+    String v = raw.replace(".", "-").replace("/", "-").replace(" ", "");
+    v = v.replace("년", "-").replace("월", "-").replace("일", "");
+    v = v.replaceAll("-+$", "");
+
     if (v.matches("^\\d{8}$")) {
       v = v.substring(0, 4) + "-" + v.substring(4, 6) + "-" + v.substring(6, 8);
     }
+
+    String[] p = v.split("-");
+    if (p.length == 3) {
+      // 표기가 여러 가지라 후보를 만들어 보고 실제로 존재하는 날짜를 고른다.
+      // 엑셀 기본 날짜 서식(numFmtId 14)은 m/d/yy 라 "12/29/23" 처럼 두 자리 연도로 온다.
+      Integer a = toInt(p[0]), b = toInt(p[1]), c = toInt(p[2]);
+      if (a != null && b != null && c != null) {
+        if (p[0].length() == 4) {
+          LocalDate d = tryDate(a, b, c);            // yyyy-M-d
+          if (d != null) return d;
+        }
+        if (p[2].length() == 4) {
+          LocalDate d = tryDate(c, a, b);            // M-d-yyyy
+          if (d != null) return d;
+        }
+        if (p[2].length() == 2) {
+          LocalDate d = tryDate(2000 + c, a, b);     // M-d-yy (엑셀 기본)
+          if (d != null) return d;
+        }
+        if (p[0].length() == 2) {
+          LocalDate d = tryDate(2000 + a, b, c);     // yy-M-d
+          if (d != null) return d;
+        }
+      }
+    }
     return LocalDate.parse(v, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+  }
+
+  private Integer toInt(String s) {
+    try { return Integer.parseInt(s); } catch (Exception e) { return null; }
+  }
+
+  /** 존재하지 않는 날짜(13월 등)면 null 을 돌려 다음 후보로 넘어가게 한다. */
+  private LocalDate tryDate(int year, int month, int day) {
+    try { return LocalDate.of(year, month, day); } catch (Exception e) { return null; }
   }
 
   private long parseMoney(String s) {

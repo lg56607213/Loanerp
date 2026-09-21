@@ -536,12 +536,41 @@
           method: 'POST',
           body: fd
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          // 서버가 이유를 담아 보내면(필수 열 누락 등) 그대로 보여준다
+          let msg = `HTTP ${res.status}`;
+          try {
+            const err = await res.json();
+            if (err && err.message) msg = err.message;
+          } catch (_) {}
+          throw new Error(msg);
+        }
         const result = await res.json();
-        alert(`업로드 완료\n\n저장: ${result.insertedRows}건\n중복 제외: ${result.skippedDuplicates}건`);
+
+        const lines = [
+          `전체 ${result.parsedRows}건 중`,
+          `  저장      ${result.insertedRows}건`,
+          `  중복 제외 ${result.skippedDuplicates}건`,
+          `  오류      ${result.failedRows || 0}건`
+        ];
+
+        const errs = result.errors || [];
+        if (errs.length > 0) {
+          lines.push('', '── 오류 내역 ──');
+          errs.slice(0, 15).forEach(e => {
+            const val = e.value ? `  (값: ${e.value})` : '';
+            lines.push(`${e.rowNumber}행: ${e.reason}${val}`);
+          });
+          if (errs.length > 15) lines.push(`… 외 ${errs.length - 15}건`);
+        }
+
+        alert(lines.join('
+'));
         await searchTransactions();
       } catch (e) {
-        alert('업로드 실패: ' + e.message);
+        alert('업로드 실패
+
+' + e.message);
       } finally {
         event.target.value = '';
         fileNameEl.textContent = '선택된 파일 없음';
