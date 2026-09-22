@@ -62,51 +62,6 @@
 
     .required-star { color:#d93025; }
 
-    /* ── CODEF 자동연동 ── */
-    .codef-section { background:#f0f7ff; border:1px solid #c5d9f7; border-radius:8px; padding:14px 16px; margin-bottom:16px; }
-    .codef-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-    .codef-title { font-size:14px; font-weight:700; color:#1a56db; display:flex; align-items:center; gap:6px; }
-    .codef-title::before { content:'🔗'; }
-    .btn-cert-reg {
-      height:32px; padding:0 14px; background:#1a56db; color:#fff;
-      border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:600;
-    }
-    .btn-cert-reg:hover { background:#1447b3; }
-    .conn-list { display:flex; flex-wrap:wrap; gap:10px; }
-    .conn-card {
-      background:#fff; border:1px solid #d0e3ff; border-radius:7px;
-      padding:10px 14px; min-width:220px; display:flex; align-items:center; justify-content:space-between; gap:12px;
-    }
-    .conn-card-info { font-size:13px; line-height:1.5; }
-    .conn-card-bank { font-weight:700; color:#1a3c7a; }
-    .conn-card-acc  { color:#666; font-size:12px; }
-    .btn-sync {
-      height:30px; padding:0 12px; background:#34a853; color:#fff;
-      border:none; border-radius:5px; font-size:12px; cursor:pointer; white-space:nowrap; font-weight:600;
-    }
-    .btn-sync:hover { background:#2d8f47; }
-    .btn-sync:disabled { background:#aaa; cursor:not-allowed; }
-    .conn-empty { font-size:13px; color:#888; }
-
-    /* ── CODEF 모달 ── */
-    .modal-overlay {
-      display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9000; align-items:center; justify-content:center;
-    }
-    .modal-overlay.open { display:flex; }
-    .modal-box { background:#fff; border-radius:10px; padding:28px 32px; width:460px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,.18); }
-    .modal-title { font-size:16px; font-weight:700; color:#1a3c7a; margin-bottom:18px; }
-    .modal-form-group { display:flex; flex-direction:column; gap:4px; margin-bottom:14px; }
-    .modal-form-group label { font-size:13px; font-weight:600; color:#444; }
-    .modal-form-group input, .modal-form-group select {
-      height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px;
-    }
-    .modal-form-group input:focus, .modal-form-group select:focus { outline:none; border-color:#1a56db; }
-    .modal-note { font-size:12px; color:#888; margin-bottom:16px; }
-    .modal-btns { display:flex; justify-content:flex-end; gap:8px; }
-    .btn-modal-cancel { height:36px; padding:0 18px; background:#fff; border:1px solid #ccc; border-radius:5px; font-size:13px; cursor:pointer; }
-    .btn-modal-confirm { height:36px; padding:0 18px; background:#1a56db; color:#fff; border:none; border-radius:5px; font-size:13px; cursor:pointer; font-weight:600; }
-    .btn-modal-confirm:hover { background:#1447b3; }
-    .btn-modal-confirm:disabled { background:#aaa; cursor:not-allowed; }
   </style>
 </head>
 <body>
@@ -183,17 +138,6 @@
           </div>
         </div>
 
-        <!-- CODEF 자동연동 섹션 -->
-        <div class="codef-section">
-          <div class="codef-header">
-            <span class="codef-title">자동연동 (공동인증서)</span>
-            <button class="btn-cert-reg" onclick="openCertModal()">+ 공동인증서 등록</button>
-          </div>
-          <div class="conn-list" id="connList">
-            <span class="conn-empty">등록된 계좌가 없습니다. 공동인증서를 등록해주세요.</span>
-          </div>
-        </div>
-
         <!-- 결과 테이블 -->
         <div class="table-container">
           <table>
@@ -222,66 +166,6 @@
     </div>
   </div>
 
-  <!-- 공동인증서 등록 모달 -->
-  <div class="modal-overlay" id="certModal">
-    <div class="modal-box">
-      <div class="modal-title">공동인증서 등록</div>
-
-      <div class="modal-form-group">
-        <label>은행 선택 <span class="required-star">*</span></label>
-        <select id="modalOrg" onchange="onBankChange()">
-          <option value="">-- 은행 선택 --</option>
-          <option value="0004">국민은행</option>
-          <option value="0088">신한은행</option>
-          <option value="0020">우리은행</option>
-          <option value="0081">하나은행</option>
-          <option value="0003">기업은행</option>
-          <option value="0011">농협은행</option>
-          <option value="0023">SC제일은행</option>
-          <option value="0071">우체국</option>
-          <option value="0089">케이뱅크</option>
-          <option value="0090">카카오뱅크</option>
-          <option value="0092">토스뱅크</option>
-        </select>
-      </div>
-
-      <div class="modal-form-group">
-        <label>계좌번호 (선택)</label>
-        <input type="text" id="modalAccountNo" placeholder="예: 110-123-456789">
-      </div>
-
-      <div class="modal-form-group">
-        <label>계좌 유형</label>
-        <select id="modalClientType">
-          <option value="B">기업 (사업자)</option>
-          <option value="P">개인</option>
-        </select>
-      </div>
-
-      <div class="modal-form-group">
-        <label>공인인증서 파일 (SignCert.der) <span class="required-star">*</span></label>
-        <input type="file" id="modalCertFile" accept=".der">
-      </div>
-
-      <div class="modal-form-group">
-        <label>개인키 파일 (SignPri.key) <span class="required-star">*</span></label>
-        <input type="file" id="modalKeyFile" accept=".key">
-      </div>
-
-      <div class="modal-form-group">
-        <label>인증서 비밀번호 <span class="required-star">*</span></label>
-        <input type="password" id="modalCertPw" placeholder="인증서 비밀번호 입력">
-      </div>
-
-      <p class="modal-note">※ 인증서 파일은 CODEF 서버에 안전하게 전송되며 ERP 서버에 저장되지 않습니다.</p>
-
-      <div class="modal-btns">
-        <button class="btn-modal-cancel" onclick="closeCertModal()">취소</button>
-        <button class="btn-modal-confirm" id="btnRegister" onclick="registerCert()">등록</button>
-      </div>
-    </div>
-  </div>
-
   <script src="../../assets/js/sidebar.js"></script>
   <script src="../../assets/js/config.js"></script>
   <script>
@@ -304,7 +188,6 @@
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('searchStartDate').value = startOfMonthISO();
       document.getElementById('searchEndDate').value   = todayISO();
-      loadConnections();
       loadMyBankAccounts();
     });
 
@@ -442,113 +325,6 @@
         URL.revokeObjectURL(url);
       } catch (e) {
         alert('템플릿 다운로드 실패: ' + e.message);
-      }
-    }
-
-    // ── CODEF 자동연동 ──────────────────────────────────────
-
-    const BANK_NAMES = {
-      '0004':'국민은행','0088':'신한은행','0020':'우리은행','0081':'하나은행',
-      '0003':'기업은행','0011':'농협은행','0023':'SC제일은행','0071':'우체국',
-      '0089':'케이뱅크','0090':'카카오뱅크','0092':'토스뱅크'
-    };
-
-    async function loadConnections() {
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/bank-sync/connections`);
-        if (!res.ok) return;
-        const list = await res.json();
-        renderConnections(list);
-      } catch (e) { /* 조용히 실패 */ }
-    }
-
-    function renderConnections(list) {
-      const el = document.getElementById('connList');
-      if (!list || list.length === 0) {
-        el.innerHTML = '<span class="conn-empty">등록된 계좌가 없습니다. 공동인증서를 등록해주세요.</span>';
-        return;
-      }
-      el.innerHTML = list.map(c => `
-        <div class="conn-card">
-          <div class="conn-card-info">
-            <div class="conn-card-bank">${escapeHtml(c.bankName)}</div>
-            <div class="conn-card-acc">${c.accountNo ? escapeHtml(c.accountNo) : '계좌 전체'}</div>
-          </div>
-          <button class="btn-sync" id="syncBtn${c.id}" onclick="syncNow(${c.id})">최신화</button>
-        </div>
-      `).join('');
-    }
-
-    async function syncNow(id) {
-      const btn = document.getElementById('syncBtn' + id);
-      if (btn) { btn.disabled = true; btn.textContent = '동기화 중...'; }
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/bank-sync/sync/${id}`, { method: 'POST' });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || '동기화 실패');
-        const r = data.result;
-        alert(`최신화 완료\n\n저장: ${r.saved}건 / 중복 제외: ${r.skipped}건 / 전체: ${r.total}건`);
-        await searchTransactions();
-      } catch (e) {
-        alert('최신화 실패: ' + e.message);
-      } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '최신화'; }
-      }
-    }
-
-    function openCertModal() {
-      document.getElementById('certModal').classList.add('open');
-      document.getElementById('modalOrg').value = '';
-      document.getElementById('modalAccountNo').value = '';
-      document.getElementById('modalClientType').value = 'B';
-      document.getElementById('modalCertFile').value = '';
-      document.getElementById('modalCertPw').value = '';
-    }
-
-    function closeCertModal() {
-      document.getElementById('certModal').classList.remove('open');
-    }
-
-    function onBankChange() { /* 필요 시 은행명 자동입력 */ }
-
-    async function registerCert() {
-      const org      = document.getElementById('modalOrg').value;
-      const accountNo = document.getElementById('modalAccountNo').value.trim();
-      const clientType = document.getElementById('modalClientType').value;
-      const certFile = document.getElementById('modalCertFile').files[0];
-      const keyFile  = document.getElementById('modalKeyFile').files[0];
-      const certPw   = document.getElementById('modalCertPw').value;
-
-      if (!org)      { alert('은행을 선택해주세요.'); return; }
-      if (!certFile) { alert('공인인증서 파일(SignCert.der)을 선택해주세요.'); return; }
-      if (!keyFile)  { alert('개인키 파일(SignPri.key)을 선택해주세요.'); return; }
-      if (!certPw)   { alert('인증서 비밀번호를 입력해주세요.'); return; }
-
-      const bankName = BANK_NAMES[org] || org;
-      const btn = document.getElementById('btnRegister');
-      btn.disabled = true; btn.textContent = '등록 중...';
-
-      try {
-        const fd = new FormData();
-        fd.append('certFile',    certFile);
-        fd.append('keyFile',     keyFile);
-        fd.append('certPassword', certPw);
-        fd.append('organization', org);
-        fd.append('bankName',    bankName);
-        fd.append('accountNo',   accountNo);
-        fd.append('clientType',  clientType);
-
-        const res = await fetch(`${API_BASE_URL}/api/bank-sync/register`, { method: 'POST', body: fd });
-        const data = await res.json();
-        if (!data.success) throw new Error(data.message || '등록 실패');
-
-        alert(`[${bankName}] 공동인증서 등록 완료!\n이제 최신화 버튼으로 거래내역을 가져올 수 있습니다.`);
-        closeCertModal();
-        await loadConnections();
-      } catch (e) {
-        alert('등록 실패: ' + e.message);
-      } finally {
-        btn.disabled = false; btn.textContent = '등록';
       }
     }
 

@@ -17,11 +17,6 @@ $Env:MAIL_PASSWORD = "구글_앱비밀번호_또는_더미"
 $Env:COOKIE_SECURE = "true"
 $Env:ERP_BASE_URL  = "https://erp.planbloan.co.kr"
 
-# CODEF 계좌연동을 쓰지 않으면 비워둔다.
-$Env:CODEF_CLIENT_ID     = ""
-$Env:CODEF_CLIENT_SECRET = ""
-$Env:CODEF_PUBLIC_KEY    = ""
-
 # ── 배포 스크립트가 쓰는 경로 ───────────────────────────────
 # 이 서버의 실제 설치 경로로 바꿀 것. javac -version 이 17 로 나와야 한다.
 $JavaHome  = "C:\Program Files\Java\jdk-17.0.19"

@@ -23,10 +23,5 @@ set MAIL_PASSWORD=구글_앱비밀번호_또는_아무값
 REM ── 로컬은 http 라 Secure 쿠키를 끈다 (이걸 켜면 로그인이 유지되지 않는다) ──
 set COOKIE_SECURE=false
 
-REM ── CODEF 계좌연동은 쓰지 않는다 (비워두면 기능만 꺼지고 앱은 정상 기동) ──
-set CODEF_CLIENT_ID=
-set CODEF_CLIENT_SECRET=
-set CODEF_PUBLIC_KEY=
-
 cd /d "%~dp0.."
 call mvnw.cmd spring-boot:run
