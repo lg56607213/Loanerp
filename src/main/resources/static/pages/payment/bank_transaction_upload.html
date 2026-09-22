@@ -339,9 +339,7 @@
       const accountNo = document.getElementById('uploadAccountNo').value.trim();
 
       if (!bankName || !accountNo) {
-        alert('업로드할 통장을 먼저 선택하세요.
-
-목록이 비어 있으면 내정보관리 > 통장관리에서 통장을 등록하세요.');
+        alert('업로드할 통장을 먼저 선택하세요.\n\n목록이 비어 있으면 내정보관리 > 통장관리에서 통장을 등록하세요.');
         event.target.value = '';
         return;
       }
@@ -392,13 +390,10 @@
           if (errs.length > 15) lines.push(`… 외 ${errs.length - 15}건`);
         }
 
-        alert(lines.join('
-'));
+        alert(lines.join('\n'));
         await searchTransactions();
       } catch (e) {
-        alert('업로드 실패
-
-' + e.message);
+        alert('업로드 실패\n\n' + e.message);
       } finally {
         event.target.value = '';
         fileNameEl.textContent = '선택된 파일 없음';
