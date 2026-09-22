@@ -9,6 +9,19 @@
 # ============================================================
 $ErrorActionPreference = "Stop"
 
+# deploy.ps1 과 같은 이유로 네이티브 호출을 감싼다.
+# PowerShell 5.1 에서 git 의 stderr 진행 출력이 ErrorRecord 가 되어 예외로 터지면,
+# 이 스크립트는 catch 로 빠져 "감시 스크립트 오류"만 남기고 영영 배포하지 않는다.
+function Invoke-Native {
+  param([Parameter(Mandatory)][string]$File, [string[]]$Arguments = @())
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $lines = & $File @Arguments 2>&1 | ForEach-Object { "$_" }
+    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Lines = $lines }
+  } finally { $ErrorActionPreference = $prev }
+}
+
 $RepoDir = Split-Path -Parent $PSScriptRoot
 $LogDir  = Join-Path $PSScriptRoot "logs"
 $Marker  = Join-Path $PSScriptRoot ".last-deployed"
@@ -21,7 +34,7 @@ function W($m) {
 
 try {
   Set-Location $RepoDir
-  & git fetch origin main 2>&1 | Out-Null
+  Invoke-Native "git" @("fetch","origin","main") | Out-Null
 
   $local  = (& git rev-parse HEAD).Trim()
   $remote = (& git rev-parse origin/main).Trim()
@@ -37,10 +50,10 @@ try {
   W "새 커밋 감지: $($local.Substring(0,7)) -> $($remote.Substring(0,7)) — 배포 시작"
   Set-Content -Path $Marker -Value $remote -Encoding ascii
 
-  & powershell -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "deploy.ps1") 2>&1 |
-    ForEach-Object { W "  $_" }
+  $run = Invoke-Native "powershell" @("-NoProfile","-ExecutionPolicy","Bypass","-File",(Join-Path $PSScriptRoot "deploy.ps1"))
+  $run.Lines | ForEach-Object { W "  $_" }
 
-  if ($LASTEXITCODE -eq 0) {
+  if ($run.ExitCode -eq 0) {
     W "배포 성공 — $($remote.Substring(0,7))"
     Remove-Item $Marker -ErrorAction SilentlyContinue   # 성공했으니 표식을 지운다
   } else {

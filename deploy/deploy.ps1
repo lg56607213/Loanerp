@@ -43,6 +43,20 @@ function Fail($msg) {
   throw $msg
 }
 
+# PowerShell 5.1 은 네이티브 exe 의 stderr 를 2>&1 로 합칠 때 각 줄을 ErrorRecord 로 감싼다.
+# $ErrorActionPreference='Stop' 이면 종료코드가 0 이어도 예외가 난다.
+# git 은 fetch/pull 진행 상황을, maven 은 경고를 정상 동작 중에도 stderr 로 쓰므로
+# 네이티브 호출은 반드시 이 함수를 거친다. (이것 때문에 배포가 시작도 못 하고 죽었다)
+function Invoke-Native {
+  param([Parameter(Mandatory)][string]$File, [string[]]$Arguments = @())
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $lines = & $File @Arguments 2>&1 | ForEach-Object { "$_" }
+    return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Lines = $lines }
+  } finally { $ErrorActionPreference = $prev }
+}
+
 # ── 서버별 설정 (git 에 올리지 않는다) ──────────────────────
 # server-env.ps1 이 아래 값들을 정의해야 한다:
 #   $Env:DB_URL_AUTH, $Env:DB_USERNAME, $Env:DB_PASSWORD,
@@ -62,7 +76,7 @@ Set-Location $RepoDir
 
 # ── 1. 새 커밋이 있는지 확인 ────────────────────────────────
 $before = (& git rev-parse HEAD).Trim()
-& git fetch origin main 2>&1 | Out-Null
+Invoke-Native "git" @("fetch","origin","main") | Out-Null
 $remote = (& git rev-parse origin/main).Trim()
 
 Log "현재 $($before.Substring(0,7)) / 원격 $($remote.Substring(0,7))"
@@ -102,8 +116,9 @@ if ($dirty) {
   Fail "서버 저장소에 커밋되지 않은 변경이 있습니다. 서버에서는 코드를 직접 고치지 마세요.`n$dirty"
 }
 
-& git pull --ff-only origin main 2>&1 | ForEach-Object { Log "  git: $_" }
-if ($LASTEXITCODE -ne 0) { Fail "git pull 실패" }
+$pull = Invoke-Native "git" @("pull","--ff-only","origin","main")
+$pull.Lines | ForEach-Object { Log "  git: $_" }
+if ($pull.ExitCode -ne 0) { Fail "git pull 실패" }
 
 $after = (& git rev-parse HEAD).Trim()
 Log "코드 갱신: $($before.Substring(0,7)) -> $($after.Substring(0,7))"
@@ -112,10 +127,11 @@ Log "코드 갱신: $($before.Substring(0,7)) -> $($after.Substring(0,7))"
 if ($JavaHome) { $Env:JAVA_HOME = $JavaHome }
 
 Log "빌드 시작 (테스트 제외)"
-& ".\mvnw.cmd" -q -DskipTests package 2>&1 | ForEach-Object { Log "  mvn: $_" }
-if ($LASTEXITCODE -ne 0) {
+$build = Invoke-Native ".\mvnw.cmd" @("-q","-DskipTests","package")
+$build.Lines | ForEach-Object { Log "  mvn: $_" }
+if ($build.ExitCode -ne 0) {
   Log "[실패] 빌드 실패 — 코드를 되돌립니다."
-  & git reset --hard $before 2>&1 | Out-Null
+  Invoke-Native "git" @("reset","--hard",$before) | Out-Null
   Fail "빌드 실패. 운영은 건드리지 않았습니다(앱이 계속 돌고 있음)."
 }
 
@@ -186,8 +202,8 @@ if (Test-Health) {
 # ── 6. 롤백 ─────────────────────────────────────────────────
 Log "[실패] 헬스체크 실패 — $($before.Substring(0,7)) 로 되돌립니다."
 Stop-App
-& git reset --hard $before 2>&1 | Out-Null
-& ".\mvnw.cmd" -q -DskipTests package 2>&1 | Out-Null
+Invoke-Native "git" @("reset","--hard",$before) | Out-Null
+Invoke-Native ".\mvnw.cmd" @("-q","-DskipTests","package") | Out-Null
 
 $oldJar = Get-ChildItem "target\*.jar" -Exclude "*sources*","*javadoc*" |
           Sort-Object LastWriteTime -Descending | Select-Object -First 1
