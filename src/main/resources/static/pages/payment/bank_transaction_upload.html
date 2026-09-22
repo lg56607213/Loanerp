@@ -351,6 +351,54 @@
 
     // ── 엑셀 업로드 ─────────────────────────────────────────
 
+    /** 업로드 결과를 사람이 읽을 수 있는 줄 목록으로 만든다. */
+    function describeResult(r) {
+      const lines = [
+        `전체 ${r.parsedRows}건`,
+        `  저장 대상  ${r.insertedRows}건`,
+        `  중복 제외  ${r.skippedDuplicates}건`,
+        `  오류       ${r.failedRows || 0}건`
+      ];
+
+      const errs = r.errors || [];
+      if (errs.length) {
+        lines.push('', '── 오류 (저장되지 않음) ──');
+        errs.slice(0, 15).forEach(e => {
+          lines.push(`${e.rowNumber}행: ${e.reason}` + (e.value ? `  (값: ${e.value})` : ''));
+        });
+        if (errs.length > 15) lines.push(`… 외 ${errs.length - 15}건`);
+      }
+
+      const dups = r.duplicates || [];
+      if (dups.length) {
+        lines.push('', '── 중복으로 제외된 내역 ──');
+        dups.slice(0, 15).forEach(d => {
+          const amt = d.deposit > 0 ? `입금 ${d.deposit.toLocaleString()}`
+                                    : `출금 ${d.withdrawal.toLocaleString()}`;
+          lines.push(`${d.rowNumber}행: ${d.txDate}  ${amt}  잔액 ${Number(d.balance).toLocaleString()}  ${d.summary || ''}`);
+          lines.push(`         → ${d.reason}`);
+        });
+        if (dups.length > 15) lines.push(`… 외 ${dups.length - 15}건`);
+      }
+      return lines;
+    }
+
+    async function postUpload(file, bankName, accountNo, dryRun) {
+      const fd = new FormData();
+      fd.append('bankName',  bankName);
+      fd.append('accountNo', accountNo);
+      fd.append('file', file);
+      fd.append('dryRun', dryRun ? 'true' : 'false');
+
+      const res = await fetch(`${API_BASE_URL}/api/bank-transactions/upload`, { method: 'POST', body: fd });
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try { const e = await res.json(); if (e && e.message) msg = e.message; } catch (_) {}
+        throw new Error(msg);
+      }
+      return await res.json();
+    }
+
     async function handleFileUpload(event) {
       const file = event.target.files[0];
       const fileNameEl = document.getElementById('fileName');
@@ -367,51 +415,25 @@
 
       fileNameEl.textContent = file.name;
 
-      if (!confirm(`[${bankName} / ${accountNo}]\n${file.name} 파일을 업로드할까요?`)) {
-        event.target.value = '';
-        fileNameEl.textContent = '선택된 파일 없음';
-        return;
-      }
-
-      const fd = new FormData();
-      fd.append('bankName',  bankName);
-      fd.append('accountNo', accountNo);
-      fd.append('file', file);
-
       try {
-        const res = await fetch(`${API_BASE_URL}/api/bank-transactions/upload`, {
-          method: 'POST',
-          body: fd
-        });
-        if (!res.ok) {
-          // 서버가 이유를 담아 보내면(필수 열 누락 등) 그대로 보여준다
-          let msg = `HTTP ${res.status}`;
-          try {
-            const err = await res.json();
-            if (err && err.message) msg = err.message;
-          } catch (_) {}
-          throw new Error(msg);
-        }
-        const result = await res.json();
+        // 1단계 — 저장하지 않고 검증만 해서 무엇이 빠지는지 먼저 보여준다
+        const check = await postUpload(file, bankName, accountNo, true);
 
-        const lines = [
-          `전체 ${result.parsedRows}건 중`,
-          `  저장      ${result.insertedRows}건`,
-          `  중복 제외 ${result.skippedDuplicates}건`,
-          `  오류      ${result.failedRows || 0}건`
-        ];
-
-        const errs = result.errors || [];
-        if (errs.length > 0) {
-          lines.push('', '── 오류 내역 ──');
-          errs.slice(0, 15).forEach(e => {
-            const val = e.value ? `  (값: ${e.value})` : '';
-            lines.push(`${e.rowNumber}행: ${e.reason}${val}`);
-          });
-          if (errs.length > 15) lines.push(`… 외 ${errs.length - 15}건`);
+        if (check.insertedRows === 0) {
+          alert(`저장할 내역이 없습니다.\n\n` + describeResult(check).join('\n'));
+          return;
         }
 
-        alert(lines.join('\n'));
+        const head = `[${bankName} / ${accountNo}]\n${file.name}\n`;
+        const tail = (check.failedRows || check.skippedDuplicates)
+          ? '\n\n위 내용으로 저장할까요? (오류·중복 행은 제외됩니다)'
+          : '\n\n저장할까요?';
+
+        if (!confirm(head + describeResult(check).join('\n') + tail)) return;
+
+        // 2단계 — 확인했으니 실제로 저장한다
+        const saved = await postUpload(file, bankName, accountNo, false);
+        alert('업로드 완료\n\n' + describeResult(saved).join('\n'));
         await searchTransactions();
       } catch (e) {
         alert('업로드 실패\n\n' + e.message);

@@ -37,13 +37,18 @@ public class BankTransactionController {
         .body(bytes);
   }
 
+  /**
+   * @param dryRun true 면 검증만 하고 저장하지 않는다. 화면에서 무엇이 빠지는지
+   *               먼저 보여준 뒤, 사용자가 확인하면 false 로 다시 호출한다.
+   */
   @PostMapping("/upload")
   public UploadResultResponse upload(
       @RequestParam("bankName") String bankName,
       @RequestParam("accountNo") String accountNo,
-      @RequestParam("file") MultipartFile file
+      @RequestParam("file") MultipartFile file,
+      @RequestParam(value = "dryRun", defaultValue = "false") boolean dryRun
   ) {
-    return service.uploadExcel(bankName, accountNo, file);
+    return service.uploadExcel(bankName, accountNo, file, dryRun);
   }
 
   @PatchMapping("/remarks")

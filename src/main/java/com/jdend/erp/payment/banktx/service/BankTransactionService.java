@@ -50,6 +50,14 @@ public class BankTransactionService {
   }
 
   public UploadResultResponse uploadExcel(String bankName, String accountNo, MultipartFile file) {
+    return uploadExcel(bankName, accountNo, file, false);
+  }
+
+  /**
+   * @param dryRun true 면 검증만 하고 저장하지 않는다.
+   *               무엇이 빠지는지 먼저 보여주고 사용자가 결정하게 하기 위한 것이다.
+   */
+  public UploadResultResponse uploadExcel(String bankName, String accountNo, MultipartFile file, boolean dryRun) {
     if (file == null || file.isEmpty()) throw new RuntimeException("파일이 비어있습니다.");
     if (isBlank(bankName)) throw new RuntimeException("은행명을 입력하세요.");
     if (isBlank(accountNo)) throw new RuntimeException("계좌번호를 입력하세요.");
@@ -81,6 +89,9 @@ public class BankTransactionService {
     List<ExcelReader.IndexedRow> rows = sheet.getRows();
     int inserted = 0, skipped = 0;
     List<UploadResultResponse.RowError> errors = new ArrayList<>();
+    List<UploadResultResponse.DuplicateRow> duplicates = new ArrayList<>();
+    // 같은 파일 안에서 겹치는 행도 잡아낸다(DB 조회만으로는 저장 전이라 걸리지 않는다).
+    Set<String> seenInFile = new HashSet<>();
 
     for (ExcelReader.IndexedRow indexed : rows) {
       Map<String, String> row = indexed.getValues();
@@ -113,10 +124,31 @@ public class BankTransactionService {
         continue;
       }
 
+      // 중복 판정에는 잔액까지 넣는다. 빼면 같은 날 같은 금액을 같은 상대와
+      // 두 번 주고받은 서로 다른 거래가 하나로 묶여 사라진다.
+      // 저장용 해시도 같은 기준으로 만든다(row_hash 에 unique 제약이 있어,
+      // 잔액을 빼면 그런 두 거래가 제약에 걸려 아예 들어가지 못한다).
       String rowHash = sha256(String.join("|", bn, an, txDate.toString(),
-          String.valueOf(deposit), String.valueOf(withdrawal), summary));
+          String.valueOf(deposit), String.valueOf(withdrawal),
+          String.valueOf(balance), summary));
 
-      if (repo.existsByRowHash(rowHash)) { skipped++; continue; }
+      String dupReason = null;
+      if (!seenInFile.add(rowHash)) {
+        dupReason = "이 파일 안에서 중복";
+      } else if (repo.existsSameTransaction(bn, an, txDate, deposit, withdrawal, balance, summary)) {
+        dupReason = "이미 등록된 내역";
+      }
+
+      if (dupReason != null) {
+        skipped++;
+        duplicates.add(UploadResultResponse.DuplicateRow.builder()
+            .rowNumber(rowNo).txDate(txDate.toString())
+            .deposit(deposit).withdrawal(withdrawal).balance(balance)
+            .summary(summary).reason(dupReason).build());
+        continue;
+      }
+
+      if (dryRun) { inserted++; continue; }   // 검증만 — 저장하지 않는다
 
       repo.save(BankTransaction.builder()
           .bankName(bn)
@@ -139,6 +171,8 @@ public class BankTransactionService {
         .skippedDuplicates(skipped)
         .failedRows(errors.size())
         .errors(errors)
+        .duplicates(duplicates)
+        .dryRun(dryRun)
         .build();
   }
 

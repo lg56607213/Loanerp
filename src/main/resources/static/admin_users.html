@@ -226,19 +226,22 @@
   // ============================
   // 인증 확인
   // ============================
+  /** 통과하면 true. 다른 화면으로 보내는 중이면 false 를 돌려 호출부가 멈추게 한다. */
   async function authCheck() {
     const res = await fetch('/api/auth/me', { credentials:'include' });
     const data = await res.json();
 
     if (!data.success) {
       location.href = '/login.html';
-      return;
+      return false;
     }
 
     if (data.role !== 'ADMIN') {
       alert('운영자 권한이 필요합니다.');
       location.href = '/index.html';
+      return false;
     }
+    return true;
   }
 
   // ============================
@@ -522,7 +525,7 @@
   }
 
   window.addEventListener('load', async () => {
-    await authCheck();
+    if (!(await authCheck())) return;   // 이동 중 — 더 진행하지 않는다
     await loadUsers();
     await loadPendingBadge();
   });

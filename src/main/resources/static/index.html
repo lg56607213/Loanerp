@@ -324,7 +324,7 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', async function () {
-      await authCheck();
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중 — 더 진행하지 않는다
       document.body.style.visibility = 'visible';
 
       try {
