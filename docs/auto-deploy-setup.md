@@ -97,6 +97,33 @@ Get-Content deploy\logs\watch.log -Tail 20
 
 새 커밋이 없으면 아무것도 하지 않고 즉시 끝나므로 부하는 없다.
 
+### 3-1. SYSTEM 계정에 저장소 접근을 허용한다 — 이게 없으면 자동 배포는 영영 돌지 않는다
+
+작업 스케줄러는 SYSTEM 으로 도는데, 저장소 폴더는 로그인 사용자 소유다.
+git 은 이 조합을 거부한다.
+
+```
+fatal: detected dubious ownership in repository at 'C:/Users/admin/Loanerp'
+```
+
+이때 `git rev-parse` 가 아무것도 돌려주지 않아 `check-and-deploy.ps1` 은
+`null 값 식에서 메서드를 호출할 수 없습니다` 로 죽는다. **try/catch 안이라 조용히 먹히고**
+`watch.log` 에 한 줄 남을 뿐이라 원인을 찾기 어렵다. 배포는 한 번도 일어나지 않는다.
+
+SYSTEM 의 전역 설정에 예외를 넣는다(관리자 PowerShell 로는 안 된다 — 반드시 SYSTEM 으로 실행).
+임시 작업을 하나 만들어 실행하는 게 가장 확실하다.
+
+```powershell
+$a = New-ScheduledTaskAction -Execute "cmd.exe" `
+     -Argument "/c git config --global --add safe.directory C:/Users/admin/Loanerp"
+$p = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+Register-ScheduledTask -TaskName "TmpGitCfg" -Action $a -Principal $p -Force | Out-Null
+Start-ScheduledTask -TaskName "TmpGitCfg"; Start-Sleep 5
+Unregister-ScheduledTask -TaskName "TmpGitCfg" -Confirm:$false
+```
+
+확인 — `C:\Windows\System32\config\systemprofile\.gitconfig` 에 `[safe] directory` 가 들어가야 한다.
+
 > **같은 커밋으로 반복 실패하면 재시도하지 않는다.** `deploy\.last-deployed` 에 실패한
 > 커밋을 적어두고 건너뛴다. 고친 뒤 새 커밋을 올리거나 그 파일을 지우면 다시 시도한다.
 
@@ -132,6 +159,18 @@ icacls $f /inheritance:r /grant "Administrators:F" /grant "SYSTEM:F"
 
 > 22번은 **Private 프로필로만** 연다. 인터넷에 노출하지 않는다.
 > Cloudflare Tunnel 은 `config.yml` 의 ingress 경로만 통과시키므로 SSH 는 터널로 새지 않는다.
+
+> **`-Profile Private` 를 그대로 쓰면 안 되는 경우가 있다.** 서버 PC의 네트워크가
+> `Public` 으로 분류돼 있으면 이 규칙은 적용되지 않아 22번이 열리지 않는다.
+> `Get-NetConnectionProfile` 로 먼저 확인하고, `Public` 이면 프로필을 바꾸는 대신
+> 출발지를 사내망으로 제한하는 편이 안전하다:
+>
+> ```powershell
+> New-NetFirewallRule -DisplayName "OpenSSH (LAN only)" -Direction Inbound ``
+>   -Protocol TCP -LocalPort 22 -Action Allow -RemoteAddress LocalSubnet
+> ```
+>
+> 비밀번호 인증도 함께 끈다(`sshd_config` 의 `PasswordAuthentication no`). 키만 쓰게 한다.
 
 설정이 끝나면 개발 PC에서 이렇게 배포할 수 있다:
 
