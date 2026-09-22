@@ -3,6 +3,11 @@ server:
   # Cloudflare/리버스 프록시 뒤에서 X-Forwarded-Proto 를 인식해 https 로 판단하게 한다.
   # 이게 없으면 https 접속인데도 Secure 쿠키가 내려가지 않아 로그인이 유지되지 않는다.
   forward-headers-strategy: framework
+  # 응답 압축: 터널(오리진→엣지) 전송량을 줄인다. Cloudflare 엣지 압축과는 별개.
+  compression:
+    enabled: true
+    mime-types: text/html,text/css,text/plain,application/javascript,application/json,application/xml
+    min-response-size: 1024
   servlet:
     session:
       timeout: 120m
@@ -40,15 +45,6 @@ spring:
             enable: true
             required: true
 
-# CODEF 계좌연동 자격증명.
-# 시크릿은 절대 코드에 두지 않는다. 환경변수 또는 application-local.yml(gitignore)로 주입한다.
-# 미설정 시 계좌연동 기능만 동작하지 않고 앱은 정상 기동한다.
-codef:
-  client-id: ${CODEF_CLIENT_ID:}
-  client-secret: ${CODEF_CLIENT_SECRET:}
-  public-key: ${CODEF_PUBLIC_KEY:}
-  base-url: https://api.codef.io
-  oauth-url: https://oauth.codef.io
 
 # 구독결제 알림 수신 주소. 미지정 시 문의 수신 주소를 쓴다.
 admin:

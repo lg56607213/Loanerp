@@ -41,3 +41,17 @@ src/main/resources/application-prod.yml
 src/main/resources/application.properties
 run-local.bat
 local/run-local.bat
+
+# 배포 — 서버별 비밀값과 로그/백업은 커밋하지 않는다
+deploy/server-env.ps1
+deploy/logs/
+deploy/backups/
+deploy/.last-deployed
+
+# 서버 PC 로컬 산출물 — 자격증명·로그는 절대 커밋하지 않는다
+run-server.bat
+.admin-credentials.txt
+.admin-tmp.sql
+.apppid
+*.log
+*.log.err
