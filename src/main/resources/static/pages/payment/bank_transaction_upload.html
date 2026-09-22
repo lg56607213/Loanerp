@@ -92,12 +92,12 @@
 
             <div class="form-group">
               <label for="searchStartDate">일자(시작)</label>
-              <input type="date" id="searchStartDate" style="width:140px;">
+              <input type="text" id="searchStartDate" style="width:140px;" maxlength="10" inputmode="numeric" placeholder="20260801" oninput="normalizeDateInput(this)" onblur="normalizeDateInput(this)">
             </div>
 
             <div class="form-group">
               <label for="searchEndDate">일자(종료)</label>
-              <input type="date" id="searchEndDate" style="width:140px;">
+              <input type="text" id="searchEndDate" style="width:140px;" maxlength="10" inputmode="numeric" placeholder="20260801" oninput="normalizeDateInput(this)" onblur="normalizeDateInput(this)">
             </div>
 
             <div class="form-group">
@@ -175,6 +175,27 @@
     function escapeHtml(s) {
       return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
     }
+    /**
+     * 일자 입력 도우미 — 숫자 8자리를 치면 YYYY-MM-DD 로 바꿔 준다.
+     * 20260801 -> 2026-08-01. 이미 YYYY-MM-DD 로 친 경우는 그대로 둔다.
+     * 달력 대신 숫자만 빠르게 치려는 입력을 받기 위한 것이다.
+     */
+    function normalizeDateInput(el) {
+      const digits = el.value.replace(/[^0-9]/g, '');
+      if (digits.length === 8) {
+        el.value = digits.slice(0,4) + '-' + digits.slice(4,6) + '-' + digits.slice(6,8);
+      }
+    }
+
+    /** 조회에 넘기기 전 한 번 더 정규화한다(붙여넣기 등으로 형식이 어긋난 경우). */
+    function toISODate(v) {
+      const t = String(v || '').trim();
+      if (!t) return '';
+      const d = t.replace(/[^0-9]/g, '');
+      if (d.length === 8) return d.slice(0,4) + '-' + d.slice(4,6) + '-' + d.slice(6,8);
+      return t;
+    }
+
     function todayISO() { return new Date().toISOString().split('T')[0]; }
     function startOfMonthISO() {
       const d = new Date();
@@ -238,8 +259,8 @@
 
     async function searchTransactions() {
       const bank      = document.getElementById('searchBank').value.trim();
-      const startDate = document.getElementById('searchStartDate').value;
-      const endDate   = document.getElementById('searchEndDate').value;
+      const startDate = toISODate(document.getElementById('searchStartDate').value);
+      const endDate   = toISODate(document.getElementById('searchEndDate').value);
 
       const qs = new URLSearchParams();
       if (bank)      qs.set('bank', bank);

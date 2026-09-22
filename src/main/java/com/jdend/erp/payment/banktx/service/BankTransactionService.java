@@ -192,7 +192,8 @@ public class BankTransactionService {
       return LocalDate.of(1899, 12, 30).plusDays(serial);
     }
 
-    String v = raw.replace(".", "-").replace("/", "-").replace(" ", "");
+    // 엑셀이 20260801 을 천단위 서식으로 "20,260,801" 로 내려주는 경우가 있어 쉼표를 먼저 턴다.
+    String v = raw.replace(",", "").replace(".", "-").replace("/", "-").replace(" ", "");
     v = v.replace("년", "-").replace("월", "-").replace("일", "");
     v = v.replaceAll("-+$", "");
 
