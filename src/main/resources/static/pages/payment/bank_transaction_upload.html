@@ -54,6 +54,13 @@
     td.balance-cell { color:#333; }
     td.no-data { text-align:center; color:#aaa; padding:40px; }
 
+    /* 조회 결과 합계 */
+    tfoot .sum-row td {
+      background:#f1f5fb; border-top:2px solid #c9d8ef;
+      font-weight:700; color:#1a3c7a; padding:12px 10px;
+    }
+    tfoot .sum-row #sumNote { font-weight:500; color:#5a6b85; font-size:12px; }
+
     .remarks-input {
       width:100%; min-width:120px; border:1px solid #ddd; border-radius:4px;
       padding:4px 8px; font-size:13px; box-sizing:border-box;
@@ -159,6 +166,15 @@
                 <td colspan="9" class="no-data">조회 또는 업로드 후 데이터가 표시됩니다.</td>
               </tr>
             </tbody>
+            <tfoot id="transactionTableFoot" hidden>
+              <tr class="sum-row">
+                <td colspan="4">합계</td>
+                <td class="amount-cell deposit-cell" id="sumDeposit">0</td>
+                <td class="amount-cell withdrawal-cell" id="sumWithdrawal">0</td>
+                <td class="amount-cell balance-cell" id="sumBalance">-</td>
+                <td colspan="2" id="sumNote"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -284,6 +300,7 @@
       const tbody = document.getElementById('transactionTableBody');
       if (!list || list.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" class="no-data">검색 결과가 없습니다.</td></tr>`;
+        renderSummary([]);
         return;
       }
 
@@ -309,6 +326,42 @@
             </td>
           </tr>`;
       }).join('');
+
+      renderSummary(list);
+    }
+
+    /**
+     * 조회된 내역의 합계를 표 맨 아래에 보여준다.
+     * 잔액은 거래마다 누적되는 값이라 더해도 의미가 없으므로 합계를 내지 않고,
+     * 대신 순증감(입금-출금)과 기간의 마지막 잔액을 보여준다.
+     */
+    function renderSummary(list) {
+      const foot = document.getElementById('transactionTableFoot');
+      if (!list || list.length === 0) { foot.hidden = true; return; }
+
+      let dep = 0, wd = 0;
+      for (const it of list) {
+        dep += Number(it.depositAmount ?? 0);
+        wd  += Number(it.withdrawalAmount ?? 0);
+      }
+      const net = dep - wd;
+
+      document.getElementById('sumDeposit').textContent    = dep.toLocaleString();
+      document.getElementById('sumWithdrawal').textContent = wd.toLocaleString();
+
+      // 목록은 최신순(txDate desc)이라 첫 원소가 기간 내 가장 최근 거래다.
+      const latest = list[0];
+      const latestBal = Number(latest?.balance ?? 0);
+      document.getElementById('sumBalance').textContent =
+        latestBal > 0 ? latestBal.toLocaleString() : '-';
+
+      const sign = net > 0 ? '+' : '';
+      const color = net > 0 ? '#1a73e8' : (net < 0 ? '#d93025' : '#5a6b85');
+      document.getElementById('sumNote').innerHTML =
+        `${list.length}건  ·  순증감 <span style="color:${color};font-weight:700;">${sign}${net.toLocaleString()}원</span>`
+        + (latestBal > 0 ? `  (잔액은 ${escapeHtml(latest.txDate ?? '')} 기준)` : '');
+
+      foot.hidden = false;
     }
 
     async function saveRemarks() {
