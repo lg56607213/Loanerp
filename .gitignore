@@ -55,3 +55,6 @@ run-server.bat
 .apppid
 *.log
 *.log.err
+
+# 운영 중인 jar 사본 (배포가 생성)
+current/

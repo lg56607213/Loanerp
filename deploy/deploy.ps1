@@ -24,6 +24,12 @@ $EnvFile   = Join-Path $PSScriptRoot "server-env.ps1"
 $stamp     = Get-Date -Format "yyyyMMdd_HHmmss"
 $LogFile   = Join-Path $LogDir "deploy_$stamp.log"
 
+# 운영 중인 앱은 target\ 이 아니라 current\ 의 사본에서 돌린다.
+# 윈도우에서는 실행 중인 jar 가 잠겨, target\ 에서 바로 돌리면 다음 빌드의
+# spring-boot:repackage 가 "Unable to rename ... .jar.original" 로 실패한다.
+$CurrentDir = Join-Path $RepoDir "current"
+$CurrentJar = Join-Path $CurrentDir "loan-erp.jar"
+
 New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
 
 function Log($msg) {
@@ -72,12 +78,13 @@ if ($MysqlBin -and (Test-Path $MysqlBin)) {
   New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
   $dumpFile = Join-Path $BackupDir "predeploy_$stamp.sql"
 
-  $dbs = & "$MysqlBin\mysql.exe" "-u$($Env:DB_USERNAME)" "-p$($Env:DB_PASSWORD)" -N `
+  $Env:MYSQL_PWD = $Env:DB_PASSWORD   # -p 인자는 프로세스 목록에 노출되므로 환경변수로 준다
+  $dbs = & "$MysqlBin\mysql.exe" "-u$($Env:DB_USERNAME)" -N `
            -e "SHOW DATABASES LIKE 'loan\_%'" 2>$null |
          Where-Object { $_ -and $_.Trim() -ne "" }
 
   if ($dbs) {
-    $args = @("-u$($Env:DB_USERNAME)", "-p$($Env:DB_PASSWORD)", "--single-transaction",
+    $args = @("-u$($Env:DB_USERNAME)", "--single-transaction",
               "--routines", "--default-character-set=utf8mb4", "--databases") + $dbs
     & "$MysqlBin\mysqldump.exe" @args 2>$null | Out-File -FilePath $dumpFile -Encoding utf8
     $mb = [math]::Round((Get-Item $dumpFile).Length / 1MB, 2)
@@ -119,6 +126,12 @@ Log "빌드 완료: $($jar.Name)"
 
 # ── 5. 재시작 ───────────────────────────────────────────────
 function Stop-App {
+  # 앱을 작업 스케줄러가 소유하는 서버에서는 작업을 먼저 멈춘다.
+  # 안 그러면 배포가 죽인 앱을 스케줄러가 곧바로 되살려 두 개가 포트를 놓고 경합한다.
+  if ($AppTaskName) {
+    Stop-ScheduledTask -TaskName $AppTaskName -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+  }
   $pids = (Get-NetTCPConnection -LocalPort $AppPort -State Listen -ErrorAction SilentlyContinue).OwningProcess |
           Sort-Object -Unique
   foreach ($p in $pids) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }
@@ -126,13 +139,26 @@ function Stop-App {
 }
 
 function Start-App($jarPath) {
+  # 작업 스케줄러가 소유자면 그쪽으로 띄운다(부팅 경로와 동일한 설정으로 뜨게 하려고).
+  # 이때 jar 경로는 무시된다 — 작업은 Publish-Jar 가 갱신한 current\ 사본을 읽는다.
+  if ($AppTaskName) {
+    Start-ScheduledTask -TaskName $AppTaskName
+    return
+  }
   $java = if ($JavaHome) { Join-Path $JavaHome "bin\java.exe" } else { "java" }
   Start-Process -FilePath $java `
-    -ArgumentList @("-jar", $jarPath, "--server.port=$AppPort") `
+    -ArgumentList ((&{ if ($JvmOpts) { $JvmOpts } else { @() } }) + @("-jar", $jarPath, "--server.port=$AppPort")) `
     -WorkingDirectory $RepoDir `
     -RedirectStandardOutput (Join-Path $LogDir "app_$stamp.out.log") `
     -RedirectStandardError  (Join-Path $LogDir "app_$stamp.err.log") `
     -WindowStyle Hidden
+}
+
+# 빌드 산출물을 current\ 로 옮긴다. 앱은 반드시 이 사본에서만 돌린다.
+function Publish-Jar($srcJar) {
+  New-Item -ItemType Directory -Path $CurrentDir -Force | Out-Null
+  Copy-Item $srcJar $CurrentJar -Force
+  Log "  운영 jar 갱신: $CurrentJar"
 }
 
 function Test-Health {
@@ -149,7 +175,8 @@ function Test-Health {
 
 Log "앱 재시작"
 Stop-App
-Start-App $jar.FullName
+Publish-Jar $jar.FullName
+Start-App $CurrentJar
 
 if (Test-Health) {
   Log "헬스체크 통과 — 배포 완료 ($($after.Substring(0,7)))"
@@ -164,7 +191,8 @@ Stop-App
 
 $oldJar = Get-ChildItem "target\*.jar" -Exclude "*sources*","*javadoc*" |
           Sort-Object LastWriteTime -Descending | Select-Object -First 1
-Start-App $oldJar.FullName
+Publish-Jar $oldJar.FullName
+Start-App $CurrentJar
 
 if (Test-Health) {
   Fail "새 코드가 뜨지 않아 이전 버전으로 되돌렸습니다. 운영은 정상입니다. 로그: $LogFile"
