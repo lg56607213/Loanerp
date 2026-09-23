@@ -560,8 +560,8 @@ nonOperatingRevenue / nonOperatingExpense / incomeTax` 필드를 추가하고 �
 
 1. **컴파일·런타임 미검증** — 작업 PC에 JDK가 없어 `mvnw compile` 을 돌리지 못했다. JDK 17 설치 후
    빌드와 수납 회귀 테스트(법적비용이 걸린 채권 1건 포함)를 반드시 거칠 것.
-2. **CODEF 시크릿 폐기** — 2026-09 에 CODEF 연동 자체를 걷어냈으나, 평문 시크릿은 공개 저장소
-   커밋 `0fb8417` 에 그대로 남아 있다. 코드에서 지운 것과 히스토리에서 사라지는 것은 다르다.
-   쓰지 않을 기능이므로 콘솔에서 폐기하면 된다. `docs/deploy-cloudflare-tunnel.md` §7 참조.
+2. ~~**CODEF 시크릿 폐기**~~ — **완료(2026-09-23).** 연동 코드는 `a73201d` 에서 제거했고,
+   커밋 `0fb8417` 에 남아 있던 평문 자격증명은 콘솔에서 폐기했다.
+   `docs/deploy-cloudflare-tunnel.md` §7 참조.
 3. **`migrate_company_application_loan_scale.sql` 적용** — 앱을 한 번 띄워 `loan_balance_scale` 컬럼이
    생긴 뒤 실행해 `vehicle_count` 를 정리한다.
