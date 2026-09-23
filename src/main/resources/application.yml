@@ -9,6 +9,13 @@ server:
     mime-types: text/html,text/css,text/plain,application/javascript,application/json,application/xml
     min-response-size: 1024
   servlet:
+    # 이 서버의 JVM 기본 문자셋은 MS949 다(JDK 17 + 한글 윈도우).
+    # 요청 인코딩을 명시하지 않으면 multipart 폼 파라미터(은행명 등)가
+    # MS949 로 해석돼 한글이 U+FFFD 로 깨질 수 있다. 기본값에 기대지 않는다.
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
     session:
       timeout: 120m
       cookie:

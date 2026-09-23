@@ -22,6 +22,11 @@ $Env:ERP_BASE_URL  = "https://erp.planbloan.co.kr"
 $JavaHome  = "C:\Program Files\Java\jdk-17.0.19"
 $MysqlBin  = "C:\Program Files\MySQL\MySQL Server 8.0\bin"
 
+# JVM 기본 문자셋이 MS949 인 환경(JDK 17 + 한글 윈도우)이라 UTF-8 을 못박는다.
+# 요청 인코딩은 application.yml 에서도 UTF-8 로 강제하지만, 로그와 파일 입출력까지
+# 한 벌로 맞추려면 이쪽도 함께 두는 편이 안전하다.
+$JvmOpts   = @("-Dfile.encoding=UTF-8", "-Dsun.stdout.encoding=UTF-8", "-Dsun.stderr.encoding=UTF-8")
+
 $AppPort   = 8080
 $HealthUrl = "http://localhost:8080/login.html"
 $BackupDir = "C:\loan-erp-backup\predeploy"
