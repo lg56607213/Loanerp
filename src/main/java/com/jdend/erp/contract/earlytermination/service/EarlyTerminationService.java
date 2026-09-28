@@ -111,12 +111,15 @@ public class EarlyTerminationService {
 
     EarlyTermination saved = earlyTerminationRepository.save(et);
 
-    // 전액상환이 처리완료되면 채권을 완제(종료) 처리한다.
-    // 일부상환은 원금 일부만 줄어들 뿐이므로 채권 상태를 바꾸지 않는다
-    // (정상/연체는 미납 스케줄로 조회 시점에 판정된다).
-    if ("처리완료".equals(saved.getStatus()) && isReturnCompleted(saved)) {
+    // 처리완료면 상환구분과 무관하게 전표를 발생시킨다.
+    // 일부상환도 실제로 돈이 들어온 거래라 장부에 잡혀야 한다.
+    // 다만 채권을 완제(종료)로 바꾸는 것은 전액상환일 때만이다.
+    // 일부상환은 원금 일부만 줄어들 뿐이다(정상/연체는 미납 스케줄로 조회 시점에 판정된다).
+    if ("처리완료".equals(saved.getStatus())) {
       createReturnVoucher(saved);
-      updateContractStatus(saved.getContractNumber(), ContractStatus.CLOSED);
+      if (isReturnCompleted(saved)) {
+        updateContractStatus(saved.getContractNumber(), ContractStatus.CLOSED);
+      }
     }
 
     return saved.getId();
@@ -163,24 +166,17 @@ public class EarlyTerminationService {
     boolean wasCompleted = "처리완료".equals(prevStatus);
     boolean isNowCompleted = "처리완료".equals(et.getStatus());
 
-    if (wasReturnCompleted && isNowReturnCompleted) {
+    // 전표는 상환구분과 무관하게 '처리완료' 여부로 판단한다(일부상환도 발생).
+    if (wasCompleted && isNowCompleted) {
       // BUG-F03: 이미 처리완료 상태에서 금액 수정 → 기존 전표 삭제 후 재생성
-      if (et.getContractNumber() != null) {
-        List<Voucher> oldVouchers = voucherRepository.findByContractNumberAndMemo(
-            et.getContractNumber(), "중도상환");
-        voucherRepository.deleteAll(oldVouchers);
-      }
+      deleteEarlyTerminationVouchers(et.getContractNumber());
       createReturnVoucher(et);
-    } else if (!wasReturnCompleted && isNowReturnCompleted) {
-      // 처음으로 전액상환+처리완료 상태가 된 경우
+    } else if (!wasCompleted && isNowCompleted) {
+      // 처음으로 처리완료가 된 경우
       createReturnVoucher(et);
-    } else if (wasReturnCompleted && !isNowReturnCompleted) {
+    } else if (wasCompleted && !isNowCompleted) {
       // NEW-BUG-05: 처리완료 → 처리대기 등 취소 시 기존 전표 삭제
-      if (et.getContractNumber() != null) {
-        List<Voucher> oldVouchers = voucherRepository.findByContractNumberAndMemo(
-            et.getContractNumber(), "중도상환");
-        voucherRepository.deleteAll(oldVouchers);
-      }
+      deleteEarlyTerminationVouchers(et.getContractNumber());
     }
 
     // 채권 상태 동기화 — 전액상환 처리완료만 완제(종료)로 본다.
@@ -295,6 +291,13 @@ public class EarlyTerminationService {
 
     Customer c = customerRepository.findByCustomerNumber(customerNumber).orElse(null);
     return (c != null) ? c.getCustomerName() : "-";
+  }
+
+  /** 이 채권의 중도상환 전표를 지운다. 금액 수정·처리완료 취소 때 쓴다. */
+  private void deleteEarlyTerminationVouchers(String contractNumber) {
+    if (contractNumber == null) return;
+    voucherRepository.deleteAll(
+        voucherRepository.findByContractNumberAndMemo(contractNumber, "중도상환"));
   }
 
   private boolean isReturnCompleted(EarlyTermination et) {

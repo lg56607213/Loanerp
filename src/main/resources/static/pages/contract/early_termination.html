@@ -238,14 +238,15 @@
             <h3 class="section-title">금액 정보</h3>
             <div class="form-grid">
               <div class="form-group">
-                <label for="terminationAmount" class="required">중도상환금액</label>
-                <input type="number" id="terminationAmount" name="terminationAmount" placeholder="중도상환금액을 입력하세요" required>
+                <label for="terminationAmount" class="required">중도상환원금</label>
+                <input type="number" id="terminationAmount" name="terminationAmount" placeholder="중도상환원금을 입력하세요" required>
+                <small class="help-text">채권과 중도상환일을 고르면 잔여원금이 자동으로 채워집니다</small>
               </div>
 
               <div class="form-group">
                 <label for="uncollectedRent">미수이자</label>
-                <input type="number" id="uncollectedRent" name="uncollectedRent" placeholder="금액을 직접 입력하세요">
-                <small class="help-text">전표 항목은 미수이자로 고정되고, 금액만 직접 입력합니다</small>
+                <input type="number" id="uncollectedRent" name="uncollectedRent" placeholder="자동 계산됩니다">
+                <small class="help-text" id="interestHint">미회수원금 기준으로 중도상환일까지 일할 계산해 자동으로 채웁니다</small>
               </div>
 
               <div class="form-group">
@@ -273,6 +274,7 @@
             <div class="total-amount">
               <div class="total-label">합계 금액 (미수금)</div>
               <div class="total-value" id="totalAmount">0 원</div>
+              <div style="font-size:12px;color:#64748b;margin-top:4px;">중도상환원금 + 미수이자 + 중도상환수수료</div>
             </div>
 
             <div class="alert-info">
@@ -610,6 +612,8 @@
       document.getElementById('displayRemainingMonths').textContent = `${remainingMonths}개월`;
 
       calculateTotal();
+      interestTouched = false;   // 채권을 새로 고르면 자동 계산값을 다시 쓴다
+      autoSettle();
     }
 
     function calculateTotal(){
@@ -659,13 +663,34 @@
       }
     }
 
-    document.getElementById('btnSettlePreview').addEventListener('click', loadSettlement);
+    /**
+     * 채권과 중도상환일이 정해지면 정산을 자동으로 불러 잔여원금·미수이자를 채운다.
+     * 버튼을 눌러야만 계산되던 것을 자동으로 바꿨다 — 안 누르고 저장하면
+     * 미수이자가 0으로 들어가 이자를 못 받는 전표가 만들어진다.
+     * 사용자가 값을 직접 고친 뒤에는 덮어쓰지 않는다.
+     */
+    let interestTouched = false;
+
+    async function autoSettle() {
+      const cn = (document.getElementById('contractNumber')?.value || '').trim();
+      const asOf = document.getElementById('terminationDate').value;
+      if (!cn || !asOf) return;
+      if (interestTouched) return;      // 직접 입력한 값을 지우지 않는다
+      await loadSettlement();
+    }
+
+    document.getElementById('btnSettlePreview').addEventListener('click', () => {
+      interestTouched = false;          // 버튼을 누르면 다시 자동값으로 되돌린다
+      loadSettlement();
+    });
+    document.getElementById('uncollectedRent').addEventListener('input', () => { interestTouched = true; });
     document.getElementById('terminationAmount').addEventListener('input', calculateTotal);
     document.getElementById('terminationFee').addEventListener('input', calculateTotal);
     document.getElementById('uncollectedRent').addEventListener('input', calculateTotal);
 
     document.getElementById('terminationDate').addEventListener('change', () => {
       calculateTotal();
+      autoSettle();
     });
 
     document.getElementById('terminationForm').addEventListener('submit', async (e) => {

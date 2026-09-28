@@ -8,6 +8,7 @@ import com.jdend.erp.contract.support.DebtTypeCode;
 import com.jdend.erp.loan.policy.DebtorType;
 import com.jdend.erp.loan.policy.PersonalDebtorProtection;
 import com.jdend.erp.loan.dto.LoanSettlementResponse;
+import com.jdend.erp.loan.repayment.RepaymentPostingService;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 
 /**
  * 정산 계산 — 중도상환·기한이익상실·완제 시점에 얼마를 청구해야 하는지 산출한다.
@@ -36,6 +39,7 @@ public class LoanSettlementService {
 
   private final ContractRepository contractRepo;
   private final PaymentScheduleRepository scheduleRepo;
+  private final RepaymentPostingService repaymentPosting;
 
   @Transactional(readOnly = true)
   public LoanSettlementResponse settle(String contractNumber, LocalDate settlementDate) {
@@ -57,8 +61,7 @@ public class LoanSettlementService {
 
     LocalDate accrualFrom = lastDueDateOnOrBefore(schedules, asOf, c.getStartDate());
     long accrualDays = DailyInterestCalculator.overdueDays(accrualFrom, asOf);
-    long accruedInterest = DailyInterestCalculator.accrued(
-        remainingPrincipal, c.getInterestRate(), accrualFrom, asOf);
+    long accruedInterest = accruedByBalanceTimeline(c, remainingPrincipal, accrualFrom, asOf);
 
     boolean charged = !Boolean.FALSE.equals(c.getOverdueChargeYn());
     boolean protectionApplies = protectionApplies(c);
@@ -81,6 +84,44 @@ public class LoanSettlementService {
         .totalDue(total)
         .note(buildNote(c, accrualFrom, asOf, accrualDays, charged, protectionApplies))
         .build();
+  }
+
+  /**
+   * 경과이자 — 기간 중 실제 잔액으로 구간을 나눠 계산한다.
+   *
+   * 예전에는 정산일 기준 잔액 하나로 기간 전체를 계산했다. 그래서 기간 중간에
+   * 원금을 갚으면 그 앞 기간까지 줄어든 잔액으로 이자가 매겨져 적게 청구됐다.
+   * (500만원을 빌려주고 7일 뒤 일부를 받은 건에서, 17,260원이어야 할 이자가
+   *  상환 후 잔액 기준으로 10,329원만 나왔다)
+   *
+   * 수납일마다 잔액이 바뀌므로 그 지점에서 구간을 끊고 각 구간은 그때의 잔액으로 매긴다.
+   */
+  private long accruedByBalanceTimeline(Contract c, long endingPrincipal,
+                                        LocalDate from, LocalDate to) {
+    if (from == null || to == null || !to.isAfter(from)) return 0L;
+
+    NavigableMap<LocalDate, Long> timeline =
+        repaymentPosting.principalBalanceTimeline(c.getContractNumber());
+
+    // 기간 안에서 잔액이 바뀐 지점들. from 당일의 변동은 이미 반영된 것으로 본다.
+    NavigableMap<LocalDate, Long> inWindow = timeline.subMap(from, false, to, true);
+    if (inWindow.isEmpty()) {
+      return DailyInterestCalculator.accrued(endingPrincipal, c.getInterestRate(), from, to);
+    }
+
+    // 구간 시작 잔액 — from 이전의 마지막 이력이 있으면 그 값, 없으면 대출금 전액
+    Map.Entry<LocalDate, Long> before = timeline.floorEntry(from);
+    long balance = before != null ? before.getValue() : nz(c.getLoanAmount());
+
+    long accrued = 0L;
+    LocalDate cursor = from;
+    for (Map.Entry<LocalDate, Long> e : inWindow.entrySet()) {
+      accrued += DailyInterestCalculator.accrued(balance, c.getInterestRate(), cursor, e.getKey());
+      balance = e.getValue();          // 그날 수납을 반영한 뒤의 잔액
+      cursor = e.getKey();
+    }
+    accrued += DailyInterestCalculator.accrued(balance, c.getInterestRate(), cursor, to);
+    return accrued;
   }
 
   /**

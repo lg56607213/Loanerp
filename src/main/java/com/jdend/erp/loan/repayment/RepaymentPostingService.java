@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
 /**
  * 수납 → 변제충당 반영.
@@ -78,6 +80,74 @@ public class RepaymentPostingService {
     scheduleRepo.saveAll(schedules);
     updateRemainingPrincipal(c, schedules);
     return last;
+  }
+
+  /**
+   * 수납일별 '그날 수납을 반영한 뒤의 남은 원금' 이력.
+   *
+   * 중도상환 정산에서 경과이자를 구간별로 나눠 계산하려면 "그 기간에 실제로 빌려준 돈이
+   * 얼마였는지"를 알아야 한다. 수납 건별 원금 충당액은 어디에도 저장돼 있지 않고
+   * 스케줄에 누적 합계로만 남으므로, 충당을 다시 재생해 이력을 만든다.
+   *
+   * 저장된 엔티티를 건드리지 않도록 복사본 위에서 재생한다.
+   * (읽기 전용 트랜잭션의 flush 동작에 기대지 않는다)
+   *
+   * @return 수납일 → 그 날짜까지 반영한 뒤의 남은 원금. 수납이 없으면 빈 맵.
+   */
+  @Transactional(readOnly = true)
+  public NavigableMap<LocalDate, Long> principalBalanceTimeline(String contractNumber) {
+    NavigableMap<LocalDate, Long> timeline = new TreeMap<>();
+    if (contractNumber == null || contractNumber.isBlank()) return timeline;
+
+    Contract c = contractRepo.findByContractNumber(contractNumber).orElse(null);
+    if (c == null) return timeline;
+
+    List<PaymentSchedule> copies = scheduleRepo
+        .findByContractNumberOrderByInstallmentNoAsc(contractNumber).stream()
+        .map(RepaymentPostingService::detachedCopy)
+        .toList();
+    if (copies.isEmpty()) return timeline;
+
+    LocalDate writeOffDate = writeOffRepo.findFirstByContractNumberOrderByIdDesc(contractNumber)
+        .map(w -> w.getWriteOffDate())
+        .orElse(null);
+
+    long allocatedCost = 0L;
+    for (Payment p : paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber)) {
+      long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
+      if (amount <= 0) continue;
+      LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
+      boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
+
+      long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
+      RepaymentAllocation a = allocator.allocate(c, copies, amount, date, availableCost, writeOffOrder);
+      allocatedCost += a.getCost();
+
+      // 같은 날 여러 건이면 마지막 값이 그날의 최종 잔액이 된다.
+      timeline.put(date, copies.stream().mapToLong(PaymentSchedule::unpaidPrincipal).sum());
+    }
+    return timeline;
+  }
+
+  /** 충당 재생용 사본 — 영속 상태와 끊어 저장되지 않게 한다. */
+  private static PaymentSchedule detachedCopy(PaymentSchedule s) {
+    return PaymentSchedule.builder()
+        .contractNumber(s.getContractNumber())
+        .installmentNo(s.getInstallmentNo())
+        .billStartDate(s.getBillStartDate())
+        .billEndDate(s.getBillEndDate())
+        .taxInvoiceDate(s.getTaxInvoiceDate())
+        .paymentDate(s.getPaymentDate())
+        .rentAmount(s.getRentAmount())
+        .principalAmount(s.getPrincipalAmount())
+        .interestAmount(s.getInterestAmount())
+        .remainingPrincipal(s.getRemainingPrincipal())
+        .paidPrincipal(0L)
+        .paidInterest(0L)
+        .paidOverdueInterest(0L)
+        .paidCost(0L)
+        .lineStatus(s.isAcceleratedLine() ? s.getLineStatus() : PaymentSchedule.LINE_UNPAID)
+        .build();
   }
 
   /**
