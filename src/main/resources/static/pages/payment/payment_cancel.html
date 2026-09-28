@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>수납취소 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .search-box { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:14px 16px; margin-bottom:16px; }
+    .search-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:13px; font-weight:600; color:#444; }
+    .form-group input { height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+    .btn-search { height:36px; padding:0 18px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-search:hover { background:#1557b0; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:10px; font-size:13px; text-align:left; }
+    th { background:#f8fafc; font-weight:700; white-space:nowrap; }
+    td.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:40px; }
+    tr.cancelled td { color:#aaa; text-decoration:line-through; }
+
+    .btn-cancel {
+      height:30px; padding:0 12px; background:#d93025; color:#fff;
+      border:none; border-radius:5px; font-size:12px; cursor:pointer; font-weight:600; white-space:nowrap;
+    }
+    .btn-cancel:hover { background:#b7261c; }
+    .btn-cancel:disabled { background:#bbb; cursor:not-allowed; }
+
+    .notice {
+      background:#fff7ed; border:1px solid #fed7aa; border-radius:8px;
+      padding:12px 14px; margin-bottom:16px; font-size:13px; color:#7c2d12; line-height:1.7;
+    }
+    .pager { display:flex; gap:6px; justify-content:center; margin-top:14px; }
+    .pager button { height:30px; min-width:32px; border:1px solid #d1d5db; background:#fff; border-radius:5px; cursor:pointer; font-size:12px; }
+    .pager button.active { background:#1a73e8; color:#fff; border-color:#1a73e8; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>수납취소</h1>
+      <p>수납관리 &gt; 수납관리 &gt; 수납취소</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="notice">
+          <b>수납을 취소하면 아래가 함께 처리됩니다.</b><br>
+          연결 전표 삭제 · 미수금 상태 복구 · 선수금 삭제 · 변제충당 재계산(잔여원금 복원)<br>
+          전표만 따로 지우면 수납 기록이 남아 원금이 줄어든 것처럼 보입니다. <b>반드시 이 화면에서 취소하세요.</b>
+        </div>
+
+        <div class="search-box">
+          <div class="search-row">
+            <div class="form-group">
+              <label for="kw">검색어</label>
+              <input type="text" id="kw" placeholder="고객명 · 채권번호" style="width:260px;"
+                     onkeydown="if(event.key==='Enter') search(0)">
+            </div>
+            <button class="btn-search" onclick="search(0)">조회</button>
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px;">No</th>
+              <th>수납일</th>
+              <th>고객명</th>
+              <th>채권번호</th>
+              <th style="text-align:right;">수납액</th>
+              <th>수납방법</th>
+              <th>전표</th>
+              <th>비고</th>
+              <th style="width:90px;">취소</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="9" class="no-data">조회 버튼을 눌러 수납 내역을 불러오세요.</td></tr>
+          </tbody>
+        </table>
+
+        <div class="pager" id="pager"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    let currentPage = 0;
+    const PAGE_SIZE = 15;
+
+    function escHtml(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+
+    async function search(page) {
+      currentPage = page ?? 0;
+      const kw = document.getElementById('kw').value.trim();
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="9" class="no-data">불러오는 중…</td></tr>';
+
+      try {
+        const url = `${API_BASE_URL}/api/payments?kw=${encodeURIComponent(kw)}`
+                  + `&page=${currentPage}&size=${PAGE_SIZE}`;
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        render(data);
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="9" class="no-data">조회 실패: ${escHtml(e.message)}</td></tr>`;
+        document.getElementById('pager').innerHTML = '';
+      }
+    }
+
+    function render(data) {
+      const tbody = document.getElementById('tbody');
+      const rows = data.content || [];
+
+      if (rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">수납 내역이 없습니다.</td></tr>';
+        document.getElementById('pager').innerHTML = '';
+        return;
+      }
+
+      const base = currentPage * PAGE_SIZE;
+      tbody.innerHTML = rows.map((p, i) => `
+        <tr id="row-${p.id}">
+          <td>${base + i + 1}</td>
+          <td>${escHtml(p.paymentDate ?? '')}</td>
+          <td>${escHtml(p.customerName ?? '')}</td>
+          <td>${escHtml(p.contractNumber ?? '')}</td>
+          <td class="amount-cell">${won(p.paymentAmount)}</td>
+          <td>${escHtml(p.paymentMethod ?? '')}</td>
+          <td>${p.voucherId ? ('#' + p.voucherId) : '<span style="color:#aaa;">없음</span>'}</td>
+          <td>${escHtml(p.memo ?? '')}</td>
+          <td>
+            <button class="btn-cancel" onclick="cancelPayment(${p.id}, this)">취소</button>
+          </td>
+        </tr>`).join('');
+
+      renderPager(data);
+    }
+
+    function renderPager(data) {
+      const pager = document.getElementById('pager');
+      const total = data.totalPages || 0;
+      if (total <= 1) { pager.innerHTML = ''; return; }
+
+      // 현재 페이지 앞뒤 2쪽씩만 보여준다.
+      const from = Math.max(0, currentPage - 2);
+      const to   = Math.min(total - 1, currentPage + 2);
+
+      let html = '';
+      if (currentPage > 0) html += `<button onclick="search(${currentPage - 1})">이전</button>`;
+      for (let p = from; p <= to; p++) {
+        html += `<button class="${p === currentPage ? 'active' : ''}" onclick="search(${p})">${p + 1}</button>`;
+      }
+      if (currentPage < total - 1) html += `<button onclick="search(${currentPage + 1})">다음</button>`;
+      pager.innerHTML = html;
+    }
+
+    async function cancelPayment(id, btn) {
+      const tr = document.getElementById('row-' + id);
+      const cells = tr ? tr.querySelectorAll('td') : [];
+      const desc = cells.length
+        ? `${cells[1].textContent}  ${cells[2].textContent}  ${cells[4].textContent}`
+        : ('수납 #' + id);
+
+      if (!confirm(
+        `아래 수납을 취소합니다.\n\n${desc}\n\n`
+        + '연결 전표가 삭제되고 미납 상태와 잔여원금이 복구됩니다.\n되돌릴 수 없습니다. 진행할까요?'
+      )) return;
+
+      btn.disabled = true;
+      btn.textContent = '취소 중…';
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          let msg = `HTTP ${res.status}`;
+          try { const e = await res.json(); if (e && e.message) msg = e.message; } catch (_) {}
+          throw new Error(msg);
+        }
+        alert('수납이 취소되었습니다.\n잔여원금과 미납 상태가 복구됐습니다.');
+        await search(currentPage);
+      } catch (e) {
+        alert('수납 취소 실패\n\n' + e.message);
+        btn.disabled = false;
+        btn.textContent = '취소';
+      }
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+      await search(0);
+    })();
+  </script>
+</body>
+</html>

@@ -6,6 +6,9 @@ import com.jdend.erp.accounting.voucher.entity.VoucherLine;
 import com.jdend.erp.accounting.voucher.repository.VoucherRepository;
 import com.jdend.erp.management.financial.repository.FinancialStatementAccountRepository;
 import com.jdend.erp.payment.payment.entity.Payment;
+import com.jdend.erp.legal.repository.LegalCostItemRepository;
+import com.jdend.erp.loan.acceleration.repository.AccelerationEventRepository;
+import com.jdend.erp.loan.writeoff.repository.WriteOffRepository;
 import com.jdend.erp.payment.payment.repository.PaymentRepository;
 import com.jdend.erp.payment.receivable.entity.Receivable;
 import com.jdend.erp.payment.receivable.repository.ReceivableRepository;
@@ -26,6 +29,9 @@ import java.util.List;
 public class VoucherService {
 
     private final VoucherRepository voucherRepository;
+    private final WriteOffRepository writeOffRepository;
+    private final AccelerationEventRepository accelerationEventRepository;
+    private final LegalCostItemRepository legalCostItemRepository;
     private final VoucherNumberService voucherNumberService;
     private final FinancialStatementAccountRepository financialAccountRepository;
     private final AccountResolver accountResolver;
@@ -201,22 +207,48 @@ public class VoucherService {
         return voucherRepository.approveByIds(ids);
     }
 
+    /**
+     * 전표 삭제.
+     *
+     * 업무 기록(수납·상각·기한이익상실·법적비용)에서 자동으로 만들어진 전표는 여기서 지울 수 없다.
+     * 전표만 지우면 원본 기록과 변제충당 실적이 그대로 남아, 갚지도 않은 원금이 줄어든 것처럼
+     * 장부와 대시보드에 나온다(실제로 그렇게 어긋난 적이 있다).
+     *
+     * 원본을 지우는 경로에는 충당 재계산까지 들어 있으므로, 그쪽으로 안내한다.
+     */
     @Transactional
     public int deleteByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return 0;
 
-        // 수납과 연결된 전표면 미수금 복구 후 수납 레코드 삭제 (B안)
-        List<Payment> linked = paymentRepository.findByVoucherIdIn(ids);
-        for (Payment p : linked) {
-            cancelPaymentReceivable(p.getContractNumber(), p.getPaymentAmount());
-            // BUG-05 수정: 전표 삭제 시 연관 PaymentSchedule의 paymentDate도 null로 복구
-            cancelPaymentSchedule(p.getContractNumber(), p.getPaymentAmount());
-            paymentRepository.delete(p);
-            log.info("전표 삭제로 수납 자동 취소·삭제: paymentId={}, contractNumber={}", p.getId(), p.getContractNumber());
-        }
+        String blocked = findSourceBlocking(ids);
+        if (blocked != null) throw new IllegalStateException(blocked);
 
         voucherRepository.deleteAllById(ids);
         return ids.size();
+    }
+
+    /** 자동 생성 전표면 어디서 지워야 하는지 알려주는 문구를, 아니면 null 을 돌려준다. */
+    private String findSourceBlocking(List<Long> ids) {
+        Payment p = paymentRepository.findByVoucherIdIn(ids).stream().findFirst().orElse(null);
+        if (p != null) {
+            return "수납에서 자동 생성된 전표라 전표만 따로 지울 수 없습니다."
+                 + " 수납관리 > 수납취소에서 해당 수납을 취소하세요."
+                 + " (채권 " + p.getContractNumber() + " / " + p.getPaymentDate() + ")"
+                 + " 그렇게 해야 전표 삭제와 잔여원금 복구가 함께 처리됩니다.";
+        }
+        if (writeOffRepository.findFirstByVoucherIdIn(ids).isPresent()) {
+            return "상각에서 자동 생성된 전표라 전표만 따로 지울 수 없습니다."
+                 + " 채권관리 > 상각관리에서 해당 상각을 취소하세요.";
+        }
+        if (accelerationEventRepository.findFirstByVoucherIdIn(ids).isPresent()) {
+            return "기한이익상실에서 자동 생성된 전표라 전표만 따로 지울 수 없습니다."
+                 + " 채권관리 > 기한이익상실에서 해당 건을 취소하세요.";
+        }
+        if (legalCostItemRepository.findFirstByVoucherIdIn(ids).isPresent()) {
+            return "법적비용에서 자동 생성된 전표라 전표만 따로 지울 수 없습니다."
+                 + " 채권관리 > 법적절차에서 해당 비용을 삭제하세요.";
+        }
+        return null;
     }
 
     /**

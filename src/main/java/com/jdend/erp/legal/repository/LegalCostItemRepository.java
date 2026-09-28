@@ -9,6 +9,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface LegalCostItemRepository extends JpaRepository<LegalCostItem, Long> {
+
+  /** 전표 삭제 차단용 — 이 전표들로 만들어진 기록이 있는지 */
+  java.util.Optional<LegalCostItem> findFirstByVoucherIdIn(java.util.List<Long> voucherIds);
     List<LegalCostItem> findByLegalCaseIdOrderByCostDateAscIdAsc(Long legalCaseId);
     void deleteByLegalCaseId(Long legalCaseId);
 

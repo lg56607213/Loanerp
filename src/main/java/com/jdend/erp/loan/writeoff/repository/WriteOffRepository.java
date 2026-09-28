@@ -10,6 +10,9 @@ import java.util.Optional;
 
 public interface WriteOffRepository extends JpaRepository<WriteOff, Long> {
 
+  /** 전표 삭제 차단용 — 이 전표들로 만들어진 기록이 있는지 */
+  java.util.Optional<WriteOff> findFirstByVoucherIdIn(java.util.List<Long> voucherIds);
+
   Optional<WriteOff> findFirstByContractNumberOrderByIdDesc(String contractNumber);
 
   boolean existsByContractNumber(String contractNumber);
