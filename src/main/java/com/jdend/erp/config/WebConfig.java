@@ -3,7 +3,9 @@ package com.jdend.erp.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.CacheControl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -40,6 +42,24 @@ public class WebConfig implements WebMvcConfigurer {
       .allowedMethods("GET", "POST", "OPTIONS")
       .allowedHeaders("*")
       .allowCredentials(false);
+  }
+
+  /**
+   * 화면 파일(js·css·html)은 캐시하지 않게 한다.
+   *
+   * Cloudflare 가 js·css 를 기본 4시간 캐시해서, 배포한 뒤에도 옛 파일이 내려갔다.
+   * 사이드바에 새 메뉴를 넣었는데 화면에 안 보이는 일이 실제로 있었다
+   * (cf-cache-status: HIT / Age: 3189). 브라우저 강력새로고침으로도 풀리지 않는다.
+   *
+   * 원본이 no-cache 를 내려주면 Cloudflare 도 그 지시를 따라 매번 서버에 확인한다.
+   * ERP 는 사내에서 쓰는 화면이라 이 정도 왕복은 체감되지 않고,
+   * 배포한 것이 바로 보이는 쪽이 훨씬 중요하다.
+   */
+  @Override
+  public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    registry.addResourceHandler("/**")
+        .addResourceLocations("classpath:/static/")
+        .setCacheControl(CacheControl.noCache().mustRevalidate());
   }
 
   // BUG-12-01: 삭제된(비활성화된) 사용자의 기존 세션 무효화 인터셉터 등록
