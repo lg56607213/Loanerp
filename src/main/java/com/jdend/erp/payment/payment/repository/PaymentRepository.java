@@ -11,6 +11,9 @@ import java.util.List;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
+  /** 수납이 한 건이라도 있으면 채권을 지울 수 없다. */
+  boolean existsByContractNumber(String contractNumber);
+
   @Query("""
     select p
     from Payment p

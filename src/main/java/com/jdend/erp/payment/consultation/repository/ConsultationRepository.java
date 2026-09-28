@@ -9,6 +9,9 @@ import java.util.List;
 
 public interface ConsultationRepository extends JpaRepository<Consultation, Long> {
 
+  /** 채권 삭제 시 함께 정리한다. */
+  void deleteByContractNumber(String contractNumber);
+
   @Query("""
     select c
     from Consultation c

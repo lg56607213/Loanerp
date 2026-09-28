@@ -4,6 +4,10 @@ import com.jdend.erp.contract.dto.*;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.accounting.voucher.service.VoucherApprovalGuard;
+import com.jdend.erp.payment.consultation.repository.ConsultationRepository;
+import com.jdend.erp.payment.payment.repository.PaymentRepository;
+import com.jdend.erp.payment.receivable.repository.ReceivableRepository;
+import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
 import com.jdend.erp.contract.entity.InterestCalcType;
 import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
@@ -52,6 +56,10 @@ public class ContractService {
   private final VoucherRepository voucherRepository;
   private final OtherAccountSettingsService accountSettings;
   private final AccountResolver accountResolver;
+  private final PaymentScheduleRepository scheduleRepo;
+  private final PaymentRepository paymentRepo;
+  private final ReceivableRepository receivableRepo;
+  private final ConsultationRepository consultationRepo;
 
   /** 대출 실행 전표를 이 채권에 딸린 것으로 찾기 위한 적요 접두어 */
   private static final String EXEC_VOUCHER_MEMO = "대출실행";
@@ -292,11 +300,28 @@ public class ContractService {
     Contract c = contractRepo.findById(id)
         .orElseThrow(() -> new RuntimeException("채권 없음 id=" + id));
 
+    String cn = c.getContractNumber();
+
     // 대출 실행 전표가 승인된 상태면 먼저 대기로 되돌려야 한다.
     // 수납 취소와 같은 원칙 — 장부에 반영된 전표를 두고 원본만 지우면 어긋난다.
-    voucherApprovalGuard.requireNoApprovedForContract(c.getContractNumber(), "대출");
+    voucherApprovalGuard.requireNoApprovedForContract(cn, "대출");
 
-    deleteExecutionVoucher(c.getContractNumber());
+    // 수납이 한 건이라도 있으면 지우지 않는다. 돈이 오간 채권을 통째로 없애면
+    // 그 수납과 전표가 갈 곳을 잃는다. 수납을 먼저 취소하게 한다.
+    if (paymentRepo.existsByContractNumber(cn)) {
+      throw new IllegalStateException(
+          "이 채권에는 수납 내역이 있어 삭제할 수 없습니다."
+          + " 수납관리 > 수납취소에서 수납을 모두 취소한 뒤 다시 시도하세요."
+          + " 잘못 등록한 금액이나 조건은 삭제하지 않고 대출등록에서 수정할 수 있습니다.");
+    }
+
+    // 등록할 때 함께 만들어진 것들을 먼저 정리한다.
+    // 이것들이 계약을 참조하고 있어, 남겨두면 외래키에 걸려 삭제가 되지 않는다.
+    scheduleRepo.deleteByContractNumber(cn);
+    receivableRepo.deleteByContractNumber(cn);
+    consultationRepo.deleteByContractNumber(cn);
+
+    deleteExecutionVoucher(cn);
     contractRepo.deleteById(id);
   }
 
