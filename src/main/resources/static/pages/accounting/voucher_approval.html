@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="../../assets/css/pages.css">
   <link rel="stylesheet" href="../../assets/css/accounting/voucher_approval.css">
   <style>
+    /* 승인 취소(대기) 버튼 — 승인(초록)과 삭제(빨강) 사이의 중간 동작 */
+    .btn-pending { background:#d97706; color:#fff; border:none; }
+    .btn-pending:hover { background:#b45309; }
+    .btn-pending:disabled { background:#bbb; cursor:not-allowed; }
     .voucher-table th,
     .voucher-table td {
       text-align: center;
@@ -86,6 +90,8 @@
           </div>
           <div class="action-buttons">
             <button type="button" class="btn btn-approve" id="approveBtn" onclick="approveSelected()">승인</button>
+            <button type="button" class="btn btn-pending" id="pendingBtn" onclick="unapproveSelected()"
+                    title="승인을 취소해 대기로 되돌립니다. 수납·대출을 취소하려면 먼저 이 단계를 거쳐야 합니다">대기</button>
             <button type="button" class="btn btn-delete" id="deleteBtn" onclick="deleteSelected()">삭제</button>
           </div>
         </div>
@@ -109,7 +115,7 @@
         </div>
 
         <div class="info-text">
-          * 승인 / 삭제 선택가능 &nbsp;|&nbsp; * 행을 더블클릭하면 전표 상세를 볼 수 있습니다
+          * 승인 / 대기 / 삭제 선택가능 &nbsp;|&nbsp; * 행을 더블클릭하면 전표 상세를 볼 수 있습니다
         </div>
       </div>
     </div>
@@ -166,7 +172,8 @@
       $("searchStartDate").value = ymdMonthStart();
       $("searchEndDate").value = ymdToday();
 
-      disableForStaff([$("approveBtn"), $("deleteBtn")], "책임자만 전표를 승인/삭제할 수 있습니다.");
+      disableForStaff([$("approveBtn"), $("pendingBtn"), $("deleteBtn")],
+                      "책임자만 전표를 승인/대기/삭제할 수 있습니다.");
 
       $("voucherTableBody").addEventListener("change", (e) => {
         if(e.target && e.target.classList.contains("voucher-checkbox")){
@@ -276,6 +283,30 @@
       await mustOk(res);
 
       alert("승인 완료");
+      await searchVouchers();
+    }
+
+    /**
+     * 승인 취소 — 전표를 대기로 되돌린다.
+     *
+     * 승인된 전표는 이미 장부에 반영된 것으로 보므로, 그 전표를 만든 수납·대출을
+     * 취소하려면 먼저 여기서 대기로 되돌려야 한다. 전표를 둔 채 원본만 지우면
+     * 장부와 업무 기록이 어긋난다.
+     */
+    async function unapproveSelected(){
+      const ids = getSelectedIds();
+      if(ids.length === 0) return alert("대기로 되돌릴 전표를 선택해주세요.");
+      if(!confirm(ids.length + "건의 전표를 대기로 되돌리시겠습니까?\n\n"
+        + "대기로 바꾼 뒤에야 그 전표를 만든 수납·대출을 취소할 수 있습니다.")) return;
+
+      const res = await fetch(`${API_BASE_URL}/api/vouchers/unapprove`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ ids })
+      });
+      await mustOk(res);
+
+      alert("대기로 되돌렸습니다.\n이제 해당 수납·대출을 취소할 수 있습니다.");
       await searchVouchers();
     }
 

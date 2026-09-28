@@ -208,6 +208,19 @@ public class VoucherService {
     }
 
     /**
+     * 승인 취소 — 전표를 대기로 되돌린다.
+     *
+     * 승인된 전표는 이미 장부에 반영된 것으로 보므로, 그 전표를 만든 원본(수납·대출 등)을
+     * 취소하려면 먼저 이 단계를 거쳐야 한다. 전표를 그대로 둔 채 원본만 사라지면
+     * 장부와 업무 기록이 어긋난다.
+     */
+    @Transactional
+    public int unapproveByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return voucherRepository.unapproveByIds(ids);
+    }
+
+    /**
      * 전표 삭제.
      *
      * 업무 기록(수납·상각·기한이익상실·법적비용)에서 자동으로 만들어진 전표는 여기서 지울 수 없다.

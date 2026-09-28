@@ -3,6 +3,7 @@ package com.jdend.erp.contract.service;
 import com.jdend.erp.contract.dto.*;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
+import com.jdend.erp.accounting.voucher.service.VoucherApprovalGuard;
 import com.jdend.erp.contract.entity.InterestCalcType;
 import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
@@ -44,6 +45,7 @@ public class ContractService {
   public static final String LOAN_TYPE_BUSINESS = "사업자대출";
 
   private final ContractRepository contractRepo;
+  private final VoucherApprovalGuard voucherApprovalGuard;
   private final CustomerRepository customerRepo;
   private final PaymentScheduleAutoGeneratorService scheduleAutoGen;
   private final VoucherService voucherService;
@@ -289,6 +291,11 @@ public class ContractService {
   public void delete(Long id) {
     Contract c = contractRepo.findById(id)
         .orElseThrow(() -> new RuntimeException("채권 없음 id=" + id));
+
+    // 대출 실행 전표가 승인된 상태면 먼저 대기로 되돌려야 한다.
+    // 수납 취소와 같은 원칙 — 장부에 반영된 전표를 두고 원본만 지우면 어긋난다.
+    voucherApprovalGuard.requireNoApprovedForContract(c.getContractNumber(), "대출");
+
     deleteExecutionVoucher(c.getContractNumber());
     contractRepo.deleteById(id);
   }

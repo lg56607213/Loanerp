@@ -12,6 +12,7 @@ import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.loan.repayment.RepaymentAllocation;
 import com.jdend.erp.loan.support.LoanReceivableAccount;
+import com.jdend.erp.accounting.voucher.service.VoucherApprovalGuard;
 import com.jdend.erp.loan.repayment.RepaymentPostingService;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
@@ -46,6 +47,7 @@ public class PaymentService {
   private final PrepaidRentService prepaidRentService;
   private final PaymentScheduleRepository paymentScheduleRepo;
   private final RepaymentPostingService repaymentPosting;
+  private final VoucherApprovalGuard voucherApprovalGuard;
 
   @Transactional(readOnly = true)
   public Page<PaymentResponse> list(String kw, int page, int size) {
@@ -195,6 +197,10 @@ public class PaymentService {
   public void delete(Long id) {
     Payment p = paymentRepo.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("수납 ID를 찾을 수 없습니다: " + id));
+
+    // 승인된 전표가 걸려 있으면 먼저 대기로 되돌려야 한다.
+    // 승인 전표를 그대로 두고 수납만 지우면 장부와 업무 기록이 어긋난다.
+    voucherApprovalGuard.requireNotApproved(p.getVoucherId(), "수납");
 
     // BUG-03: 연결 전표 먼저 삭제
     if (p.getVoucherId() != null) {

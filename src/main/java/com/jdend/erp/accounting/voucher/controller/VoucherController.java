@@ -76,6 +76,14 @@ public class VoucherController {
     }
 
     // POST /api/vouchers/delete  { "ids":[1,2,3] }
+    /** 승인 취소 — 대기로 되돌린다. 원본(수납·대출)을 취소하기 전에 거치는 단계다. */
+    @PostMapping("/unapprove")
+    public BulkResultResponse unapprove(@RequestBody IdListRequest req, HttpSession session) {
+        permissionService.requireManager(session);
+        int affected = voucherService.unapproveByIds(req.getIds());
+        return BulkResultResponse.builder().affected(affected).build();
+    }
+
     @PostMapping("/delete")
     public BulkResultResponse delete(@RequestBody IdListRequest req, HttpSession session) {
         permissionService.requireManager(session);

@@ -56,4 +56,16 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     """)
     int approveByIds(@Param("ids") List<Long> ids);
 
+    /** 승인된 전표를 대기로 되돌린다. 원본(수납·대출 등)을 취소하려면 먼저 이 상태여야 한다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update Voucher v
+           set v.status = '대기'
+         where v.id in :ids
+    """)
+    int unapproveByIds(@Param("ids") List<Long> ids);
+
+    /** 이 채권의 전표 중 승인 상태인 것이 있는지 — 원본 취소를 막는 판단에 쓴다. */
+    boolean existsByContractNumberAndStatus(String contractNumber, String status);
+
 }
