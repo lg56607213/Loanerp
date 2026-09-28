@@ -7,21 +7,43 @@
   <link rel="stylesheet" href="../../assets/css/sidebar.css">
   <link rel="stylesheet" href="../../assets/css/pages.css">
   <style>
-    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
     .search-box { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:14px 16px; margin-bottom:16px; }
     .search-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
     .form-group { display:flex; flex-direction:column; gap:4px; }
     .form-group label { font-size:13px; font-weight:600; color:#444; }
     .form-group input { height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
-    .btn-search { height:36px; padding:0 18px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
-    .btn-search:hover { background:#1557b0; }
+    .btn-primary { height:36px; padding:0 18px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-orange { height:36px; padding:0 18px; background:#ea580c; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-orange:hover { background:#c2410c; }
+    .btn-orange:disabled { background:#bbb; cursor:not-allowed; }
+
+    /* 돋보기 */
+    .input-with-icon { position:relative; }
+    .input-with-icon input { width:100%; padding-right:40px; }
+    .icon-btn {
+      position:absolute; right:4px; top:50%; transform:translateY(-50%);
+      width:30px; height:28px; border:1px solid #ddd; background:#fff;
+      border-radius:5px; cursor:pointer; font-size:14px; line-height:1;
+    }
+    .icon-btn:hover { background:#eef2f7; }
+
+    /* 계약 현황 */
+    .contract-info {
+      display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px;
+      padding:14px 16px; margin-bottom:16px;
+    }
+    .contract-info.show { display:block; }
+    .info-grid { display:flex; flex-wrap:wrap; gap:24px; }
+    .info-item { display:flex; flex-direction:column; gap:2px; }
+    .info-label { font-size:12px; color:#64748b; }
+    .info-value { font-size:15px; font-weight:700; color:#1a3c7a; }
 
     table { width:100%; border-collapse:collapse; }
     th, td { border-bottom:1px solid #e5e7eb; padding:10px; font-size:13px; text-align:left; }
     th { background:#f8fafc; font-weight:700; white-space:nowrap; }
     td.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
     td.no-data { text-align:center; color:#aaa; padding:40px; }
-    tr.cancelled td { color:#aaa; text-decoration:line-through; }
 
     .btn-cancel {
       height:30px; padding:0 12px; background:#d93025; color:#fff;
@@ -34,9 +56,22 @@
       background:#fff7ed; border:1px solid #fed7aa; border-radius:8px;
       padding:12px 14px; margin-bottom:16px; font-size:13px; color:#7c2d12; line-height:1.7;
     }
-    .pager { display:flex; gap:6px; justify-content:center; margin-top:14px; }
-    .pager button { height:30px; min-width:32px; border:1px solid #d1d5db; background:#fff; border-radius:5px; cursor:pointer; font-size:12px; }
-    .pager button.active { background:#1a73e8; color:#fff; border-color:#1a73e8; font-weight:700; }
+
+    /* 채권 찾기 모달 */
+    .modal-backdrop {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9999;
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .modal-backdrop.open { display:flex; }
+    .modal { width:min(920px,96vw); max-height:86vh; background:#fff; border-radius:10px; display:flex; flex-direction:column; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee; }
+    .modal-title { font-size:16px; font-weight:700; }
+    .modal-close { border:none; background:transparent; font-size:22px; cursor:pointer; line-height:1; }
+    .modal-body { padding:14px 16px; overflow:auto; }
+    .modal-search { display:flex; gap:8px; margin-bottom:12px; }
+    .modal-search input { flex:1; height:36px; padding:0 10px; border:1px solid #ddd; border-radius:5px; }
+    .pick-row { cursor:pointer; }
+    .pick-row:hover td { background:#eff6ff; }
   </style>
 </head>
 <body>
@@ -56,33 +91,35 @@
           전표만 따로 지우면 수납 기록이 남아 원금이 줄어든 것처럼 보입니다. <b>반드시 이 화면에서 취소하세요.</b>
         </div>
 
-        <div class="search-box" style="background:#fff7ed;border-color:#fed7aa;">
-          <div style="font-size:13px;font-weight:700;color:#7c2d12;margin-bottom:8px;">
-            잔여원금 복구 (충당 재계산)
-          </div>
-          <div style="font-size:12px;color:#7c2d12;margin-bottom:10px;line-height:1.6;">
-            예전에 전표를 직접 지워 수납 기록은 사라졌는데 원금이 줄어든 채로 남은 채권을 되돌립니다.<br>
-            남아 있는 수납만으로 충당을 다시 계산하므로, 여러 번 눌러도 결과는 같습니다.
-          </div>
+        <div class="search-box">
           <div class="search-row">
             <div class="form-group">
-              <label for="fixContract">채권번호</label>
-              <input type="text" id="fixContract" placeholder="예: CRD260928001001" style="width:260px;"
-                     onkeydown="if(event.key==='Enter') recompute()">
+              <label for="contractNumber">채권번호</label>
+              <div class="input-with-icon" style="width:280px;">
+                <input type="text" id="contractNumber" placeholder="돋보기로 채권을 선택하세요"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();openPicker();}">
+                <button type="button" class="icon-btn" onclick="openPicker()" title="채권 찾기">🔍</button>
+              </div>
             </div>
-            <button class="btn-search" style="background:#ea580c;" onclick="recompute()">재계산</button>
+            <button class="btn-primary" onclick="loadByContract()">조회</button>
+            <button class="btn-orange" id="btnRecompute" onclick="recompute()"
+                    title="수납 기록이 사라졌는데 원금만 줄어 있는 채권을 되돌립니다">잔여원금 복구</button>
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-top:8px;line-height:1.6;">
+            <b>잔여원금 복구</b>는 남아 있는 수납만으로 충당을 다시 계산합니다.
+            예전에 전표를 직접 지워 수납 기록은 사라졌는데 원금이 줄어든 채로 남은 채권을 되돌릴 때 쓰세요.
+            여러 번 눌러도 결과는 같습니다.
           </div>
           <div id="fixResult" style="margin-top:10px;font-size:13px;"></div>
         </div>
 
-        <div class="search-box">
-          <div class="search-row">
-            <div class="form-group">
-              <label for="kw">검색어</label>
-              <input type="text" id="kw" placeholder="고객명 · 채권번호" style="width:260px;"
-                     onkeydown="if(event.key==='Enter') search(0)">
-            </div>
-            <button class="btn-search" onclick="search(0)">조회</button>
+        <div class="contract-info" id="contractInfo">
+          <div class="info-grid">
+            <div class="info-item"><span class="info-label">고객명</span><span class="info-value" id="infoCustomer">-</span></div>
+            <div class="info-item"><span class="info-label">대출구분</span><span class="info-value" id="infoLoanType">-</span></div>
+            <div class="info-item"><span class="info-label">대출금</span><span class="info-value" id="infoLoanAmount">-</span></div>
+            <div class="info-item"><span class="info-label">잔여원금</span><span class="info-value" id="infoRemaining">-</span></div>
+            <div class="info-item"><span class="info-label">계약기간</span><span class="info-value" id="infoPeriod">-</span></div>
           </div>
         </div>
 
@@ -101,11 +138,38 @@
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="9" class="no-data">조회 버튼을 눌러 수납 내역을 불러오세요.</td></tr>
+            <tr><td colspan="9" class="no-data">채권을 선택하고 조회하세요.</td></tr>
           </tbody>
         </table>
 
-        <div class="pager" id="pager"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 채권 찾기 -->
+  <div class="modal-backdrop" id="pickerBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">채권 찾기</span>
+        <button class="modal-close" onclick="closePicker()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-search">
+          <input type="text" id="pickKw" placeholder="고객명 · 채권번호로 검색"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();searchContracts();}">
+          <button class="btn-primary" onclick="searchContracts()">검색</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>채권번호</th><th>고객명</th><th>대출구분</th>
+              <th style="text-align:right;">대출금</th><th style="text-align:right;">잔여원금</th>
+            </tr>
+          </thead>
+          <tbody id="pickBody">
+            <tr><td colspan="5" class="no-data">검색어를 입력하거나 그냥 검색을 누르세요.</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -114,48 +178,117 @@
   <script src="../../assets/js/config.js"></script>
   <script src="../../assets/js/auth.js"></script>
   <script>
-    let currentPage = 0;
-    const PAGE_SIZE = 15;
+    let pickedRows = [];   // 모달에서 찾은 채권들 — 클릭한 행을 여기서 집어온다
 
     function escHtml(s) {
       return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
                             .replaceAll('>','&gt;').replaceAll('"','&quot;');
     }
     function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function currentContract() { return document.getElementById('contractNumber').value.trim(); }
 
-    async function search(page) {
-      currentPage = page ?? 0;
-      const kw = document.getElementById('kw').value.trim();
-      const tbody = document.getElementById('tbody');
-      tbody.innerHTML = '<tr><td colspan="9" class="no-data">불러오는 중…</td></tr>';
+    // ── 채권 찾기 ────────────────────────────────────────────
 
+    function openPicker() {
+      document.getElementById('pickerBackdrop').classList.add('open');
+      document.getElementById('pickKw').value = currentContract();
+      searchContracts();
+      document.getElementById('pickKw').focus();
+    }
+    function closePicker() {
+      document.getElementById('pickerBackdrop').classList.remove('open');
+    }
+    document.getElementById('pickerBackdrop').addEventListener('click', (e) => {
+      if (e.target.id === 'pickerBackdrop') closePicker();   // 바깥을 누르면 닫는다
+    });
+
+    async function searchContracts() {
+      const kw = document.getElementById('pickKw').value.trim();
+      const body = document.getElementById('pickBody');
+      body.innerHTML = '<tr><td colspan="5" class="no-data">불러오는 중…</td></tr>';
       try {
-        const url = `${API_BASE_URL}/api/payments?kw=${encodeURIComponent(kw)}`
-                  + `&page=${currentPage}&size=${PAGE_SIZE}`;
-        const res = await fetch(url, { credentials: 'include' });
+        const res = await fetch(`${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(kw)}`,
+                                { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        render(data);
+        pickedRows = await res.json();
+
+        if (!pickedRows.length) {
+          body.innerHTML = '<tr><td colspan="5" class="no-data">검색 결과가 없습니다.</td></tr>';
+          return;
+        }
+        body.innerHTML = pickedRows.map((c, i) => `
+          <tr class="pick-row" onclick="pickContract(${i})">
+            <td>${escHtml(c.contractNumber)}</td>
+            <td>${escHtml(c.customerName ?? '')}</td>
+            <td>${escHtml(c.loanType ?? '')}</td>
+            <td class="amount-cell">${won(c.loanAmount)}</td>
+            <td class="amount-cell">${won(c.remainingPrincipal)}</td>
+          </tr>`).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="9" class="no-data">조회 실패: ${escHtml(e.message)}</td></tr>`;
-        document.getElementById('pager').innerHTML = '';
+        body.innerHTML = `<tr><td colspan="5" class="no-data">검색 실패: ${escHtml(e.message)}</td></tr>`;
       }
     }
 
-    function render(data) {
-      const tbody = document.getElementById('tbody');
-      const rows = data.content || [];
+    function pickContract(idx) {
+      const c = pickedRows[idx];
+      if (!c) return;
+      document.getElementById('contractNumber').value = c.contractNumber || '';
+      showContractInfo(c);
+      closePicker();
+      loadByContract();
+    }
 
-      if (rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="no-data">수납 내역이 없습니다.</td></tr>';
-        document.getElementById('pager').innerHTML = '';
+    function showContractInfo(c) {
+      document.getElementById('infoCustomer').textContent   = c.customerName || '-';
+      document.getElementById('infoLoanType').textContent   = c.loanType || '-';
+      document.getElementById('infoLoanAmount').textContent = won(c.loanAmount);
+      document.getElementById('infoRemaining').textContent  = won(c.remainingPrincipal);
+      document.getElementById('infoPeriod').textContent =
+        (c.startDate || '-') + ' ~ ' + (c.endDate || '-');
+      document.getElementById('contractInfo').classList.add('show');
+    }
+
+    /** 복구·취소로 잔여원금이 바뀐 뒤 계약 현황을 다시 읽어 맞춘다. */
+    async function refreshContractInfo() {
+      const cn = currentContract();
+      if (!cn) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(cn)}`,
+                                { credentials: 'include' });
+        if (!res.ok) return;
+        const hit = (await res.json()).find(x => x.contractNumber === cn);
+        if (hit) showContractInfo(hit);
+      } catch (_) { /* 표시용이라 실패해도 넘어간다 */ }
+    }
+
+    // ── 수납 내역 ────────────────────────────────────────────
+
+    async function loadByContract() {
+      const cn = currentContract();
+      const tbody = document.getElementById('tbody');
+      if (!cn) { alert('돋보기로 채권을 먼저 선택하세요.'); return; }
+
+      tbody.innerHTML = '<tr><td colspan="9" class="no-data">불러오는 중…</td></tr>';
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/by-contract/${encodeURIComponent(cn)}`,
+                                { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        render(await res.json());
+        await refreshContractInfo();
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="9" class="no-data">조회 실패: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function render(rows) {
+      const tbody = document.getElementById('tbody');
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="no-data">이 채권에는 수납 내역이 없습니다.</td></tr>';
         return;
       }
-
-      const base = currentPage * PAGE_SIZE;
       tbody.innerHTML = rows.map((p, i) => `
         <tr id="row-${p.id}">
-          <td>${base + i + 1}</td>
+          <td>${i + 1}</td>
           <td>${escHtml(p.paymentDate ?? '')}</td>
           <td>${escHtml(p.customerName ?? '')}</td>
           <td>${escHtml(p.contractNumber ?? '')}</td>
@@ -163,76 +296,49 @@
           <td>${escHtml(p.paymentMethod ?? '')}</td>
           <td>${p.voucherId ? ('#' + p.voucherId) : '<span style="color:#aaa;">없음</span>'}</td>
           <td>${escHtml(p.memo ?? '')}</td>
-          <td>
-            <button class="btn-cancel" onclick="cancelPayment(${p.id}, this)">취소</button>
-          </td>
+          <td><button class="btn-cancel" onclick="cancelPayment(${p.id}, this)">취소</button></td>
         </tr>`).join('');
-
-      renderPager(data);
-    }
-
-    function renderPager(data) {
-      const pager = document.getElementById('pager');
-      const total = data.totalPages || 0;
-      if (total <= 1) { pager.innerHTML = ''; return; }
-
-      // 현재 페이지 앞뒤 2쪽씩만 보여준다.
-      const from = Math.max(0, currentPage - 2);
-      const to   = Math.min(total - 1, currentPage + 2);
-
-      let html = '';
-      if (currentPage > 0) html += `<button onclick="search(${currentPage - 1})">이전</button>`;
-      for (let p = from; p <= to; p++) {
-        html += `<button class="${p === currentPage ? 'active' : ''}" onclick="search(${p})">${p + 1}</button>`;
-      }
-      if (currentPage < total - 1) html += `<button onclick="search(${currentPage + 1})">다음</button>`;
-      pager.innerHTML = html;
     }
 
     async function cancelPayment(id, btn) {
       const tr = document.getElementById('row-' + id);
-      const cells = tr ? tr.querySelectorAll('td') : [];
-      const desc = cells.length
-        ? `${cells[1].textContent}  ${cells[2].textContent}  ${cells[4].textContent}`
-        : ('수납 #' + id);
+      const c = tr ? tr.querySelectorAll('td') : [];
+      const desc = c.length ? `${c[1].textContent}  ${c[2].textContent}  ${c[4].textContent}` : ('수납 #' + id);
 
-      if (!confirm(
-        `아래 수납을 취소합니다.\n\n${desc}\n\n`
-        + '연결 전표가 삭제되고 미납 상태와 잔여원금이 복구됩니다.\n되돌릴 수 없습니다. 진행할까요?'
-      )) return;
+      if (!confirm(`아래 수납을 취소합니다.\n\n${desc}\n\n`
+        + '연결 전표가 삭제되고 미납 상태와 잔여원금이 복구됩니다.\n되돌릴 수 없습니다. 진행할까요?')) return;
 
-      btn.disabled = true;
-      btn.textContent = '취소 중…';
-
+      btn.disabled = true; btn.textContent = '취소 중…';
       try {
-        const res = await fetch(`${API_BASE_URL}/api/payments/${id}`, {
-          method: 'DELETE',
-          credentials: 'include'
-        });
+        const res = await fetch(`${API_BASE_URL}/api/payments/${id}`, { method:'DELETE', credentials:'include' });
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
           try { const e = await res.json(); if (e && e.message) msg = e.message; } catch (_) {}
           throw new Error(msg);
         }
         alert('수납이 취소되었습니다.\n잔여원금과 미납 상태가 복구됐습니다.');
-        await search(currentPage);
+        await loadByContract();
       } catch (e) {
         alert('수납 취소 실패\n\n' + e.message);
-        btn.disabled = false;
-        btn.textContent = '취소';
+        btn.disabled = false; btn.textContent = '취소';
       }
     }
 
-    async function recompute() {
-      const cn = document.getElementById('fixContract').value.trim();
-      const box = document.getElementById('fixResult');
-      if (!cn) { alert('채권번호를 입력하세요.'); return; }
+    // ── 잔여원금 복구 ────────────────────────────────────────
 
+    async function recompute() {
+      const cn = currentContract();
+      const box = document.getElementById('fixResult');
+      const btn = document.getElementById('btnRecompute');
+      if (!cn) { alert('돋보기로 채권을 먼저 선택하세요.'); return; }
+
+      if (!confirm(`[${cn}]\n\n남아 있는 수납만으로 충당을 다시 계산합니다.\n수납 기록은 지우지 않습니다. 진행할까요?`)) return;
+
+      btn.disabled = true;
       box.textContent = '재계산 중…';
       try {
-        const res = await fetch(`${API_BASE_URL}/api/loans/${encodeURIComponent(cn)}/recompute`, {
-          method: 'POST', credentials: 'include'
-        });
+        const res = await fetch(`${API_BASE_URL}/api/loans/${encodeURIComponent(cn)}/recompute`,
+                                { method:'POST', credentials:'include' });
         if (!res.ok) {
           let msg = `HTTP ${res.status}`;
           try { const e = await res.json(); if (e && e.message) msg = e.message; } catch (_) {}
@@ -240,21 +346,22 @@
         }
         const r = await res.json();
         const before = Number(r.remainingPrincipalBefore || 0);
-        const after  = Number(r.remainingPrincipalAfter || 0);
+        const after  = Number(r.remainingPrincipalAfter  || 0);
         box.innerHTML =
-          `<b>${escHtml(r.contractNumber)}</b> 재계산 완료<br>`
-          + `대출금 ${won(r.loanAmount)} · 잔여원금 `
-          + `<b>${won(before)}</b> → <b style="color:#1d4ed8;">${won(after)}</b>`
+          `<b>${escHtml(r.contractNumber)}</b> 재계산 완료 — 대출금 ${won(r.loanAmount)} · `
+          + `잔여원금 <b>${won(before)}</b> → <b style="color:#1d4ed8;">${won(after)}</b>`
           + (before === after ? ' <span style="color:#64748b;">(변동 없음 — 이미 정상입니다)</span>' : '');
+        await refreshContractInfo();
       } catch (e) {
         box.innerHTML = `<span style="color:#dc2626;">재계산 실패: ${escHtml(e.message)}</span>`;
+      } finally {
+        btn.disabled = false;
       }
     }
 
     (async () => {
       if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
       loadSidebar();
-      await search(0);
     })();
   </script>
 </body>
