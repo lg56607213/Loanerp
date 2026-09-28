@@ -3,6 +3,8 @@ package com.jdend.erp.contract.service;
 import com.jdend.erp.contract.dto.*;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
+import com.jdend.erp.contract.entity.InterestCalcType;
+import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.AmortizationCalculator;
@@ -166,6 +168,8 @@ public class ContractService {
         .startDate(req.startDate)
         .endDate(req.endDate)
         .paymentDay(req.paymentDay)
+        .paymentDayType(PaymentDayType.orDefault(req.paymentDayType))
+        .interestCalcType(InterestCalcType.orDefault(req.interestCalcType))
         .installmentCount(installments)
         .monthlyPayment(monthlyPayment)
         .status(normalizeStatus(req.status))
@@ -234,6 +238,16 @@ public class ContractService {
     }
     if (req.getPaymentDay() != null && !req.getPaymentDay().equals(c.getPaymentDay())) {
       c.setPaymentDay(req.getPaymentDay());
+      scheduleAffected = true;
+    }
+    if (isNotBlank(req.getPaymentDayType())
+        && !req.getPaymentDayType().equals(PaymentDayType.orDefault(c.getPaymentDayType()))) {
+      c.setPaymentDayType(PaymentDayType.orDefault(req.getPaymentDayType()));
+      scheduleAffected = true;
+    }
+    if (isNotBlank(req.getInterestCalcType())
+        && !req.getInterestCalcType().equals(InterestCalcType.orDefault(c.getInterestCalcType()))) {
+      c.setInterestCalcType(InterestCalcType.orDefault(req.getInterestCalcType()));
       scheduleAffected = true;
     }
     if (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount())) {
@@ -356,6 +370,10 @@ public class ContractService {
         || (req.getStartDate() != null && !req.getStartDate().equals(c.getStartDate()))
         || (req.getEndDate() != null && !req.getEndDate().equals(c.getEndDate()))
         || (req.getPaymentDay() != null && !req.getPaymentDay().equals(c.getPaymentDay()))
+        || (isNotBlank(req.getPaymentDayType())
+            && !req.getPaymentDayType().equals(PaymentDayType.orDefault(c.getPaymentDayType())))
+        || (isNotBlank(req.getInterestCalcType())
+            && !req.getInterestCalcType().equals(InterestCalcType.orDefault(c.getInterestCalcType())))
         || (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount()));
   }
 
@@ -372,6 +390,18 @@ public class ContractService {
     }
     if (req.paymentDay != null && (req.paymentDay < 1 || req.paymentDay > 31)) {
       throw new IllegalArgumentException("납입일자는 1~31 사이여야 합니다.");
+    }
+    if (req.paymentDayType != null && !PaymentDayType.isValid(req.paymentDayType)) {
+      throw new IllegalArgumentException("납입일자 방식은 '일자' 또는 '말일'이어야 합니다.");
+    }
+    if (req.interestCalcType != null && !InterestCalcType.isValid(req.interestCalcType)) {
+      throw new IllegalArgumentException("이자 계산 방식은 '월할' 또는 '일할'이어야 합니다.");
+    }
+    // 원리금균등은 매회 납입액이 같은 것이 정의라 일할과 양립하지 않는다.
+    if (!InterestCalcType.isAllowedFor(req.repaymentMethod, req.interestCalcType)) {
+      throw new IllegalArgumentException(
+          "원리금균등은 매회 납입액이 같은 방식이라 일할을 쓸 수 없습니다. "
+          + "일할이 필요하면 원금균등이나 만기일시를 선택하세요.");
     }
 
     // 대부업법 최고이자율 — 화면 검증만으로는 API 직접 호출을 막지 못하므로 여기서 강제한다.
@@ -449,6 +479,8 @@ public class ContractService {
         .startDate(c.getStartDate())
         .endDate(c.getEndDate())
         .paymentDay(c.getPaymentDay())
+        .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
+        .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
         .installmentCount(c.getInstallmentCount())
         .monthlyPayment(c.getMonthlyPayment())
         .status(c.getStatus())
@@ -479,6 +511,8 @@ public class ContractService {
         .startDate(c.getStartDate())
         .endDate(c.getEndDate())
         .paymentDay(c.getPaymentDay())
+        .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
+        .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
         .installmentCount(nvl(c.getInstallmentCount()))
         .monthlyPayment(nvl(c.getMonthlyPayment()))
         .status(c.getStatus())

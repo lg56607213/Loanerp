@@ -28,6 +28,8 @@ public class ContractRequest {
   public LocalDate startDate;
   public LocalDate endDate;
   public Integer paymentDay;      // 납입일자(1~31)
+  public String paymentDayType;   // 일자 / 말일
+  public String interestCalcType; // 월할 / 일할
   public Integer installmentCount;
   public Long monthlyPayment;     // 미입력 시 상환방식에 따라 자동 산출
 

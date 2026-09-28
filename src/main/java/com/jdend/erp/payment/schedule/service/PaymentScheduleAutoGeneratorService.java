@@ -1,8 +1,11 @@
 package com.jdend.erp.payment.schedule.service;
 
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.InterestCalcType;
+import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.support.AmortizationCalculator;
+import com.jdend.erp.contract.support.DailyInterestCalculator;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,14 +15,20 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 여신계약의 상환스케줄 자동 생성.
  *
- * 정기 회차는 월할(연이율 ÷ 12)로 산출한다.
- * 중도상환·기한이익상실 등 정산 시점의 일할 재계산은 DailyInterestCalculator가 담당한다.
+ * 정기 회차 이자는 계약의 이자 계산 방식을 따른다.
+ *   월할 — 연이율 ÷ 12. 달의 길이와 무관하게 매회 같은 이자.
+ *   일할 — 연이율 ÷ 365 × 회차 일수. 31일인 달은 더, 2월은 덜 붙는다.
+ * 원리금균등은 매회 납입액이 같은 것이 정의라 일할을 적용하지 않는다.
+ *
+ * 중도상환·기한이익상실 등 정산 시점의 일할 재계산은 이 설정과 무관하게
+ * 언제나 DailyInterestCalculator가 담당한다.
  */
 @Service
 @RequiredArgsConstructor
@@ -91,18 +100,28 @@ public class PaymentScheduleAutoGeneratorService {
         : c.getMonthlyPayment();
 
     long equalPrincipalPart = Math.round((double) principal / installments);
+
+    boolean lastDay = PaymentDayType.isLastDay(c.getPaymentDayType());
     int payDay = (c.getPaymentDay() != null && c.getPaymentDay() > 0)
         ? c.getPaymentDay()
         : start.getDayOfMonth();
+
+    // 일할이면 연이율 ÷ 365 × 회차 일수로 이자를 매긴다. 31일인 달은 더, 2월은 덜 붙는다.
+    // 원리금균등은 납입액 고정이 정의라 일할을 허용하지 않는다(등록 시 막지만 여기서도 지킨다).
+    boolean daily = InterestCalcType.isDaily(c.getInterestCalcType())
+        && !RepaymentMethod.EQUAL_PAYMENT.equals(method);
 
     long remaining = principal;
     LocalDate billStart = start;
 
     for (int i = 1; i <= installments; i++) {
       LocalDate billEnd = billStart.plusMonths(1).minusDays(1);
-      LocalDate dueDate = withDaySafe(start.plusMonths(i), payDay);
+      LocalDate dueMonth = start.plusMonths(i);
+      LocalDate dueDate = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
 
-      long interest = AmortizationCalculator.monthlyInterest(remaining, monthlyRate);
+      long interest = daily
+          ? DailyInterestCalculator.accrued(remaining, c.getInterestRate(), daysOf(billStart, billEnd))
+          : AmortizationCalculator.monthlyInterest(remaining, monthlyRate);
       long principalPart = switch (method) {
         case RepaymentMethod.EQUAL_PRINCIPAL -> equalPrincipalPart;
         case RepaymentMethod.BULLET -> (i == installments) ? remaining : 0L;
@@ -135,6 +154,18 @@ public class PaymentScheduleAutoGeneratorService {
       billStart = billEnd.plusDays(1);
     }
     return batch;
+  }
+
+  /** 그 달의 말일 */
+  private static LocalDate lastDayOf(LocalDate baseMonth) {
+    if (baseMonth == null) return null;
+    return YearMonth.of(baseMonth.getYear(), baseMonth.getMonthValue()).atEndOfMonth();
+  }
+
+  /** 회차 일수 — 시작일과 종료일을 모두 포함한다(1/1~1/31 이면 31일). */
+  private static long daysOf(LocalDate from, LocalDate to) {
+    if (from == null || to == null) return 0L;
+    return ChronoUnit.DAYS.between(from, to) + 1;
   }
 
   /** 말일 클램핑 — 31일 납입일자를 2월에 적용하면 28/29일로 내린다. */

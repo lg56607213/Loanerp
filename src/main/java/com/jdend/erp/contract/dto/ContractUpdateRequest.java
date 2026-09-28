@@ -28,6 +28,8 @@ public class ContractUpdateRequest {
   private LocalDate startDate;
   private LocalDate endDate;
   private Integer paymentDay;
+  private String paymentDayType;
+  private String interestCalcType;
   private Integer installmentCount;
   private Long monthlyPayment;
 

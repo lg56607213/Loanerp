@@ -32,6 +32,8 @@ public class ContractResponse {
   public LocalDate startDate;
   public LocalDate endDate;
   public Integer paymentDay;
+  public String paymentDayType;
+  public String interestCalcType;
   public Integer installmentCount;
   public Long monthlyPayment;
 

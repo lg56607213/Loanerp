@@ -96,6 +96,14 @@ public class Contract {
   @Column(name="payment_day")
   private Integer paymentDay;
 
+  /** 납입일자 지정 방식 — 일자 / 말일. 말일이면 payment_day 는 쓰지 않는다 */
+  @Column(name="payment_day_type", length=10)
+  private String paymentDayType;
+
+  /** 정기 회차 이자 계산 — 월할 / 일할. 비어 있으면 월할로 본다 */
+  @Column(name="interest_calc_type", length=10)
+  private String interestCalcType;
+
   /** 총 회차수 */
   @Column(name="installment_count", nullable=false)
   private Integer installmentCount;
