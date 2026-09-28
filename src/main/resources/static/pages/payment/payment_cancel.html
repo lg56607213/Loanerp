@@ -56,6 +56,25 @@
           전표만 따로 지우면 수납 기록이 남아 원금이 줄어든 것처럼 보입니다. <b>반드시 이 화면에서 취소하세요.</b>
         </div>
 
+        <div class="search-box" style="background:#fff7ed;border-color:#fed7aa;">
+          <div style="font-size:13px;font-weight:700;color:#7c2d12;margin-bottom:8px;">
+            잔여원금 복구 (충당 재계산)
+          </div>
+          <div style="font-size:12px;color:#7c2d12;margin-bottom:10px;line-height:1.6;">
+            예전에 전표를 직접 지워 수납 기록은 사라졌는데 원금이 줄어든 채로 남은 채권을 되돌립니다.<br>
+            남아 있는 수납만으로 충당을 다시 계산하므로, 여러 번 눌러도 결과는 같습니다.
+          </div>
+          <div class="search-row">
+            <div class="form-group">
+              <label for="fixContract">채권번호</label>
+              <input type="text" id="fixContract" placeholder="예: CRD260928001001" style="width:260px;"
+                     onkeydown="if(event.key==='Enter') recompute()">
+            </div>
+            <button class="btn-search" style="background:#ea580c;" onclick="recompute()">재계산</button>
+          </div>
+          <div id="fixResult" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+
         <div class="search-box">
           <div class="search-row">
             <div class="form-group">
@@ -201,6 +220,34 @@
         alert('수납 취소 실패\n\n' + e.message);
         btn.disabled = false;
         btn.textContent = '취소';
+      }
+    }
+
+    async function recompute() {
+      const cn = document.getElementById('fixContract').value.trim();
+      const box = document.getElementById('fixResult');
+      if (!cn) { alert('채권번호를 입력하세요.'); return; }
+
+      box.textContent = '재계산 중…';
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/loans/${encodeURIComponent(cn)}/recompute`, {
+          method: 'POST', credentials: 'include'
+        });
+        if (!res.ok) {
+          let msg = `HTTP ${res.status}`;
+          try { const e = await res.json(); if (e && e.message) msg = e.message; } catch (_) {}
+          throw new Error(msg);
+        }
+        const r = await res.json();
+        const before = Number(r.remainingPrincipalBefore || 0);
+        const after  = Number(r.remainingPrincipalAfter || 0);
+        box.innerHTML =
+          `<b>${escHtml(r.contractNumber)}</b> 재계산 완료<br>`
+          + `대출금 ${won(r.loanAmount)} · 잔여원금 `
+          + `<b>${won(before)}</b> → <b style="color:#1d4ed8;">${won(after)}</b>`
+          + (before === after ? ' <span style="color:#64748b;">(변동 없음 — 이미 정상입니다)</span>' : '');
+      } catch (e) {
+        box.innerHTML = `<span style="color:#dc2626;">재계산 실패: ${escHtml(e.message)}</span>`;
       }
     }
 
