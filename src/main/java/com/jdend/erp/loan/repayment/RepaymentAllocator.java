@@ -21,6 +21,12 @@ import java.util.List;
  *
  * '이자' 단계 안에서는 지연배상금을 약정이자보다 먼저 충당한다.
  * 각 단계는 납입예정일이 오래된 회차부터 채운다.
+ *
+ * 약정이자는 두 가지를 충당한다.
+ *  1. 납입예정일이 지난 회차의 미납 이자
+ *  2. 아직 도래하지 않았어도 지금까지 굴러간 이자(경과이자) — 남은 원금과
+ *     실제 경과일수로 일할 계산하며, 그 회차에 예정된 이자를 넘지 않는다.
+ * 2가 없으면 납입예정일 전에 받은 돈이 전부 원금으로 들어가 그 기간 이자를 받지 못한다.
  */
 @Component
 public class RepaymentAllocator {
@@ -99,7 +105,7 @@ public class RepaymentAllocator {
       remain = switch (step) {
         case COST -> applyCost(result, targets, schedules, remain, outstandingCost);
         case OVERDUE_INTEREST -> applyOverdueInterest(result, targets, remain, contract, asOf, overdueCharged);
-        case INTEREST -> applyInterest(result, targets, remain, asOf);
+        case INTEREST -> applyInterest(result, targets, remain, contract, asOf);
         case PRINCIPAL -> applyPrincipal(result, principalTargets, remain, asOf);
       };
     }
@@ -162,7 +168,8 @@ public class RepaymentAllocator {
   }
 
   private long applyInterest(RepaymentAllocation result, List<PaymentSchedule> targets,
-                             long remain, LocalDate asOf) {
+                             long remain, Contract contract, LocalDate asOf) {
+    // 1순위 — 이미 납입예정일이 지난 회차의 미납 이자
     for (PaymentSchedule ps : targets) {
       if (remain <= 0) break;
       if (!isDue(ps, asOf)) continue;
@@ -170,14 +177,67 @@ public class RepaymentAllocator {
       long due = ps.unpaidInterest();
       if (due <= 0) continue;
 
-      long take = Math.min(remain, due);
-      ps.setPaidInterest(nz(ps.getPaidInterest()) + take);
-      ps.refreshLineStatus();
-      result.addInterest(take);
-      result.lineFor(ps.getId(), ps.getInstallmentNo()).addInterest(take);
-      remain -= take;
+      remain = takeInterest(result, ps, remain, due);
+    }
+
+    // 2순위 — 아직 도래하지 않았지만 지금까지 '굴러간' 이자(경과이자)
+    //
+    // 납입예정일 전에 받은 돈을 전부 원금으로 넣으면 그 기간 이자를 받지 못한 것이 된다.
+    // 돈을 쓴 날수만큼은 이자로 먼저 충당하고 남는 금액을 원금에 넣는다.
+    // 경과이자는 남은 원금과 실제 경과일수로 계산하며(일할), 그 회차에 예정된 이자를
+    // 넘지 않는다 — 아직 오지 않은 날의 이자까지 미리 받을 수는 없다.
+    if (remain > 0) {
+      long outstanding = outstandingPrincipal(targets);
+      for (PaymentSchedule ps : targets) {
+        if (remain <= 0) break;
+        long accrued = accruedInterest(ps, contract, asOf, outstanding);
+        if (accrued <= 0) continue;
+
+        remain = takeInterest(result, ps, remain, accrued);
+      }
     }
     return remain;
+  }
+
+  /** 한 회차에 이자를 충당하고 남은 금액을 돌려준다. */
+  private long takeInterest(RepaymentAllocation result, PaymentSchedule ps, long remain, long due) {
+    long take = Math.min(remain, due);
+    if (take <= 0) return remain;
+
+    ps.setPaidInterest(nz(ps.getPaidInterest()) + take);
+    ps.refreshLineStatus();
+    result.addInterest(take);
+    result.lineFor(ps.getId(), ps.getInstallmentNo()).addInterest(take);
+    return remain - take;
+  }
+
+  /**
+   * 진행 중인 회차의 경과이자 — 아직 충당되지 않은 부분.
+   * 도래한 회차나 기간 밖인 회차는 0을 돌려준다(1순위에서 이미 처리했다).
+   */
+  private long accruedInterest(PaymentSchedule ps, Contract contract,
+                               LocalDate asOf, long outstandingPrincipal) {
+    if (isDue(ps, asOf)) return 0L;
+    if (outstandingPrincipal <= 0) return 0L;
+
+    LocalDate from = ps.getBillStartDate();
+    if (from == null || asOf == null) return 0L;
+    if (!asOf.isAfter(from)) return 0L;                 // 아직 하루도 지나지 않았다
+    if (ps.getBillEndDate() != null && asOf.isAfter(ps.getBillEndDate())) return 0L;
+
+    long accrued = DailyInterestCalculator.accrued(
+        outstandingPrincipal, contract.getInterestRate(), from, asOf);
+
+    // 그 회차에 예정된 이자를 넘지 못한다.
+    long scheduled = nz(ps.getInterestAmount());
+    if (scheduled > 0) accrued = Math.min(accrued, scheduled);
+
+    return Math.max(0L, accrued - nz(ps.getPaidInterest()));
+  }
+
+  /** 지금 남아 있는 원금 — 회차별 미충당 원금의 합 */
+  private static long outstandingPrincipal(List<PaymentSchedule> schedules) {
+    return schedules.stream().mapToLong(PaymentSchedule::unpaidPrincipal).sum();
   }
 
   /**
