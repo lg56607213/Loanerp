@@ -13,6 +13,7 @@ import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.AmortizationCalculator;
+import com.jdend.erp.contract.support.AmountRounding;
 import com.jdend.erp.contract.support.DebtTypeCode;
 import com.jdend.erp.contract.support.LoanRateValidator;
 import com.jdend.erp.accounting.settings.service.OtherAccountSettingsService;
@@ -157,8 +158,9 @@ public class ContractService {
 
     String method = normalizeRepaymentMethod(req.repaymentMethod);
     int installments = resolveInstallmentCount(req.installmentCount, req.startDate, req.endDate);
+    AmountRounding rounding = AmountRounding.of(req.roundingUnit, req.roundingMode);
     long monthlyPayment = resolveMonthlyPayment(
-        req.monthlyPayment, method, req.loanAmount, req.interestRate, installments);
+        req.monthlyPayment, method, req.loanAmount, req.interestRate, installments, rounding);
 
     Contract c = Contract.builder()
         .contractNumber(generateNextContractNumber(req.loanType))
@@ -180,6 +182,8 @@ public class ContractService {
         .paymentDay(req.paymentDay)
         .paymentDayType(PaymentDayType.orDefault(req.paymentDayType))
         .interestCalcType(InterestCalcType.orDefault(req.interestCalcType))
+        .roundingUnit(rounding.unit())
+        .roundingMode(rounding.mode())
         .installmentCount(installments)
         .monthlyPayment(monthlyPayment)
         .status(normalizeStatus(req.status))
@@ -264,6 +268,15 @@ public class ContractService {
       c.setInstallmentCount(req.getInstallmentCount());
       scheduleAffected = true;
     }
+    // 단수 설정이 바뀌면 회차 금액이 전부 달라지므로 스케줄을 다시 만든다.
+    AmountRounding newRounding = AmountRounding.of(req.getRoundingUnit(), req.getRoundingMode());
+    AmountRounding oldRounding = AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode());
+    if ((req.getRoundingUnit() != null || req.getRoundingMode() != null)
+        && (newRounding.unit() != oldRounding.unit() || !newRounding.mode().equals(oldRounding.mode()))) {
+      c.setRoundingUnit(newRounding.unit());
+      c.setRoundingMode(newRounding.mode());
+      scheduleAffected = true;
+    }
 
     if (c.getEndDate() != null && c.getStartDate() != null && c.getEndDate().isBefore(c.getStartDate())) {
       throw new IllegalArgumentException("종료일자는 시작일자보다 이전일 수 없습니다.");
@@ -276,7 +289,8 @@ public class ContractService {
       c.setMonthlyPayment(req.getMonthlyPayment());
     } else if (scheduleAffected) {
       c.setMonthlyPayment(AmortizationCalculator.monthlyPayment(
-          c.getRepaymentMethod(), nvl(c.getLoanAmount()), c.getInterestRate(), nvl(c.getInstallmentCount())));
+          c.getRepaymentMethod(), nvl(c.getLoanAmount()), c.getInterestRate(), nvl(c.getInstallmentCount()),
+          AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode())));
     }
 
     contractRepo.save(c);
@@ -429,6 +443,12 @@ public class ContractService {
     if (req.interestCalcType != null && !InterestCalcType.isValid(req.interestCalcType)) {
       throw new IllegalArgumentException("이자 계산 방식은 '월할' 또는 '일할'이어야 합니다.");
     }
+    if (!AmountRounding.isValidUnit(req.roundingUnit)) {
+      throw new IllegalArgumentException("납입금액 단수 단위는 1(원), 10(십원), 100(백원) 중 하나여야 합니다.");
+    }
+    if (!AmountRounding.isValidMode(req.roundingMode)) {
+      throw new IllegalArgumentException("단수 처리 방식은 '절사', '절상', '반올림' 중 하나여야 합니다.");
+    }
     // 원리금균등은 매회 납입액이 같은 것이 정의라 일할과 양립하지 않는다.
     if (!InterestCalcType.isAllowedFor(req.repaymentMethod, req.interestCalcType)) {
       throw new IllegalArgumentException(
@@ -465,9 +485,9 @@ public class ContractService {
   }
 
   private long resolveMonthlyPayment(Long given, String method, Long principal,
-                                     BigDecimal rate, int installments) {
+                                     BigDecimal rate, int installments, AmountRounding rounding) {
     if (given != null && given > 0) return given;
-    return AmortizationCalculator.monthlyPayment(method, nvl(principal), rate, installments);
+    return AmortizationCalculator.monthlyPayment(method, nvl(principal), rate, installments, rounding);
   }
 
   private Contract findById(Long id) {
@@ -513,6 +533,8 @@ public class ContractService {
         .paymentDay(c.getPaymentDay())
         .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
         .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
+        .roundingUnit(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).unit())
+        .roundingMode(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).mode())
         .installmentCount(c.getInstallmentCount())
         .monthlyPayment(c.getMonthlyPayment())
         .status(c.getStatus())
@@ -545,6 +567,8 @@ public class ContractService {
         .paymentDay(c.getPaymentDay())
         .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
         .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
+        .roundingUnit(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).unit())
+        .roundingMode(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).mode())
         .installmentCount(nvl(c.getInstallmentCount()))
         .monthlyPayment(nvl(c.getMonthlyPayment()))
         .status(c.getStatus())

@@ -34,19 +34,33 @@ public final class AmortizationCalculator {
    */
   public static long monthlyPayment(String repaymentMethod, long principal,
                                     BigDecimal annualRatePercent, int months) {
+    return monthlyPayment(repaymentMethod, principal, annualRatePercent, months, AmountRounding.DEFAULT);
+  }
+
+  /**
+   * 단수 처리를 지정한 월납입액.
+   *
+   * 백원 단위로 약정하는 계약을 위해 회차 금액을 끊는다.
+   * 원금균등은 원금과 이자를 각각 끊어 더한다 — 합계만 끊으면 회차 안에서
+   * 원금+이자가 납입액과 어긋난다.
+   */
+  public static long monthlyPayment(String repaymentMethod, long principal,
+                                    BigDecimal annualRatePercent, int months,
+                                    AmountRounding rounding) {
     if (principal <= 0 || months <= 0) return 0L;
+    AmountRounding r0 = rounding == null ? AmountRounding.DEFAULT : rounding;
     BigDecimal r = monthlyRate(annualRatePercent);
 
     if (RepaymentMethod.BULLET.equals(repaymentMethod)) {
-      return BigDecimal.valueOf(principal).multiply(r).setScale(0, RoundingMode.HALF_UP).longValue();
+      return r0.apply(BigDecimal.valueOf(principal).multiply(r));
     }
     if (RepaymentMethod.EQUAL_PRINCIPAL.equals(repaymentMethod)) {
-      long principalPart = Math.round((double) principal / months);
-      long interestPart = BigDecimal.valueOf(principal).multiply(r)
-          .setScale(0, RoundingMode.HALF_UP).longValue();
+      long principalPart = r0.apply(BigDecimal.valueOf(principal)
+          .divide(BigDecimal.valueOf(months), SCALE, RoundingMode.HALF_UP));
+      long interestPart = r0.apply(BigDecimal.valueOf(principal).multiply(r));
       return principalPart + interestPart;
     }
-    return equalPayment(principal, r, months);
+    return equalPayment(principal, r, months, r0);
   }
 
   /**
@@ -55,9 +69,17 @@ public final class AmortizationCalculator {
    * 무이자(r = 0)면 원금을 회차로 나눈다.
    */
   public static long equalPayment(long principal, BigDecimal monthlyRate, int months) {
+    return equalPayment(principal, monthlyRate, months, AmountRounding.DEFAULT);
+  }
+
+  /** 단수 처리를 지정한 원리금균등 PMT. 끊은 값이 그대로 매회 납입액이 된다. */
+  public static long equalPayment(long principal, BigDecimal monthlyRate, int months,
+                                  AmountRounding rounding) {
     if (principal <= 0 || months <= 0) return 0L;
+    AmountRounding r0 = rounding == null ? AmountRounding.DEFAULT : rounding;
     if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
-      return Math.round((double) principal / months);
+      return r0.apply(BigDecimal.valueOf(principal)
+          .divide(BigDecimal.valueOf(months), SCALE, RoundingMode.HALF_UP));
     }
     BigDecimal one = BigDecimal.ONE;
     BigDecimal onePlusR = one.add(monthlyRate);
@@ -66,14 +88,20 @@ public final class AmortizationCalculator {
     BigDecimal numerator = BigDecimal.valueOf(principal).multiply(monthlyRate).multiply(pow);
     BigDecimal denominator = pow.subtract(one);
 
-    return numerator.divide(denominator, 0, RoundingMode.HALF_UP).longValue();
+    return r0.apply(numerator.divide(denominator, SCALE, RoundingMode.HALF_UP));
   }
 
   /** 잔여원금에 붙는 월 이자 (원 단위 반올림) */
   public static long monthlyInterest(long remainingPrincipal, BigDecimal monthlyRate) {
+    return monthlyInterest(remainingPrincipal, monthlyRate, AmountRounding.DEFAULT);
+  }
+
+  /** 단수 처리를 지정한 월 이자 */
+  public static long monthlyInterest(long remainingPrincipal, BigDecimal monthlyRate,
+                                     AmountRounding rounding) {
     if (remainingPrincipal <= 0) return 0L;
-    return BigDecimal.valueOf(remainingPrincipal).multiply(monthlyRate)
-        .setScale(0, RoundingMode.HALF_UP).longValue();
+    AmountRounding r0 = rounding == null ? AmountRounding.DEFAULT : rounding;
+    return r0.apply(BigDecimal.valueOf(remainingPrincipal).multiply(monthlyRate));
   }
 
   private AmortizationCalculator() {}

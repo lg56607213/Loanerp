@@ -101,6 +101,17 @@ public class Contract {
   private String paymentDayType;
 
   /** 정기 회차 이자 계산 — 월할 / 일할. 비어 있으면 월할로 본다 */
+  /**
+   * 납입금액 단수 단위 — 1 / 10 / 100. 비면 1(원단위).
+   * 월할 계약은 백원 단위로 떨어지게 약정하는 일이 많다.
+   */
+  @Column(name="rounding_unit")
+  private Integer roundingUnit;
+
+  /** 단수 처리 방식 — 절사 / 절상 / 반올림. 비면 반올림(기존 계산과 동일). */
+  @Column(name="rounding_mode", length=10)
+  private String roundingMode;
+
   @Column(name="interest_calc_type", length=10)
   private String interestCalcType;
 

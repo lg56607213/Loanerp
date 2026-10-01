@@ -34,6 +34,8 @@ public class ContractResponse {
   public Integer paymentDay;
   public String paymentDayType;
   public String interestCalcType;
+  public Integer roundingUnit;
+  public String roundingMode;
   public Integer installmentCount;
   public Long monthlyPayment;
 

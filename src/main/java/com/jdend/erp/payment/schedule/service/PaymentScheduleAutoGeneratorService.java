@@ -5,6 +5,7 @@ import com.jdend.erp.contract.entity.InterestCalcType;
 import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.support.AmortizationCalculator;
+import com.jdend.erp.contract.support.AmountRounding;
 import com.jdend.erp.contract.support.DailyInterestCalculator;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import com.jdend.erp.payment.schedule.repository.PaymentScheduleRepository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
@@ -95,11 +97,16 @@ public class PaymentScheduleAutoGeneratorService {
     String method = c.getRepaymentMethod() == null ? RepaymentMethod.EQUAL_PAYMENT : c.getRepaymentMethod();
     BigDecimal monthlyRate = AmortizationCalculator.monthlyRate(c.getInterestRate());
 
+    // 납입금액 단수 — 월할 계약은 백원 단위로 떨어지게 약정하는 일이 많다.
+    // 지정하지 않은 계약은 원단위 반올림이라 이 기능이 생기기 전과 결과가 같다.
+    AmountRounding rounding = AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode());
+
     long fixedPayment = c.getMonthlyPayment() == null || c.getMonthlyPayment() <= 0
-        ? AmortizationCalculator.monthlyPayment(method, principal, c.getInterestRate(), installments)
+        ? AmortizationCalculator.monthlyPayment(method, principal, c.getInterestRate(), installments, rounding)
         : c.getMonthlyPayment();
 
-    long equalPrincipalPart = Math.round((double) principal / installments);
+    long equalPrincipalPart = rounding.apply(BigDecimal.valueOf(principal)
+        .divide(BigDecimal.valueOf(installments), 12, RoundingMode.HALF_UP));
 
     boolean lastDay = PaymentDayType.isLastDay(c.getPaymentDayType());
     int payDay = (c.getPaymentDay() != null && c.getPaymentDay() > 0)
@@ -119,9 +126,12 @@ public class PaymentScheduleAutoGeneratorService {
       LocalDate dueMonth = start.plusMonths(i);
       LocalDate dueDate = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
 
+      // 이자도 같은 단위로 끊는다. 이자만 1원 단위로 두면 원금+이자 합계가
+      // 약정한 납입액과 끝자리에서 어긋난다.
       long interest = daily
-          ? DailyInterestCalculator.accrued(remaining, c.getInterestRate(), daysOf(billStart, billEnd))
-          : AmortizationCalculator.monthlyInterest(remaining, monthlyRate);
+          ? rounding.apply(DailyInterestCalculator.accrued(
+                remaining, c.getInterestRate(), daysOf(billStart, billEnd)))
+          : AmortizationCalculator.monthlyInterest(remaining, monthlyRate, rounding);
       long principalPart = switch (method) {
         case RepaymentMethod.EQUAL_PRINCIPAL -> equalPrincipalPart;
         case RepaymentMethod.BULLET -> (i == installments) ? remaining : 0L;

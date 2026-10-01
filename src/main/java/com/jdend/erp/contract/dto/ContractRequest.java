@@ -30,6 +30,9 @@ public class ContractRequest {
   public Integer paymentDay;      // 납입일자(1~31)
   public String paymentDayType;   // 일자 / 말일
   public String interestCalcType; // 월할 / 일할
+
+  public Integer roundingUnit;    // 납입금액 단수 단위 1 / 10 / 100
+  public String roundingMode;     // 절사 / 절상 / 반올림
   public Integer installmentCount;
   public Long monthlyPayment;     // 미입력 시 상환방식에 따라 자동 산출
 

@@ -313,6 +313,24 @@
                 <div class="field-hint" id="interestCalcHint">월할은 연이율÷12로 매월 같은 이자가 붙습니다.</div>
               </div>
               <div class="form-group">
+                <label>납입금액 단수</label>
+                <select id="roundingUnit" onchange="onRoundingChange()">
+                  <option value="1">원단위</option>
+                  <option value="10">십원단위</option>
+                  <option value="100">백원단위</option>
+                </select>
+                <div class="field-hint">월할로 받는 계약은 백원단위로 떨어지게 약정하는 경우가 많습니다.</div>
+              </div>
+              <div class="form-group">
+                <label>단수 처리</label>
+                <select id="roundingMode" onchange="onRoundingChange()">
+                  <option value="반올림">반올림</option>
+                  <option value="절사">절사 (버림)</option>
+                  <option value="절상">절상 (올림)</option>
+                </select>
+                <div class="field-hint" id="roundingHint">원단위 반올림은 지금까지와 같은 계산입니다.</div>
+              </div>
+              <div class="form-group">
                 <label>회차수</label>
                 <input type="number" id="installmentCount" min="1" placeholder="자동계산">
                 <div class="field-hint">미입력 시 시작일자~종료일자 개월수로 계산합니다.</div>
@@ -626,6 +644,27 @@
      * 원리금균등은 '매회 납입액이 같다'가 정의라 일할과 양립하지 않는다.
      * 그 방식을 고르면 일할을 못 고르게 막고 월할로 되돌린다.
      */
+    /**
+     * 단수 설정 안내.
+     *
+     * 끊는 대상은 회차별 이자와 원금이다. 마지막 회차 원금은 끊지 않고 남은 잔액을
+     * 그대로 넣는다 — 그러지 않으면 단수가 쌓여 완제했는데 몇백 원이 남는다.
+     */
+    function onRoundingChange() {
+      const unit = Number($('roundingUnit').value || 1);
+      const mode = $('roundingMode').value || '반올림';
+      const hint = $('roundingHint');
+
+      if (unit === 1 && mode === '반올림') {
+        hint.textContent = '원단위 반올림은 지금까지와 같은 계산입니다.';
+        return;
+      }
+      const unitLabel = unit === 100 ? '백원' : (unit === 10 ? '십원' : '원');
+      hint.textContent =
+        `회차별 이자와 원금을 ${unitLabel}단위로 ${mode}합니다.`
+      + ' 마지막 회차는 남은 원금을 그대로 넣어 잔액이 정확히 0으로 끝납니다.';
+    }
+
     function onInterestCalcChange() {
       const method = $('repaymentMethod').value;
       const sel    = $('interestCalcType');
@@ -662,7 +701,10 @@
       fillPaymentDayOptions();
       $('paymentDay').value = '25';
       $('interestCalcType').value = '월할';
+      $('roundingUnit').value = '1';
+      $('roundingMode').value = '반올림';
       onInterestCalcChange();
+      onRoundingChange();
       $('debtType').value = '개인금융채권';
       $('editBadge').classList.add('hidden');
       $('formTitle').textContent = '대출 등록';
@@ -751,6 +793,8 @@
         paymentDay: $('paymentDay').value === '말일' ? null : Number($('paymentDay').value),
         paymentDayType: $('paymentDay').value === '말일' ? '말일' : '일자',
         interestCalcType: strVal('interestCalcType') || '월할',
+        roundingUnit: Number($('roundingUnit').value || 1),
+        roundingMode: strVal('roundingMode') || '반올림',
         installmentCount: $('installmentCount').value === '' ? null : Number($('installmentCount').value),
         monthlyPayment: numVal('monthlyPayment'),
         remarks: strVal('remarks'),
@@ -781,7 +825,10 @@
         ? '말일'
         : (c.paymentDay != null ? String(c.paymentDay) : '25');
       $('interestCalcType').value = c.interestCalcType || '월할';
+      $('roundingUnit').value = String(c.roundingUnit || 1);
+      $('roundingMode').value = c.roundingMode || '반올림';
       onInterestCalcChange();
+      onRoundingChange();
       $('installmentCount').value = c.installmentCount != null ? c.installmentCount : '';
       $('monthlyPayment').value = money(c.monthlyPayment);
       $('remarks').value = c.remarks || '';
@@ -943,6 +990,7 @@
     loadSidebar();
     fillPaymentDayOptions();
     onInterestCalcChange();
+    onRoundingChange();
     validateRates();
 
     // 채권 상세에서 "수정하기"로 넘어온 경우 바로 수정 폼을 연다.
