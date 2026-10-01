@@ -70,6 +70,62 @@ public class PaymentScheduleAutoGeneratorService {
     return persist(c, future);
   }
 
+  /**
+   * 저장하지 않고 스케줄만 계산해 본다.
+   *
+   * 등록 전에 "이 조건으로 만들면 회차 이자가 얼마가 되는지"를 알아야
+   * 실효이율이 법정 상한을 넘는지 판단할 수 있다. 같은 build() 를 쓰므로
+   * 실제로 저장될 금액과 어긋나지 않는다.
+   */
+  public List<PaymentSchedule> preview(Contract c) {
+    return build(c);
+  }
+
+  /**
+   * 스케줄에 실제로 매겨진 이자로 환산한 연이율(%).
+   *
+   * <pre>
+   *   실효이율 = 총이자 / Σ(회차 시작 잔액 × 회차 기간) × 100
+   * </pre>
+   *
+   * 명목이율이 상한 안이어도 단수를 절상하면 실제로 받는 이자가 상한을 넘을 수 있다.
+   * 예컨대 2,000만원 연 20% 월할의 월 이자는 333,333.33원인데 백원단위 절상은
+   * 333,400원이 되어 연 20.004%가 된다. 명목이율만 보면 잡히지 않는다.
+   *
+   * 반대로 원단위 반올림처럼 1원 미만에서 오르내리는 것은 실효이율에 거의 영향이
+   * 없어 이 계산에서 자연히 걸러진다.
+   *
+   * @return 실효 연이율(%). 계산할 수 없으면 null.
+   */
+  public BigDecimal effectiveAnnualRate(Contract c, List<PaymentSchedule> rows) {
+    if (c == null || rows == null || rows.isEmpty()) return null;
+
+    boolean daily = InterestCalcType.isDaily(c.getInterestCalcType())
+        && !RepaymentMethod.EQUAL_PAYMENT.equals(c.getRepaymentMethod());
+
+    BigDecimal totalInterest = BigDecimal.ZERO;
+    BigDecimal base = BigDecimal.ZERO;          // Σ(잔액 × 기간) — 이자 산정 기준액
+    long opening = c.getLoanAmount() == null ? 0L : c.getLoanAmount();
+
+    for (PaymentSchedule ps : rows) {
+      long interest = ps.getInterestAmount() == null ? 0L : ps.getInterestAmount();
+      totalInterest = totalInterest.add(BigDecimal.valueOf(interest));
+
+      // 회차 기간을 연 단위 비율로 — 월할은 1/12, 일할은 실제 일수/365
+      BigDecimal fraction = daily
+          ? BigDecimal.valueOf(daysOf(ps.getBillStartDate(), ps.getBillEndDate()))
+              .divide(BigDecimal.valueOf(DailyInterestCalculator.DAYS_IN_YEAR), 16, RoundingMode.HALF_UP)
+          : BigDecimal.ONE.divide(BigDecimal.valueOf(12), 16, RoundingMode.HALF_UP);
+
+      base = base.add(BigDecimal.valueOf(opening).multiply(fraction));
+      opening = ps.getRemainingPrincipal() == null ? opening : ps.getRemainingPrincipal();
+    }
+
+    if (base.signum() <= 0) return null;
+    return totalInterest.divide(base, 6, RoundingMode.HALF_UP)
+        .multiply(BigDecimal.valueOf(100));
+  }
+
   private int persist(Contract c, List<PaymentSchedule> batch) {
     if (batch.isEmpty()) return 0;
     scheduleRepo.saveAll(batch);

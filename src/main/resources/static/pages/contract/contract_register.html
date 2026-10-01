@@ -480,6 +480,9 @@
       return ok;
     }
 
+    /** 대부업법 최고이자율(연 %). 서버 LoanRateValidator.MAX_RATE 와 같은 값이다. */
+    const LEGAL_MAX_RATE = 20;
+
     // ── 상환 시뮬레이션 (서버 AmortizationCalculator와 동일 공식) ──
 
     function calcInstallments() {
@@ -537,9 +540,11 @@
       let remaining = principal;
       let totalInterest = 0;
       let firstPayment = 0;
+      let base = 0;                 // Σ(회차 시작 잔액 × 1/12) — 실효이율 계산용
 
       for (let i = 1; i <= months; i++) {
         const interest = roundAmount(remaining * r, rounding);
+        base += remaining / 12;
         let part = method === '원금균등' ? equalPart
                  : method === '만기일시' ? (i === months ? remaining : 0)
                  : fixedPayment - interest;
@@ -551,7 +556,9 @@
         totalInterest += interest;
         if (i === 1) firstPayment = part + interest;
       }
-      return { fixedPayment, firstPayment, totalInterest };
+      // 단수를 절상하면 명목이율이 상한 안이어도 실제로 받는 이자가 상한을 넘을 수 있다.
+      const effectiveRate = base > 0 ? (totalInterest / base) * 100 : 0;
+      return { fixedPayment, firstPayment, totalInterest, effectiveRate };
     }
 
     function refreshSimulation() {
@@ -585,12 +592,25 @@
         ? '<br><span style="color:#9a3412;">일할이라 달의 일수에 따라 회차 이자가 달라집니다. 위 금액은 월할 기준 참고치입니다.</span>'
         : '';
 
+      // 실효이율이 법정 상한을 넘으면 저장할 때 막힌다. 그 전에 알려준다.
+      const over = sim.effectiveRate > LEGAL_MAX_RATE + 1e-9;
+      const overNote = over
+        ? `<br><span style="color:#b91c1c;font-weight:800;">대부업법상 연이자율 초과입니다.</span>`
+        + `<span style="color:#b91c1c;"> 단수 처리까지 반영한 실효 연이율이 ${sim.effectiveRate.toFixed(4)}% 로`
+        + ` 법정 최고이자율(연 ${LEGAL_MAX_RATE}%)을 넘어 이대로는 저장되지 않습니다.`
+        + ` 단수 처리를 '절사'나 '반올림'으로 바꾸거나 약정이율을 낮추세요.</span>`
+        : '';
+
+      box.style.background = over ? '#fef2f2' : '';
+      box.style.borderColor = over ? '#fca5a5' : '';
+
       box.innerHTML =
         `상환방식 <b>${method}</b> · 회차수 <b>${months}회</b> · 단수 <b>${unitLabel} ${rounding.mode}</b><br>` +
         `${label} <b>${money(pay)}원</b><br>` +
         `총 상환액 <b>${money(totalPay)}원</b> (원금 ${money(principal)}원 + 이자 ${money(totalInterest)}원)` +
+        `<br>실효 연이율 <b>${sim.effectiveRate.toFixed(4)}%</b>` +
         (method === '만기일시' ? '<br><span style="color:#9a3412;">만기에 원금 전액을 상환합니다.</span>' : '') +
-        dailyNote;
+        dailyNote + overNote;
     }
 
     // ── 목록 ────────────────────────────────────────────────────

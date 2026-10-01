@@ -191,6 +191,7 @@ public class ContractService {
         .remarks(req.remarks)
         .build();
 
+    requireEffectiveRateWithinCap(c);
     contractRepo.save(c);
     scheduleAutoGen.ensureGenerated(c);
     createExecutionVoucher(c);
@@ -293,6 +294,7 @@ public class ContractService {
           AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode())));
     }
 
+    requireEffectiveRateWithinCap(c);
     contractRepo.save(c);
 
     if (scheduleAffected) {
@@ -482,6 +484,17 @@ public class ContractService {
       throw new IllegalArgumentException("회차수는 1 이상이어야 합니다. 시작일자와 종료일자를 확인해주세요.");
     }
     return months;
+  }
+
+  /**
+   * 단수 처리까지 반영한 실효 연이율이 법정 상한을 넘는지 본다.
+   *
+   * 명목이율 검증만으로는 절상을 잡지 못한다. 저장될 스케줄을 미리 만들어
+   * 실제로 매겨질 이자로 확인한다.
+   */
+  private void requireEffectiveRateWithinCap(Contract c) {
+    LoanRateValidator.validateEffectiveRate(
+        scheduleAutoGen.effectiveAnnualRate(c, scheduleAutoGen.preview(c)));
   }
 
   private long resolveMonthlyPayment(Long given, String method, Long principal,
