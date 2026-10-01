@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>차입금등록 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .form-box { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:16px 18px; margin-bottom:18px; }
+    .form-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:14px 18px; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:13px; font-weight:600; color:#444; }
+    .form-group label .req { color:#dc2626; margin-left:2px; }
+    .form-group input, .form-group select, .form-group textarea {
+      height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px;
+      font-size:13px; font-family:inherit; width:100%; background:#fff;
+    }
+    .form-group textarea { height:58px; padding:8px 10px; resize:vertical; }
+    .form-group input:disabled, .form-group select:disabled { background:#f1f5f9; color:#94a3b8; }
+    .form-group input.amount { text-align:right; font-variant-numeric:tabular-nums; }
+    .span-2 { grid-column:span 2; }
+    .form-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+
+    .btn-primary { height:36px; padding:0 20px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-primary:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-ghost { height:36px; padding:0 18px; background:#fff; color:#475569; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-ghost:hover { background:#f1f5f9; }
+    .btn-del { padding:4px 11px; background:#fff; color:#b91c1c; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-del:hover { background:#fef2f2; }
+    .btn-link { padding:4px 11px; background:#fff; color:#1a73e8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-link:hover { background:#eff6ff; }
+
+    .section-title { font-size:14px; font-weight:800; color:#1a3c7a; margin:0 0 10px; padding-bottom:6px; border-bottom:2px solid #e3e8ef; }
+    .hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:9px 10px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; }
+    td.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:36px; }
+    tfoot td { background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; }
+
+    .badge { padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+    .st-정상 { background:#dcfce7; color:#15803d; }
+    .st-완제 { background:#e2e8f0; color:#475569; }
+
+    .summary-line { background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px; padding:10px 14px; margin-bottom:12px; font-size:13px; color:#1e3a8a; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>차입금등록</h1>
+      <p>회계관리 &gt; 차입금관리 &gt; 차입금등록</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="form-box">
+          <div class="section-title" id="formTitle">차입금 등록</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="lenderName">차입처<span class="req">*</span></label>
+              <input type="text" id="lenderName" placeholder="은행·개인·법인 이름">
+            </div>
+            <div class="form-group">
+              <label for="borrowingType">차입구분</label>
+              <select id="borrowingType">
+                <option value="금융기관">금융기관</option>
+                <option value="개인">개인</option>
+                <option value="법인">법인</option>
+                <option value="관계사">관계사</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="lenderContact">연락처</label>
+              <input type="text" id="lenderContact" placeholder="선택 입력">
+            </div>
+            <div class="form-group">
+              <label for="principalAmount">차입원금<span class="req">*</span></label>
+              <input type="text" id="principalAmount" class="amount" inputmode="numeric"
+                     placeholder="0" oninput="formatAmount(this)">
+            </div>
+
+            <div class="form-group">
+              <label for="borrowDate">차입일<span class="req">*</span></label>
+              <input type="date" id="borrowDate">
+            </div>
+            <div class="form-group">
+              <label for="maturityDate">만기일</label>
+              <input type="date" id="maturityDate">
+            </div>
+            <div class="form-group">
+              <label for="interestRate">연이율 (%)</label>
+              <input type="number" id="interestRate" step="0.001" min="0" max="100" placeholder="예) 8">
+            </div>
+            <div class="form-group">
+              <label for="depositAccount">입금받은 당사 계좌</label>
+              <select id="depositAccount"><option value="">불러오는 중…</option></select>
+            </div>
+
+            <div class="form-group">
+              <label for="repaymentMethod">상환방식<span class="req">*</span></label>
+              <select id="repaymentMethod" onchange="onMethodChange()">
+                <option value="만기일시">만기일시 (이자만 내다 만기에 원금)</option>
+                <option value="원금균등">원금균등</option>
+                <option value="원리금균등">원리금균등</option>
+                <option value="수시상환">수시상환 (약정 없이 그때그때)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="installmentCount">회차수</label>
+              <input type="number" id="installmentCount" min="1" max="600" placeholder="예) 12">
+            </div>
+            <div class="form-group">
+              <label for="paymentDayType">납입일 구분</label>
+              <select id="paymentDayType" onchange="onPaymentDayTypeChange()">
+                <option value="일자">일자 지정</option>
+                <option value="말일">매월 말일</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="paymentDay">납입일자</label>
+              <select id="paymentDay"></select>
+            </div>
+
+            <div class="form-group span-2">
+              <label for="remarks">비고</label>
+              <textarea id="remarks" placeholder="선택 입력"></textarea>
+            </div>
+          </div>
+
+          <div class="hint" id="methodHint"></div>
+
+          <div class="form-actions">
+            <button class="btn-ghost" id="cancelBtn" onclick="resetForm()" style="display:none;">수정 취소</button>
+            <button class="btn-primary" id="saveBtn" onclick="save()">차입금 등록</button>
+          </div>
+        </div>
+
+        <div class="section-title">등록된 차입금</div>
+        <div class="summary-line" id="summary" style="display:none;"></div>
+        <table>
+          <thead>
+            <tr>
+              <th>차입번호</th><th>차입처</th><th>구분</th>
+              <th style="text-align:right;">차입원금</th>
+              <th style="text-align:right;">미상환원금</th>
+              <th>차입일</th><th>만기일</th>
+              <th style="text-align:right;">이율</th>
+              <th>상환방식</th><th>상태</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbList"><tr><td colspan="11" class="no-data">불러오는 중…</td></tr></tbody>
+          <tfoot id="tfList" style="display:none;">
+            <tr>
+              <td colspan="3">합계</td>
+              <td class="amount-cell" id="sumPrincipal">0</td>
+              <td class="amount-cell" id="sumRemaining">0</td>
+              <td colspan="6"></td>
+            </tr>
+          </tfoot>
+        </table>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    let editId = null;   // null 이면 신규 등록, 값이 있으면 그 건을 수정하는 중
+
+    function escHtml(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'),
+              String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function formatAmount(el) {
+      const digits = el.value.replace(/[^0-9]/g, '');
+      el.value = digits ? Number(digits).toLocaleString() : '';
+    }
+    function amountValue(el) { return Number(el.value.replace(/[^0-9]/g, '') || 0); }
+    function el(id) { return document.getElementById(id); }
+
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    // ── 상환방식에 따라 입력칸을 열고 닫는다 ──────────────────
+
+    function onMethodChange() {
+      const method = el('repaymentMethod').value;
+      const scheduled = (method !== '수시상환');
+
+      el('installmentCount').disabled = !scheduled;
+      el('paymentDayType').disabled = !scheduled;
+      el('paymentDay').disabled = !scheduled || el('paymentDayType').value === '말일';
+      if (!scheduled) { el('installmentCount').value = ''; }
+
+      const hints = {
+        '만기일시':  '회차마다 이자만 내고, 마지막 회차에 원금을 한 번에 갚는 스케줄을 만듭니다.',
+        '원금균등':  '회차마다 같은 원금을 갚고, 이자는 줄어든 잔액에 붙어 점점 작아집니다.',
+        '원리금균등': '회차마다 원금+이자 합계가 같도록 스케줄을 만듭니다.',
+        '수시상환':  '약정 스케줄을 만들지 않습니다. 원금을 갚거나 이자를 낼 때마다 차입금관리 화면에서 건건이 등록합니다.'
+      };
+      el('methodHint').textContent = hints[method] || '';
+    }
+
+    function onPaymentDayTypeChange() {
+      const lastDay = el('paymentDayType').value === '말일';
+      el('paymentDay').disabled = lastDay || el('repaymentMethod').value === '수시상환';
+    }
+
+    function fillPaymentDays() {
+      const sel = el('paymentDay');
+      sel.innerHTML = Array.from({length: 31}, (_, i) =>
+        `<option value="${i+1}">${i+1}일</option>`).join('');
+      sel.value = '10';
+    }
+
+    async function loadBankAccounts() {
+      const sel = el('depositAccount');
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`,
+                                { credentials:'include' });
+        if (!res.ok) throw new Error();
+        const accounts = await res.json();
+        if (!accounts.length) { sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>'; return; }
+        sel.innerHTML = '<option value="">선택하세요</option>'
+          + accounts.map(a => {
+              const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+              return `<option value="${escHtml(label)}">${escHtml(label)}</option>`;
+            }).join('');
+      } catch (_) {
+        sel.innerHTML = '<option value="">통장 목록을 불러오지 못했습니다</option>';
+      }
+    }
+
+    // ── 목록 ────────────────────────────────────────────────
+
+    async function loadList() {
+      const tb = el('tbList');
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/borrowings`, { credentials:'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const rows = await res.json();
+
+        if (!rows.length) {
+          tb.innerHTML = '<tr><td colspan="11" class="no-data">등록된 차입금이 없습니다.</td></tr>';
+          el('tfList').style.display = 'none';
+          el('summary').style.display = 'none';
+          return;
+        }
+
+        tb.innerHTML = rows.map(b => `
+          <tr>
+            <td>${escHtml(b.borrowingNumber)}</td>
+            <td>${escHtml(b.lenderName)}</td>
+            <td>${escHtml(b.borrowingType ?? '')}</td>
+            <td class="amount-cell">${num(b.principalAmount)}</td>
+            <td class="amount-cell"><b>${num(b.remainingPrincipal)}</b></td>
+            <td>${escHtml(b.borrowDate ?? '')}</td>
+            <td>${escHtml(b.maturityDate ?? '')}</td>
+            <td class="amount-cell">${b.interestRate ?? '-'}%</td>
+            <td>${escHtml(b.repaymentMethod ?? '')}</td>
+            <td><span class="badge st-${escHtml(b.status)}">${escHtml(b.status)}</span></td>
+            <td style="text-align:right;">
+              <button class="btn-link" onclick="manage('${escHtml(b.borrowingNumber)}')">상환관리</button>
+              <button class="btn-link" onclick='startEdit(${JSON.stringify(b)})'>수정</button>
+              <button class="btn-del" onclick="remove(${b.id}, '${escHtml(b.borrowingNumber)}')">삭제</button>
+            </td>
+          </tr>`).join('');
+
+        const totalPrincipal = rows.reduce((a, b) => a + Number(b.principalAmount || 0), 0);
+        const totalRemaining = rows.reduce((a, b) => a + Number(b.remainingPrincipal || 0), 0);
+        const totalInterest  = rows.reduce((a, b) => a + Number(b.paidInterest || 0), 0);
+
+        el('sumPrincipal').textContent = num(totalPrincipal);
+        el('sumRemaining').textContent = num(totalRemaining);
+        el('tfList').style.display = '';
+
+        const open = rows.filter(b => b.status === '정상').length;
+        el('summary').style.display = 'block';
+        el('summary').innerHTML =
+          `차입 <b>${rows.length}건</b> (상환중 ${open}건) · 차입원금 합계 <b>${num(totalPrincipal)}원</b>`
+        + ` · 미상환 <b>${num(totalRemaining)}원</b> · 지금까지 낸 이자 <b>${num(totalInterest)}원</b>`;
+      } catch (e) {
+        tb.innerHTML = `<tr><td colspan="11" class="no-data">목록을 불러오지 못했습니다: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function manage(borrowingNumber) {
+      location.href = `borrowing_manage.html?no=${encodeURIComponent(borrowingNumber)}`;
+    }
+
+    // ── 등록 · 수정 ─────────────────────────────────────────
+
+    function startEdit(b) {
+      editId = b.id;
+      el('formTitle').textContent = `차입금 수정 — ${b.borrowingNumber}`;
+      el('saveBtn').textContent = '수정 저장';
+      el('cancelBtn').style.display = '';
+
+      el('lenderName').value = b.lenderName ?? '';
+      el('borrowingType').value = b.borrowingType ?? '금융기관';
+      el('lenderContact').value = b.lenderContact ?? '';
+      el('principalAmount').value = Number(b.principalAmount || 0).toLocaleString();
+      el('borrowDate').value = b.borrowDate ?? '';
+      el('maturityDate').value = b.maturityDate ?? '';
+      el('interestRate').value = b.interestRate ?? '';
+      el('repaymentMethod').value = b.repaymentMethod ?? '만기일시';
+      el('installmentCount').value = b.installmentCount ?? '';
+      el('paymentDayType').value = b.paymentDayType ?? '일자';
+      if (b.paymentDay) el('paymentDay').value = b.paymentDay;
+      el('depositAccount').value = b.depositAccount ?? '';
+      el('remarks').value = b.remarks ?? '';
+
+      onMethodChange();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      editId = null;
+      el('formTitle').textContent = '차입금 등록';
+      el('saveBtn').textContent = '차입금 등록';
+      el('cancelBtn').style.display = 'none';
+
+      ['lenderName','lenderContact','principalAmount','maturityDate','interestRate',
+       'installmentCount','remarks'].forEach(id => el(id).value = '');
+      el('borrowingType').value = '금융기관';
+      el('borrowDate').value = todayISO();
+      el('repaymentMethod').value = '만기일시';
+      el('paymentDayType').value = '일자';
+      el('paymentDay').value = '10';
+      el('depositAccount').value = '';
+      onMethodChange();
+    }
+
+    function collect() {
+      const method = el('repaymentMethod').value;
+      const scheduled = (method !== '수시상환');
+      return {
+        lenderName: el('lenderName').value.trim(),
+        borrowingType: el('borrowingType').value,
+        lenderContact: el('lenderContact').value.trim() || null,
+        principalAmount: amountValue(el('principalAmount')),
+        borrowDate: el('borrowDate').value,
+        maturityDate: el('maturityDate').value || null,
+        interestRate: el('interestRate').value === '' ? null : Number(el('interestRate').value),
+        repaymentMethod: method,
+        installmentCount: scheduled ? Number(el('installmentCount').value || 0) : null,
+        paymentDay: scheduled && el('paymentDayType').value === '일자'
+                    ? Number(el('paymentDay').value) : null,
+        paymentDayType: scheduled ? el('paymentDayType').value : '일자',
+        depositAccount: el('depositAccount').value || null,
+        remarks: el('remarks').value.trim() || null,
+        createVoucher: true
+      };
+    }
+
+    async function save() {
+      const payload = collect();
+
+      if (!payload.lenderName)     { alert('차입처를 입력하세요.'); el('lenderName').focus(); return; }
+      if (!payload.principalAmount){ alert('차입원금을 입력하세요.'); el('principalAmount').focus(); return; }
+      if (!payload.borrowDate)     { alert('차입일을 입력하세요.'); el('borrowDate').focus(); return; }
+      if (payload.repaymentMethod !== '수시상환' && !payload.installmentCount) {
+        alert('회차수를 입력하세요.'); el('installmentCount').focus(); return;
+      }
+
+      const btn = el('saveBtn');
+      btn.disabled = true;
+      try {
+        const url = editId ? `${API_BASE_URL}/api/borrowings/${editId}` : `${API_BASE_URL}/api/borrowings`;
+        const res = await fetch(url, {
+          method: editId ? 'PUT' : 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        const saved = await res.json();
+        const wasEdit = !!editId;
+        resetForm();
+        await loadList();
+        if (!wasEdit) {
+          alert(`차입금이 등록되었습니다.\n\n차입번호: ${saved.borrowingNumber}`);
+        }
+      } catch (e) {
+        alert('저장하지 못했습니다.\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function remove(id, borrowingNumber) {
+      if (!confirm(`차입금 ${borrowingNumber} 을(를) 삭제할까요?\n\n차입 개시 전표도 함께 삭제됩니다.`)) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/borrowings/${id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        if (editId === id) resetForm();
+        await loadList();
+      } catch (e) {
+        alert('삭제하지 못했습니다.\n\n' + e.message);
+      }
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+
+      fillPaymentDays();
+      resetForm();
+      await loadBankAccounts();
+      await loadList();
+    })();
+  </script>
+</body>
+</html>

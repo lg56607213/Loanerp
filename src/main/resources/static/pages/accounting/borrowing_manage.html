@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>차입금관리 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .search-box { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:14px 16px; margin-bottom:16px; }
+    .search-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:13px; font-weight:600; color:#444; }
+    .form-group input, .form-group select, .form-group textarea {
+      height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px;
+      font-size:13px; font-family:inherit; width:100%; background:#fff;
+    }
+    .form-group input.amount { text-align:right; font-variant-numeric:tabular-nums; }
+    .btn-primary { height:36px; padding:0 18px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-add { height:36px; padding:0 20px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; }
+    .btn-add:hover { background:#166534; }
+    .btn-add:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-ghost { height:36px; padding:0 14px; background:#fff; color:#475569; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; font-weight:600; font-size:13px; }
+    .btn-ghost:hover { background:#f1f5f9; }
+    .btn-del { padding:4px 11px; background:#fff; color:#b91c1c; border:1px solid #fca5a5; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-del:hover { background:#fef2f2; }
+
+    /* 머리 카드 */
+    .head-card { display:none; border:1px solid #d8e2f0; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+    .head-card.show { display:block; }
+    .head-top { background:#1a3c7a; color:#fff; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    .head-name { font-size:19px; font-weight:800; }
+    .head-sub { font-size:13px; color:#c7d7f0; margin-top:2px; }
+    .status-badge { padding:6px 16px; border-radius:999px; font-size:14px; font-weight:800; background:#fff; }
+    .st-정상 { color:#15803d; } .st-완제 { color:#475569; }
+
+    .head-body { background:#fff; padding:16px 18px; }
+    .kv-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr)); gap:14px 24px; }
+    .kv { display:flex; flex-direction:column; gap:2px; }
+    .kv-label { font-size:12px; color:#64748b; }
+    .kv-value { font-size:14px; font-weight:700; color:#1f2937; }
+    .kv-value.num { font-variant-numeric:tabular-nums; }
+
+    .section-title { font-size:14px; font-weight:800; color:#1a3c7a; margin:18px 0 8px; padding-bottom:6px; border-bottom:2px solid #e3e8ef; }
+
+    /* 등록 폼 */
+    .entry-form { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+    .entry-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .entry-row .grow { flex:1 1 180px; }
+    .entry-hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+    .calc-note { background:#fffbeb; border:1px solid #fde68a; border-radius:6px; padding:8px 12px; margin-top:10px; font-size:12px; color:#92400e; display:none; }
+    .calc-note.show { display:block; }
+
+    /* 탭 */
+    .tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .tab-btn { height:36px; padding:0 16px; border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:6px; cursor:pointer; font-size:13px; font-weight:700; }
+    .tab-btn:hover { background:#f1f5f9; }
+    .tab-btn.active { background:#1a73e8; border-color:#1a73e8; color:#fff; }
+    .tab-count { font-weight:800; margin-left:5px; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:9px 10px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; }
+    td.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:36px; }
+    tfoot td { background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; }
+    tr.unpaid-row td { color:#b91c1c; }
+    .summary-line { background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px; padding:10px 14px; margin-bottom:10px; font-size:13px; color:#1e3a8a; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>차입금관리</h1>
+      <p>회계관리 &gt; 차입금관리 &gt; 차입금관리</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="search-box">
+          <div class="search-row">
+            <div class="form-group" style="width:420px;">
+              <label for="borrowingSelect">차입금</label>
+              <select id="borrowingSelect" onchange="loadAll()">
+                <option value="">불러오는 중…</option>
+              </select>
+            </div>
+            <button class="btn-primary" onclick="loadAll()">조회</button>
+            <button class="btn-ghost" onclick="location.href='borrowing_register.html'">차입금 등록하러 가기</button>
+          </div>
+        </div>
+
+        <div class="head-card" id="headCard">
+          <div class="head-top">
+            <div>
+              <div class="head-name" id="hName">-</div>
+              <div class="head-sub" id="hSub">-</div>
+            </div>
+            <div class="status-badge" id="hStatus">-</div>
+          </div>
+          <div class="head-body">
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-label">차입원금</span><span class="kv-value num" id="vPrincipal">-</span></div>
+              <div class="kv"><span class="kv-label">미상환원금</span><span class="kv-value num" id="vRemaining">-</span></div>
+              <div class="kv"><span class="kv-label">갚은 원금</span><span class="kv-value num" id="vRepaid">-</span></div>
+              <div class="kv"><span class="kv-label">낸 이자 누계</span><span class="kv-value num" id="vInterest">-</span></div>
+              <div class="kv"><span class="kv-label">차입일</span><span class="kv-value" id="vBorrowDate">-</span></div>
+              <div class="kv"><span class="kv-label">만기일</span><span class="kv-value" id="vMaturity">-</span></div>
+              <div class="kv"><span class="kv-label">연이율</span><span class="kv-value num" id="vRate">-</span></div>
+              <div class="kv"><span class="kv-label">상환방식</span><span class="kv-value" id="vMethod">-</span></div>
+              <div class="kv"><span class="kv-label">납입일자</span><span class="kv-value" id="vPayDay">-</span></div>
+              <div class="kv"><span class="kv-label">차입구분</span><span class="kv-value" id="vType">-</span></div>
+              <div class="kv"><span class="kv-label">연락처</span><span class="kv-value" id="vContact">-</span></div>
+              <div class="kv"><span class="kv-label">입금계좌</span><span class="kv-value" id="vAccount">-</span></div>
+              <div class="kv" style="grid-column:1/-1;"><span class="kv-label">비고</span><span class="kv-value" id="vRemarks">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="workArea" style="display:none;">
+
+          <div class="section-title">상환 · 이자지급 등록</div>
+          <div class="entry-form">
+            <div class="entry-row">
+              <div class="form-group" style="width:150px;">
+                <label for="txDate">지급일</label>
+                <input type="date" id="txDate" onchange="previewInterest()">
+              </div>
+              <div class="form-group" style="width:150px;">
+                <label for="txPrincipal">상환원금</label>
+                <input type="text" id="txPrincipal" class="amount" inputmode="numeric"
+                       placeholder="0" oninput="formatAmount(this)">
+              </div>
+              <div class="form-group" style="width:150px;">
+                <label for="txInterest">지급이자</label>
+                <input type="text" id="txInterest" class="amount" inputmode="numeric"
+                       placeholder="0" oninput="formatAmount(this)">
+              </div>
+              <div class="form-group" style="width:120px;">
+                <label for="txInstallment">회차</label>
+                <select id="txInstallment"><option value="">해당없음</option></select>
+              </div>
+              <div class="form-group" style="width:220px;">
+                <label for="txAccount">출금한 당사 계좌</label>
+                <select id="txAccount"><option value="">불러오는 중…</option></select>
+              </div>
+              <div class="form-group grow">
+                <label for="txMemo">비고</label>
+                <input type="text" id="txMemo" placeholder="선택 입력">
+              </div>
+              <button class="btn-add" id="txAddBtn" onclick="addTransaction()">등록</button>
+            </div>
+
+            <div class="calc-note" id="calcNote"></div>
+
+            <div class="entry-hint">
+              지급일을 고르면 <b>직전 이자지급일부터 그날까지</b>의 이자를 미상환 원금에 일할로 계산해 지급이자 칸에 미리 넣습니다.
+              실제 이체한 금액이 다르면 고쳐서 등록하세요.
+              원금만 갚을 때는 지급이자를 0으로, 이자만 낼 때는 상환원금을 0으로 두면 됩니다.
+            </div>
+          </div>
+
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="tx"       onclick="switchTab('tx')">상환·이자내역<span class="tab-count" id="cntTx"></span></button>
+            <button class="tab-btn"        data-tab="schedule" onclick="switchTab('schedule')">약정 상환스케줄<span class="tab-count" id="cntSchedule"></span></button>
+          </div>
+
+          <div class="tab-panel active" id="panel-tx">
+            <div class="summary-line" id="txSummary" style="display:none;"></div>
+            <table>
+              <thead>
+                <tr>
+                  <th>지급일</th><th style="width:60px;">회차</th>
+                  <th style="text-align:right;">상환원금</th>
+                  <th style="text-align:right;">지급이자</th>
+                  <th style="text-align:right;">합계</th>
+                  <th style="text-align:right;">잔액</th>
+                  <th>이자 계산기간</th><th>출금계좌</th><th>전표</th><th>비고</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="tbTx"><tr><td colspan="11" class="no-data">상환 내역이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="tab-panel" id="panel-schedule">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:60px;">회차</th><th>납입예정일</th>
+                  <th style="text-align:right;">약정원금</th>
+                  <th style="text-align:right;">약정이자</th>
+                  <th style="text-align:right;">약정합계</th>
+                  <th style="text-align:right;">약정잔액</th>
+                  <th style="text-align:right;">실제지급</th>
+                  <th style="text-align:right;">미지급</th>
+                  <th style="width:90px;">상태</th>
+                </tr>
+              </thead>
+              <tbody id="tbSchedule"><tr><td colspan="9" class="no-data">약정 스케줄이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    let activeTab = 'tx';
+    let current = null;   // 지금 보고 있는 차입금
+
+    function escHtml(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function dash(v) { return (v === null || v === undefined || v === '') ? '-' : v; }
+    function el(id) { return document.getElementById(id); }
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'),
+              String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function formatAmount(e) {
+      const digits = e.value.replace(/[^0-9]/g, '');
+      e.value = digits ? Number(digits).toLocaleString() : '';
+    }
+    function amountValue(e) { return Number(e.value.replace(/[^0-9]/g, '') || 0); }
+
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+
+    function currentNumber() { return el('borrowingSelect').value; }
+
+    // ── 목록 ────────────────────────────────────────────────
+
+    async function loadBorrowings(preselect) {
+      const sel = el('borrowingSelect');
+      const rows = await safeJson(`${API_BASE_URL}/api/borrowings`, []);
+
+      if (!rows.length) {
+        sel.innerHTML = '<option value="">등록된 차입금이 없습니다</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">선택하세요</option>'
+        + rows.map(b => {
+            const label = `${b.borrowingNumber} · ${b.lenderName} · 미상환 ${num(b.remainingPrincipal)}원`
+                        + (b.status === '완제' ? ' (완제)' : '');
+            return `<option value="${escHtml(b.borrowingNumber)}">${escHtml(label)}</option>`;
+          }).join('');
+
+      if (preselect && rows.some(b => b.borrowingNumber === preselect)) {
+        sel.value = preselect;
+      }
+    }
+
+    async function loadBankAccounts() {
+      const sel = el('txAccount');
+      const accounts = await safeJson(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`, []);
+      if (!accounts.length) { sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>'; return; }
+      sel.innerHTML = '<option value="">선택하세요</option>'
+        + accounts.map(a => {
+            const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+            return `<option value="${escHtml(label)}">${escHtml(label)}</option>`;
+          }).join('');
+    }
+
+    // ── 조회 ────────────────────────────────────────────────
+
+    async function loadAll() {
+      const no = currentNumber();
+      if (!no) {
+        el('headCard').classList.remove('show');
+        el('workArea').style.display = 'none';
+        return;
+      }
+
+      let b;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/borrowings/${encodeURIComponent(no)}`,
+                                { credentials:'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        b = await res.json();
+      } catch (e) {
+        alert('차입금을 불러오지 못했습니다.\n\n' + e.message);
+        return;
+      }
+      current = b;
+
+      renderHead(b);
+      el('workArea').style.display = 'block';
+
+      await Promise.all([renderTransactions(no), renderSchedule(no)]);
+      switchTab(activeTab);
+      await previewInterest();
+    }
+
+    function renderHead(b) {
+      el('hName').textContent = `${b.lenderName} · ${b.borrowingNumber}`;
+      el('hSub').textContent =
+        `${dash(b.repaymentMethod)} · 차입원금 ${won(b.principalAmount)} · 미상환 ${won(b.remainingPrincipal)}`;
+
+      const badge = el('hStatus');
+      badge.textContent = b.status;
+      badge.className = 'status-badge st-' + b.status;
+
+      el('vPrincipal').textContent = won(b.principalAmount);
+      el('vRemaining').textContent = won(b.remainingPrincipal);
+      el('vRepaid').textContent    = won(b.repaidPrincipal);
+      el('vInterest').textContent  = won(b.paidInterest);
+      el('vBorrowDate').textContent= dash(b.borrowDate);
+      el('vMaturity').textContent  = dash(b.maturityDate);
+      el('vRate').textContent      = (b.interestRate ?? '-') + '%';
+      el('vMethod').textContent    = dash(b.repaymentMethod);
+      el('vPayDay').textContent    = b.repaymentMethod === '수시상환' ? '-'
+        : (b.paymentDayType === '말일' ? '매월 말일'
+           : (b.paymentDay ? ('매월 ' + b.paymentDay + '일') : '-'));
+      el('vType').textContent      = dash(b.borrowingType);
+      el('vContact').textContent   = dash(b.lenderContact);
+      el('vAccount').textContent   = dash(b.depositAccount);
+      el('vRemarks').textContent   = dash(b.remarks);
+
+      el('headCard').classList.add('show');
+    }
+
+    function switchTab(name) {
+      activeTab = name;
+      document.querySelectorAll('.tab-btn').forEach(x =>
+        x.classList.toggle('active', x.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === 'panel-' + name));
+    }
+
+    async function renderTransactions(no) {
+      const rows = await safeJson(`${API_BASE_URL}/api/borrowings/${encodeURIComponent(no)}/transactions`, []);
+      el('cntTx').textContent = `(${rows.length})`;
+      const tb = el('tbTx');
+      const sum = el('txSummary');
+
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="11" class="no-data">상환 내역이 없습니다.</td></tr>';
+        sum.style.display = 'none';
+        return;
+      }
+      const totalP = rows.reduce((a, r) => a + Number(r.principalAmount || 0), 0);
+      const totalI = rows.reduce((a, r) => a + Number(r.interestAmount || 0), 0);
+      sum.style.display = 'block';
+      sum.innerHTML = `${rows.length}건 · 갚은 원금 <b>${won(totalP)}</b> · 낸 이자 <b>${won(totalI)}</b>`
+                    + ` · 지급 합계 <b>${won(totalP + totalI)}</b>`;
+
+      tb.innerHTML = rows.map(r => `
+        <tr>
+          <td>${escHtml(r.txDate ?? '')}</td>
+          <td>${r.installmentNo ?? '-'}</td>
+          <td class="amount-cell">${num(r.principalAmount)}</td>
+          <td class="amount-cell">${num(r.interestAmount)}</td>
+          <td class="amount-cell"><b>${num(r.totalAmount)}</b></td>
+          <td class="amount-cell">${num(r.balanceAfter)}</td>
+          <td>${r.interestFrom ? escHtml(r.interestFrom + ' ~ ' + r.interestTo) : '-'}</td>
+          <td>${escHtml(r.withdrawAccount ?? '')}</td>
+          <td>${r.voucherId ? ('#' + r.voucherId) : '<span style="color:#aaa;">없음</span>'}</td>
+          <td>${escHtml(r.memo ?? '')}</td>
+          <td><button class="btn-del" onclick="removeTransaction(${r.id})">취소</button></td>
+        </tr>`).join('');
+    }
+
+    async function renderSchedule(no) {
+      const rows = await safeJson(`${API_BASE_URL}/api/borrowings/${encodeURIComponent(no)}/schedule`, []);
+      el('cntSchedule').textContent = `(${rows.length})`;
+      const tb = el('tbSchedule');
+      const sel = el('txInstallment');
+
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="9" class="no-data">약정 스케줄이 없습니다. (수시상환)</td></tr>';
+        sel.innerHTML = '<option value="">해당없음</option>';
+        return;
+      }
+
+      // 회차 선택칸은 아직 다 내지 않은 회차만 보여준다. 완납된 회차를 다시 고를 일은 없다.
+      sel.innerHTML = '<option value="">해당없음</option>'
+        + rows.filter(r => r.lineStatus !== '완납')
+              .map(r => `<option value="${r.installmentNo}">${r.installmentNo}회차 (${r.dueDate})</option>`)
+              .join('');
+
+      tb.innerHTML = rows.map(r => `
+        <tr${r.lineStatus === '미지급' ? ' class="unpaid-row"' : ''}>
+          <td>${r.installmentNo}</td>
+          <td>${escHtml(r.dueDate ?? '')}</td>
+          <td class="amount-cell">${num(r.principalAmount)}</td>
+          <td class="amount-cell">${num(r.interestAmount)}</td>
+          <td class="amount-cell">${num(r.totalAmount)}</td>
+          <td class="amount-cell">${num(r.balance)}</td>
+          <td class="amount-cell">${num(r.paidAmount)}</td>
+          <td class="amount-cell">${num(r.unpaidAmount)}</td>
+          <td>${escHtml(r.lineStatus ?? '')}</td>
+        </tr>`).join('');
+    }
+
+    // ── 이자 자동계산 ───────────────────────────────────────
+
+    /**
+     * 지급일 기준 이자를 계산해 금액칸에 미리 넣는다.
+     * 사용자가 이미 고쳐 넣은 값이 있으면 덮어쓰지 않는다.
+     */
+    async function previewInterest() {
+      const no = currentNumber();
+      const date = el('txDate').value;
+      const note = el('calcNote');
+      if (!no || !date) { note.classList.remove('show'); return; }
+
+      const p = await safeJson(
+        `${API_BASE_URL}/api/borrowings/${encodeURIComponent(no)}/interest-preview?asOf=${encodeURIComponent(date)}`,
+        null);
+      if (!p) { note.classList.remove('show'); return; }
+
+      const field = el('txInterest');
+      const untouched = (field.dataset.suggested === undefined)
+                     || (field.value === field.dataset.suggested);
+      if (untouched) {
+        field.value = Number(p.interestAmount || 0).toLocaleString();
+        field.dataset.suggested = field.value;
+      }
+
+      note.classList.add('show');
+      note.innerHTML = `자동계산: <b>${won(p.interestAmount)}</b> &nbsp;—&nbsp; ${escHtml(p.basis)}`;
+    }
+
+    // ── 등록 · 취소 ─────────────────────────────────────────
+
+    async function addTransaction() {
+      const no = currentNumber();
+      if (!no) { alert('차입금을 먼저 선택하세요.'); return; }
+
+      const date = el('txDate').value;
+      const principal = amountValue(el('txPrincipal'));
+      const interest = amountValue(el('txInterest'));
+      const account = el('txAccount').value;
+
+      if (!date) { alert('지급일을 입력하세요.'); el('txDate').focus(); return; }
+      if (principal + interest <= 0) {
+        alert('상환원금이나 지급이자 중 하나는 입력하세요.'); el('txPrincipal').focus(); return;
+      }
+      if (!account) { alert('출금한 당사 계좌를 선택하세요.'); el('txAccount').focus(); return; }
+
+      const what = principal > 0 && interest > 0 ? '원금·이자'
+                 : principal > 0 ? '원금' : '이자';
+      if (!confirm(`${date} 자로 ${what} ${Number(principal + interest).toLocaleString()}원을 등록할까요?`)) return;
+
+      // 이자 계산기간은 자동계산이 돌려준 값을 그대로 보낸다 (근거를 함께 남긴다)
+      let from = null, to = null;
+      if (interest > 0) {
+        const p = await safeJson(
+          `${API_BASE_URL}/api/borrowings/${encodeURIComponent(no)}/interest-preview?asOf=${encodeURIComponent(date)}`,
+          null);
+        if (p) { from = p.from; to = p.to; }
+      }
+
+      const btn = el('txAddBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/borrowings/transactions`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            borrowingNumber: no,
+            txDate: date,
+            principalAmount: principal,
+            interestAmount: interest,
+            interestFrom: from,
+            interestTo: to,
+            withdrawAccount: account,
+            installmentNo: el('txInstallment').value ? Number(el('txInstallment').value) : null,
+            memo: el('txMemo').value.trim() || null,
+            createVoucher: true
+          })
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        el('txPrincipal').value = '';
+        el('txInterest').value = '';
+        delete el('txInterest').dataset.suggested;
+        el('txMemo').value = '';
+        el('txDate').value = todayISO();
+
+        await loadBorrowings(no);
+        await loadAll();
+      } catch (e) {
+        alert('등록하지 못했습니다.\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function removeTransaction(id) {
+      if (!confirm('이 상환 내역을 취소할까요?\n\n연결된 전표가 함께 삭제되고 미상환 원금이 다시 계산됩니다.')) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/borrowings/transactions/${id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        const no = currentNumber();
+        await loadBorrowings(no);
+        await loadAll();
+      } catch (e) {
+        alert('취소하지 못했습니다.\n\n' + e.message);
+      }
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+
+      el('txDate').value = todayISO();
+
+      // 차입금등록 화면에서 '상환관리'로 넘어온 경우 그 차입금을 바로 연다
+      const preselect = new URLSearchParams(location.search).get('no');
+      await Promise.all([loadBorrowings(preselect), loadBankAccounts()]);
+      if (preselect) await loadAll();
+    })();
+  </script>
+</body>
+</html>

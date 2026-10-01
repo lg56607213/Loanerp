@@ -126,6 +126,13 @@ function loadSidebar() {
                 </ul>
               </li>
               <li class="has-sub">
+                <span class="menu-label">차입금관리</span>
+                <ul>
+                  <li><a href="${basePath}pages/accounting/borrowing_register.html">차입금등록</a></li>
+                  <li><a href="${basePath}pages/accounting/borrowing_manage.html">차입금관리</a></li>
+                </ul>
+              </li>
+              <li class="has-sub">
                 <span class="menu-label">선수금관리</span>
                 <ul>
                   <li><a href="${basePath}pages/accounting/prepaid_rent_management.html">선수금관리</a></li>
