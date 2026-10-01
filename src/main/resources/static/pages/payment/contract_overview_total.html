@@ -169,6 +169,7 @@
             <div class="kv-grid">
               <div class="kv"><span class="kv-label">대출금</span><span class="kv-value num" id="lAmount">-</span></div>
               <div class="kv"><span class="kv-label">잔여원금</span><span class="kv-value num" id="lRemain">-</span></div>
+              <div class="kv"><span class="kv-label">선수금 잔액</span><span class="kv-value num" id="lPrepaid">-</span></div>
               <div class="kv"><span class="kv-label">대출구분</span><span class="kv-value" id="lType">-</span></div>
               <div class="kv"><span class="kv-label">상환방식</span><span class="kv-value" id="lMethod">-</span></div>
               <div class="kv"><span class="kv-label">약정이율</span><span class="kv-value num" id="lRate">-</span></div>
@@ -231,7 +232,25 @@
                   <input type="text" id="pyAmount" class="amount" inputmode="numeric" placeholder="0"
                          oninput="formatAmount(this)">
                 </div>
-                <div class="form-group" style="width:240px;">
+                <div class="form-group" style="width:150px;">
+                  <label for="pyApplyDate">충당기준일</label>
+                  <input type="date" id="pyApplyDate">
+                </div>
+                <div class="form-group" style="width:150px;">
+                  <label for="pySource">수납 재원</label>
+                  <select id="pySource" onchange="onSourceChange()">
+                    <option value="보통예금">무통장입금</option>
+                    <option value="선수금">선수금 차감</option>
+                  </select>
+                </div>
+                <div class="form-group" style="width:160px;">
+                  <label for="pySurplus">초과금 처리</label>
+                  <select id="pySurplus">
+                    <option value="원금충당">미회수원금 충당</option>
+                    <option value="선수금">선수금 적립</option>
+                  </select>
+                </div>
+                <div class="form-group" style="width:220px;">
                   <label for="pyAccount">입금된 당사 계좌</label>
                   <select id="pyAccount"><option value="">불러오는 중…</option></select>
                 </div>
@@ -241,9 +260,10 @@
                 </div>
                 <button class="btn-add" id="pyAddBtn" onclick="addPayment()">수납 등록</button>
               </div>
-              <div class="entry-hint">
+              <div class="entry-hint" id="pyHint">
                 등록하면 변제충당(이자 &rarr; 원금) 순서로 자동 반영되고 전표가 함께 만들어집니다.
                 잔여원금&middot;연체현황&middot;상환스케줄도 바로 다시 계산됩니다.
+                <br>충당기준일은 납입일 전에 미리 받았을 때 납입일자를 적으면 그날짜로 이자를 계산합니다(비우면 수납일).
               </div>
             </div>
             <div class="summary-line" id="paymentSummary" style="display:none;"></div>
@@ -292,6 +312,7 @@
   <script>
     let pickedRows = [];
     let activeTab = 'consult';   // 등록 후 다시 그려도 보던 탭에 그대로 남는다
+    let prepaidBalance = 0;      // 이 채권에 쌓여 있는 선수금
 
     function escHtml(s) {
       return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
@@ -370,6 +391,10 @@
       // 정상/연체는 조회 시점에 정해지기 때문이다.
       const overdue = await safeJson(`${API_BASE_URL}/api/overdue?contractNumber=${encodeURIComponent(cn)}`, []);
 
+      const prepaid = await safeJson(
+        `${API_BASE_URL}/api/prepaid-rents/balance?contractNumber=${encodeURIComponent(cn)}`, null);
+      prepaidBalance = Number((prepaid && prepaid.balance) || 0);
+
       renderHead(contract, overdue);
       document.getElementById('tabArea').style.display = 'block';
 
@@ -419,6 +444,11 @@
 
       document.getElementById('lAmount').textContent = won(c.loanAmount);
       document.getElementById('lRemain').textContent = won(c.remainingPrincipal);
+
+      // 선수금이 있으면 눈에 띄게 — 수납할 때 이 돈을 먼저 쓸지 판단해야 한다
+      const prepaidEl = document.getElementById('lPrepaid');
+      prepaidEl.textContent = won(prepaidBalance);
+      prepaidEl.style.color = prepaidBalance > 0 ? '#15803d' : '#94a3b8';
       document.getElementById('lType').textContent   = dash(c.loanType);
       document.getElementById('lMethod').textContent = dash(c.repaymentMethod);
       document.getElementById('lRate').textContent        = (c.interestRate ?? '-') + '%';
@@ -636,6 +666,14 @@
           }).join('');
     }
 
+    /** 선수금으로 받으면 통장에 새로 들어온 돈이 없으므로 계좌칸을 닫는다. */
+    function onSourceChange() {
+      const fromPrepaid = document.getElementById('pySource').value === '선수금';
+      const acct = document.getElementById('pyAccount');
+      acct.disabled = fromPrepaid;
+      if (fromPrepaid) acct.value = '';
+    }
+
     async function addPayment() {
       const cn = currentContract();
       if (!cn) { alert('채권을 먼저 조회하세요.'); return; }
@@ -648,10 +686,16 @@
       const date = dateEl.value;
       const amount = amountValue(amountEl);
       const account = accountEl.value;
+      const source = document.getElementById('pySource').value;
+      const fromPrepaid = (source === '선수금');
 
       if (!date) { alert('수납일을 입력하세요.'); dateEl.focus(); return; }
       if (!amount) { alert('수납금액을 입력하세요.'); amountEl.focus(); return; }
-      if (!account) { alert('입금된 당사 계좌를 선택하세요.'); accountEl.focus(); return; }
+      if (!fromPrepaid && !account) { alert('입금된 당사 계좌를 선택하세요.'); accountEl.focus(); return; }
+      if (fromPrepaid && amount > prepaidBalance) {
+        alert(`선수금 잔액(${won(prepaidBalance)})보다 많이 수납할 수 없습니다.`);
+        return;
+      }
 
       if (!confirm(`${Number(amount).toLocaleString()}원을 ${date} 자로 수납 등록할까요?`)) return;
 
@@ -666,8 +710,11 @@
             contractNumber: cn,
             paymentDate: date,
             paymentAmount: amount,
-            companyAccount: account,
+            companyAccount: account || null,
             memo: memoEl.value.trim() || null,
+            applyDate: document.getElementById('pyApplyDate').value || null,
+            surplusPolicy: document.getElementById('pySurplus').value,
+            paymentSource: source,
             createVoucher: true
           })
         });
@@ -676,6 +723,7 @@
         amountEl.value = '';
         memoEl.value = '';
         dateEl.value = todayISO();
+        document.getElementById('pyApplyDate').value = '';
         await refreshAfterChange();
       } catch (e) {
         alert('수납을 등록하지 못했습니다.' + '\n\n' + e.message);
@@ -710,6 +758,7 @@
 
       document.getElementById('csDate').value = todayISO();
       document.getElementById('pyDate').value = todayISO();
+      onSourceChange();
       await loadBankAccounts();
     })();
   </script>

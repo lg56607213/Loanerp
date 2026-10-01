@@ -293,6 +293,64 @@ public class PrepaidRentService {
     // ─────────────────────────────────────────────────────────────────────
 
     /**
+     * 선수금 잔액 — 입금 합계에서 적용 합계를 뺀 값.
+     *
+     * 수납 화면에서 "지금 이 채권에 선수금이 얼마나 있는지"를 보여주고,
+     * 선수금으로 수납할 때 잔액을 넘지 않는지 확인하는 데 쓴다.
+     */
+    @Transactional(readOnly = true)
+    public long balanceOf(Long contractId) {
+        if (contractId == null) return 0L;
+        Map<String, Long> sumMap = new HashMap<>();
+        for (Object[] row : prepaidRepo.sumByContractIds(List.of(contractId))) {
+            sumMap.put(toLong(row[0]) + "|" + row[1], toLong(row[2]));
+        }
+        long deposited = Optional.ofNullable(sumMap.get(contractId + "|입금")).orElse(0L);
+        long applied   = Optional.ofNullable(sumMap.get(contractId + "|적용")).orElse(0L);
+        return Math.max(0L, deposited - applied);
+    }
+
+    /** 채권번호로 조회 — 화면이 계약 id 를 모르는 경우가 많다. */
+    @Transactional(readOnly = true)
+    public Map<String, Object> balanceByContractNumber(String contractNumber) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("contractNumber", contractNumber);
+
+        Contract c = (contractNumber == null || contractNumber.isBlank())
+                ? null
+                : contractRepo.findByContractNumber(contractNumber.trim()).orElse(null);
+
+        out.put("contractId", c == null ? null : c.getId());
+        out.put("balance", c == null ? 0L : balanceOf(c.getId()));
+        return out;
+    }
+
+    /**
+     * 선수금으로 수납할 때 그만큼을 '적용'으로 깎는다.
+     *
+     * 전표는 수납 전표가 이미 (차) 선수금 으로 끊고 있으므로 여기서 따로 만들지 않는다.
+     * 두 번 만들면 같은 선수금이 두 번 줄어든다.
+     */
+    @Transactional
+    public void consumeForPayment(Long contractId, Long amount,
+                                  LocalDate transactionDate, String originalMemo, Long paymentId) {
+        if (contractId == null || amount == null || amount <= 0) return;
+
+        String tag  = "[자동수납:" + paymentId + "]";
+        String memo = (originalMemo != null && !originalMemo.isBlank()) ? tag + " " + originalMemo : tag;
+
+        prepaidRepo.save(PrepaidRent.builder()
+                .contractId(contractId)
+                .transactionType("적용")
+                .amount(amount)
+                .transactionDate(transactionDate)
+                .memo(memo)
+                .voucherCreated(true)
+                .build());
+        log.info("[선수금자동] paymentId={} contractId={} {}원 선수금 적용", paymentId, contractId, amount);
+    }
+
+    /**
      * 수납 초과금액을 선수금으로 자동 등록.
      * 전표는 수납 전표에 이미 포함되어 있으므로 별도 생성하지 않는다.
      */

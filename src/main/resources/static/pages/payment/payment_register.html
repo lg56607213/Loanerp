@@ -99,6 +99,9 @@
       text-align:right;
       white-space:nowrap;
     }
+    .field-note { font-size:11px; color:#64748b; margin-top:4px; line-height:1.5; }
+    .prepaid-have { color:#15803d; font-weight:700; }
+    .prepaid-none { color:#94a3b8; }
   </style>
 </head>
 <body>
@@ -187,12 +190,40 @@
                   </div>
 
                   <div class="form-group">
+                    <label for="applyDate">충당기준일</label>
+                    <input type="date" id="applyDate" name="applyDate">
+                    <div class="field-note">
+                      납입일 전에 미리 받은 경우 납입일자를 적으면 그날짜 기준으로 이자를 계산합니다.
+                      비우면 입금일자를 씁니다.
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="paymentSource">수납 재원</label>
+                    <select id="paymentSource" name="paymentSource" onchange="onSourceChange()">
+                      <option value="보통예금">무통장입금 (보통예금)</option>
+                      <option value="선수금">선수금에서 차감</option>
+                    </select>
+                    <div class="field-note" id="prepaidNote">선수금 잔액을 확인하는 중…</div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="surplusPolicy">초과금 처리</label>
+                    <select id="surplusPolicy" name="surplusPolicy" onchange="onSurplusChange()">
+                      <option value="원금충당">미회수원금에 충당 (원금이 줄어듭니다)</option>
+                      <option value="선수금">선수금으로 적립 (다음 회차에 사용)</option>
+                    </select>
+                    <div class="field-note" id="surplusNote"></div>
+                  </div>
+
+                  <div class="form-group">
                     <label for="paymentNote">비고</label>
                     <input type="text" id="paymentNote" name="paymentNote" placeholder="비고사항을 입력하세요">
                   </div>
 
                   <div class="form-group" style="grid-column:1 / -1;">
-                    <div style="padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;">
+                    <div style="padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;"
+                         id="voucherNote">
                       전표 자동 발생: 차변 보통예금 / 대변 이자수익
                     </div>
                   </div>
@@ -425,6 +456,7 @@
         const d = await res.json();
 
         document.getElementById('displayCustomerName').textContent = d.customerName || '-';
+        loadPrepaidBalance(cn);
         document.getElementById('displayRegistrationNumber').textContent = d.registrationNumber || '-';
         document.getElementById('displayEmail').textContent = d.email || '-';
         document.getElementById('displayRentAmount').textContent = (d.monthlyPayment ?? 0).toLocaleString() + ' 원';
@@ -666,19 +698,30 @@
     document.getElementById('paymentForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const source = document.getElementById('paymentSource').value;
+
       const payload = {
         contractNumber: document.getElementById('contractNumber').value.trim(),
         paymentDate: document.getElementById('paymentDate').value,
         paymentAmount: Number(document.getElementById('paymentAmount').value || 0),
         companyAccount: document.getElementById('companyAccount').value || null,
         memo: document.getElementById('paymentNote').value || null,
+        applyDate: document.getElementById('applyDate').value || null,
+        surplusPolicy: document.getElementById('surplusPolicy').value,
+        paymentSource: source,
         createVoucher: true
       };
 
       if (!payload.contractNumber) return alert('계약번호를 입력하세요.');
       if (!payload.paymentDate) return alert('입금일자를 입력하세요.');
       if (!payload.paymentAmount) return alert('입금금액을 입력하세요.');
-      if (!payload.companyAccount) return alert('당사 계좌번호를 선택해주세요.');
+      // 선수금에서 차감하는 수납은 통장으로 들어온 돈이 아니라 계좌를 받지 않는다.
+      if (source !== '선수금' && !payload.companyAccount) {
+        return alert('당사 계좌번호를 선택해주세요.');
+      }
+      if (source === '선수금' && payload.paymentAmount > prepaidBalance) {
+        return alert(`선수금 잔액(${won(prepaidBalance)})보다 많이 수납할 수 없습니다.`);
+      }
 
       const isEdit = !!editId;
       const url = isEdit ? `${API_BASE_URL}/api/payments/${editId}` : `${API_BASE_URL}/api/payments`;
@@ -731,6 +774,59 @@
       e.target.value = v;
     });
 
+    let prepaidBalance = 0;
+
+    /** 이 채권에 쌓여 있는 선수금을 읽어 안내문에 보여준다. */
+    async function loadPrepaidBalance(contractNumber) {
+      const note = document.getElementById('prepaidNote');
+      prepaidBalance = 0;
+      if (!contractNumber) { note.textContent = '계약을 먼저 조회하세요.'; onSourceChange(); return; }
+
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/prepaid-rents/balance?contractNumber=${encodeURIComponent(contractNumber)}`);
+        if (!res.ok) throw new Error();
+        const d = await res.json();
+        prepaidBalance = Number(d.balance || 0);
+      } catch (_) {
+        note.textContent = '선수금 잔액을 불러오지 못했습니다.';
+        onSourceChange();
+        return;
+      }
+
+      note.innerHTML = prepaidBalance > 0
+        ? `이 채권의 선수금 잔액 <span class="prepaid-have">${won(prepaidBalance)}</span>`
+        : '<span class="prepaid-none">쌓여 있는 선수금이 없습니다.</span>';
+      onSourceChange();
+    }
+
+    /** 재원에 따라 계좌칸을 열고 닫고, 전표 안내를 바꾼다. */
+    function onSourceChange() {
+      const source = document.getElementById('paymentSource').value;
+      const fromPrepaid = (source === '선수금');
+      const acct = document.getElementById('companyAccount');
+
+      acct.disabled = fromPrepaid;
+      acct.required = !fromPrepaid;
+      if (fromPrepaid) acct.value = '';
+
+      document.getElementById('voucherNote').textContent = fromPrepaid
+        ? '전표 자동 발생: 차변 선수금 / 대변 이자수익 — 통장에 새로 들어온 돈이 아니라 선수금이 줄어듭니다.'
+        : '전표 자동 발생: 차변 보통예금 / 대변 이자수익';
+
+      if (fromPrepaid && prepaidBalance <= 0) {
+        document.getElementById('prepaidNote').innerHTML =
+          '<span style="color:#b91c1c;font-weight:700;">선수금 잔액이 없어 선수금으로 수납할 수 없습니다.</span>';
+      }
+    }
+
+    function onSurplusChange() {
+      const v = document.getElementById('surplusPolicy').value;
+      document.getElementById('surplusNote').textContent = (v === '선수금')
+        ? '도래한 회차까지만 메우고 남은 돈은 선수금으로 둡니다. 잔여원금은 줄지 않습니다.'
+        : '도래하지 않은 회차의 원금까지 당겨 갚습니다. 잔여원금이 줄고 이후 이자도 줄어듭니다.';
+    }
+
     async function loadBankAccounts() {
       try {
         const res = await fetch(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`);
@@ -752,6 +848,8 @@
     window.addEventListener('load', async () => {
       document.getElementById('paymentDate').value = todayISO();
       clearScheduleStatus('계약을 조회하면 수납 현황이 표시됩니다.');
+      onSurplusChange();
+      onSourceChange();
       await loadBankAccounts();
     });
   </script>

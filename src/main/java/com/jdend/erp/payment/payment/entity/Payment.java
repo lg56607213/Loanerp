@@ -49,6 +49,26 @@ public class Payment {
   @Column(name="memo", length=255)
   private String memo;
 
+  /**
+   * 충당기준일 — 이 수납을 며칠자로 쳐서 충당할지.
+   *
+   * 납입일 전에 미리 보내오는 일이 흔하다. 25일이 납입일인데 20일에 받으면
+   * 받은 날로 계산한 경과이자는 닷새치가 모자라 약정한 월 납입액과 맞지 않는다.
+   * 그래서 '언제 받았는가'(payment_date)와 '며칠치로 치는가'를 나눠 둔다.
+   *
+   * 비어 있으면 payment_date 를 쓴다. 기존 수납은 모두 여기에 해당한다.
+   */
+  @Column(name="apply_date")
+  private LocalDate applyDate;
+
+  /** 도래 회차를 다 메우고 남은 돈 처리 — 원금충당 / 선수금. 비면 원금충당. */
+  @Column(name="surplus_policy", length=20)
+  private String surplusPolicy;
+
+  /** 수납 재원 — 보통예금 / 선수금. 비면 보통예금. */
+  @Column(name="payment_source", length=20)
+  private String paymentSource;
+
   /** BUG-03: 수납 등록 시 생성된 전표 ID. 삭제·수정 시 연동 전표 처리에 사용. */
   @Column(name="voucher_id")
   private Long voucherId;

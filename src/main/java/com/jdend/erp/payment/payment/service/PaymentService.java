@@ -8,6 +8,8 @@ import com.jdend.erp.accounting.voucher.repository.VoucherRepository;
 import com.jdend.erp.accounting.voucher.service.VoucherNumberService;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
+import com.jdend.erp.loan.policy.PaymentSurplusPolicy;
+import com.jdend.erp.payment.payment.support.PaymentSource;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.loan.repayment.RepaymentAllocation;
@@ -77,6 +79,10 @@ public class PaymentService {
 
     Customer cu = c.getCustomer();
 
+    // 선수금으로 수납하려면 그만큼 쌓여 있어야 한다.
+    // 모자란 채로 받으면 선수금 잔액이 음수가 되어 부채가 거꾸로 잡힌다.
+    requirePrepaidBalance(c.getId(), req);
+
     // 저장 전에 먼저 계산 — 저장 후 조회하면 현재 수납액이 alreadyPaid에 포함되어 totalDue가 0이 됨
     LocalDate paymentDate = req.getPaymentDate() != null ? req.getPaymentDate() : LocalDate.now();
     long totalDue = calcTotalDue(c.getContractNumber(), paymentDate);
@@ -94,6 +100,9 @@ public class PaymentService {
         .paymentMethod(req.getPaymentMethod())
         .companyAccount(req.getCompanyAccount())
         .memo(req.getMemo())
+        .applyDate(req.getApplyDate())
+        .surplusPolicy(PaymentSurplusPolicy.of(req.getSurplusPolicy()).label())
+        .paymentSource(PaymentSource.orDefault(req.getPaymentSource()))
         .build());
 
     // 변제충당 반영 — 회차별 원금/이자/지연배상금 충당 실적을 다시 계산한다.
@@ -112,13 +121,40 @@ public class PaymentService {
     // BUG-10: 수납 등록 후 납기일 이전(포함) 미납 미수금 상태 업데이트
     updateReceivableStatus(saved.getContractNumber(), saved.getPaymentAmount(), paymentDate);
 
-    // 초과금액 → 선수금 자동 등록
+    // 선수금으로 낸 수납이면 그만큼 선수금을 깎는다.
+    if (PaymentSource.isPrepaid(saved.getPaymentSource()) && saved.getContractId() != null) {
+      prepaidRentService.consumeForPayment(
+          saved.getContractId(), saved.getPaymentAmount(),
+          saved.getPaymentDate(), saved.getMemo(), saved.getId());
+    }
+
+    // 도래 회차를 다 메우고 남은 돈 → 선수금으로 적립.
+    // 원금충당을 고른 수납은 애초에 충당 단계에서 미도래 원금까지 갚으므로
+    // 여기까지 남는 돈은 갚을 원금조차 더 없을 때뿐이다.
     if (excess > 0 && saved.getContractId() != null) {
       prepaidRentService.registerFromPaymentExcess(
           saved.getContractId(), excess, saved.getPaymentDate(), saved.getMemo(), saved.getId());
     }
 
     return toResponse(saved);
+  }
+
+  /**
+   * 선수금 재원으로 수납할 때 잔액이 충분한지 본다.
+   *
+   * 선수금 수납은 새 현금이 들어오는 게 아니라 전에 받아 둔 돈을 쓰는 것이다.
+   * 잔액보다 많이 쓰면 받지도 않은 돈을 쓴 셈이 된다.
+   */
+  private void requirePrepaidBalance(Long contractId, PaymentUpsertRequest req) {
+    if (!PaymentSource.isPrepaid(req.getPaymentSource())) return;
+
+    long balance = prepaidRentService.balanceOf(contractId);
+    long amount = req.getPaymentAmount() == null ? 0L : req.getPaymentAmount();
+    if (amount > balance) {
+      throw new IllegalArgumentException(String.format(
+          "선수금 잔액이 모자랍니다. 잔액 %,d원 / 수납하려는 금액 %,d원."
+        + " 모자란 만큼은 무통장입금(보통예금)으로 나눠 받으세요.", balance, amount));
+    }
   }
 
   @Transactional
@@ -156,11 +192,19 @@ public class PaymentService {
       p.setCustomerName(cu != null ? cu.getCustomerName() : null);
     }
 
+    // 이 수납이 쓰던 선수금은 위에서 이미 되돌려 놓았으므로, 지금 잔액으로 확인하면 된다.
+    if (p.getContractId() != null) {
+      requirePrepaidBalance(p.getContractId(), req);
+    }
+
     p.setPaymentDate(req.getPaymentDate());
     p.setPaymentAmount(req.getPaymentAmount());
     p.setPaymentMethod(req.getPaymentMethod());
     p.setCompanyAccount(req.getCompanyAccount());
     p.setMemo(req.getMemo());
+    p.setApplyDate(req.getApplyDate());
+    p.setSurplusPolicy(PaymentSurplusPolicy.of(req.getSurplusPolicy()).label());
+    p.setPaymentSource(PaymentSource.orDefault(req.getPaymentSource()));
 
     // 수정 후 전표 재생성 — create 와 동일하게 excess 계산(기존 수납 id 제외)
     LocalDate updatedPaymentDate = req.getPaymentDate() != null ? req.getPaymentDate() : LocalDate.now();
@@ -185,6 +229,11 @@ public class PaymentService {
     updateReceivableStatus(p.getContractNumber(), req.getPaymentAmount(), updatedPaymentDate);
 
     // 초과금액 → 선수금 자동 등록 (create 와 동일)
+    if (PaymentSource.isPrepaid(p.getPaymentSource()) && p.getContractId() != null) {
+      prepaidRentService.consumeForPayment(
+          p.getContractId(), p.getPaymentAmount(), p.getPaymentDate(), p.getMemo(), p.getId());
+    }
+
     if (excess > 0 && p.getContractId() != null) {
       prepaidRentService.registerFromPaymentExcess(
           p.getContractId(), excess, p.getPaymentDate(), p.getMemo(), p.getId());
@@ -250,12 +299,26 @@ public class PaymentService {
     if (payment == null) return null;
     if (payment.getPaymentAmount() == null || payment.getPaymentAmount() <= 0) return null;
 
-    // 입금 계정(보통예금)은 기타계정관리 설정을 따른다. 미설정이면 전표를 만들지 않는다.
-    String debitAccount = accountSettings.getPaymentDebitAccount();
-    if (debitAccount == null) {
-      log.warn("수납 전표 생략: 기타계정관리 > 수납 전표의 차변 계정을 설정해주세요. paymentId={}", payment.getId());
-      return null;
+    // 차변은 돈이 어디서 왔는지에 따라 갈린다.
+    //   무통장입금 → 보통예금 (자산 증가)
+    //   선수금     → 선수금   (부채 감소). 새 현금이 들어온 게 아니라 전에 받아 둔 돈을 쓰는 것이라
+    //                          보통예금으로 잡으면 같은 돈을 두 번 받은 것처럼 예금이 부푼다.
+    boolean fromPrepaid = PaymentSource.isPrepaid(payment.getPaymentSource());
+
+    String debitAccount;
+    String debitCode;
+    if (fromPrepaid) {
+      debitCode = accountSettings.getPrepaidDebitAccountCode();
+      debitAccount = null;                      // 코드로 찾고 이름은 마스터 값을 쓴다
+    } else {
+      debitAccount = accountSettings.getPaymentDebitAccount();
+      debitCode = null;
+      if (debitAccount == null) {
+        log.warn("수납 전표 생략: 기타계정관리 > 수납 전표의 차변 계정을 설정해주세요. paymentId={}", payment.getId());
+        return null;
+      }
     }
+    AccountResolver.Resolved debitAcc = accountResolver.resolve(debitCode, debitAccount);
     if (alloc == null) alloc = new RepaymentAllocation();
 
     LocalDate voucherDate = payment.getPaymentDate() != null ? payment.getPaymentDate() : LocalDate.now();
@@ -271,14 +334,14 @@ public class PaymentService {
         .memo(memo)
         .build();
 
-    // 차변: 보통예금 (전액)
-    String debitDesc = "수납등록 입금";
+    // 차변: 보통예금 또는 선수금 (전액)
+    String debitDesc = fromPrepaid ? "선수금으로 수납" : "수납등록 입금";
     String compAcct = blankToNull(payment.getCompanyAccount());
-    if (compAcct != null) debitDesc += " [" + compAcct + "]";
+    if (!fromPrepaid && compAcct != null) debitDesc += " [" + compAcct + "]";
     voucher.addLine(VoucherLine.builder()
         .lineType("DEBIT")
-        .accountCode(accountResolver.codeOf(debitAccount))
-        .accountName(debitAccount)
+        .accountCode(debitAcc.code())
+        .accountName(debitAcc.name())
         .amount(payment.getPaymentAmount())
         .description(debitDesc)
         .sortOrder(1)
@@ -476,6 +539,9 @@ public class PaymentService {
         .companyAccount(p.getCompanyAccount())
         .memo(p.getMemo())
         .voucherId(p.getVoucherId())
+        .applyDate(p.getApplyDate())
+        .surplusPolicy(p.getSurplusPolicy())
+        .paymentSource(p.getPaymentSource())
         .build();
   }
 

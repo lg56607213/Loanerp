@@ -55,6 +55,15 @@ public class PrepaidRentController {
      * 선수금 입금 등록 (고객이 미래 상환분을 미리 납입)
      * 전표: 차변 보통예금 / 대변 선수금
      */
+    /**
+     * 채권번호로 선수금 잔액을 조회한다.
+     * 수납등록 화면이 "선수금 OOO원 있음"을 보여줄 때 쓴다.
+     */
+    @GetMapping("/balance")
+    public ResponseEntity<Map<String, Object>> balance(@RequestParam String contractNumber) {
+        return ResponseEntity.ok(service.balanceByContractNumber(contractNumber));
+    }
+
     @PostMapping("/deposit")
     public ResponseEntity<Map<String, String>> deposit(@RequestBody PrepaidRentCreateRequest req) {
         service.deposit(req);

@@ -17,4 +17,11 @@ public class PaymentResponse {
   private String companyAccount;
   private String memo;
   private Long voucherId;
+
+  private LocalDate applyDate;
+  private String surplusPolicy;
+  private String paymentSource;
+
+  /** 이 수납으로 선수금에 쌓인 금액 (초과금을 선수금으로 돌린 경우) */
+  private Long prepaidAdded;
 }

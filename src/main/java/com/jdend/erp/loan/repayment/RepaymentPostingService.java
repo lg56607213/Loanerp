@@ -3,6 +3,8 @@ package com.jdend.erp.loan.repayment;
 import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.legal.repository.LegalCostItemRepository;
+import com.jdend.erp.loan.policy.AcceleratedRepaymentPolicy;
+import com.jdend.erp.loan.policy.PaymentSurplusPolicy;
 import com.jdend.erp.loan.writeoff.repository.WriteOffRepository;
 import com.jdend.erp.payment.payment.entity.Payment;
 import com.jdend.erp.payment.payment.repository.PaymentRepository;
@@ -65,15 +67,17 @@ public class RepaymentPostingService {
     // 없던 지연배상금이 붙는다. 상각 순서를 상각일 기준으로 정하는 것과 같은 이유다.
     long allocatedCost = 0L;
 
-    List<Payment> payments = paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber);
+    List<Payment> payments = orderedByApplyDate(contractNumber);
     for (Payment p : payments) {
       long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
       if (amount <= 0) continue;
-      LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
+      LocalDate date = effectiveDateOf(p);
       boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
 
       long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
-      last = allocator.allocate(c, schedules, amount, date, availableCost, writeOffOrder);
+      last = allocator.allocate(c, schedules, amount, date, availableCost, writeOffOrder,
+          AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
+          PaymentSurplusPolicy.of(p.getSurplusPolicy()));
       allocatedCost += last.getCost();
     }
 
@@ -113,20 +117,49 @@ public class RepaymentPostingService {
         .orElse(null);
 
     long allocatedCost = 0L;
-    for (Payment p : paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber)) {
+    for (Payment p : orderedByApplyDate(contractNumber)) {
       long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
       if (amount <= 0) continue;
-      LocalDate date = p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
+      LocalDate date = effectiveDateOf(p);
       boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
 
       long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
-      RepaymentAllocation a = allocator.allocate(c, copies, amount, date, availableCost, writeOffOrder);
+      RepaymentAllocation a = allocator.allocate(c, copies, amount, date, availableCost, writeOffOrder,
+          AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
+          PaymentSurplusPolicy.of(p.getSurplusPolicy()));
       allocatedCost += a.getCost();
 
       // 같은 날 여러 건이면 마지막 값이 그날의 최종 잔액이 된다.
       timeline.put(date, copies.stream().mapToLong(PaymentSchedule::unpaidPrincipal).sum());
     }
     return timeline;
+  }
+
+  /**
+   * 이 수납을 며칠자로 쳐서 충당할지.
+   *
+   * 납입일 전에 미리 보내오는 일이 흔하다. 25일이 납입일인데 20일에 받으면
+   * 받은 날로 계산한 경과이자는 닷새치가 모자라 약정한 월 납입액과 맞지 않는다.
+   * 충당기준일을 적어 두지 않은 수납(기존 데이터 전부)은 받은 날을 그대로 쓴다.
+   */
+  static LocalDate effectiveDateOf(Payment p) {
+    if (p == null) return LocalDate.now();
+    if (p.getApplyDate() != null) return p.getApplyDate();
+    return p.getPaymentDate() != null ? p.getPaymentDate() : LocalDate.now();
+  }
+
+  /**
+   * 충당기준일 순서로 정렬한 수납 목록.
+   *
+   * 받은 날이 아니라 '며칠치로 치는가'가 충당 순서다. 20일에 받아 25일자로 처리한
+   * 돈은 22일에 받아 22일자로 처리한 돈보다 뒤에 와야 그 사이 이자가 제 날짜로 계산된다.
+   */
+  private List<Payment> orderedByApplyDate(String contractNumber) {
+    return paymentRepo.findByContractNumberOrderByPaymentDateAscIdAsc(contractNumber)
+        .stream()
+        .sorted(Comparator.comparing(RepaymentPostingService::effectiveDateOf)
+            .thenComparing(Payment::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+        .toList();
   }
 
   /** 충당 재생용 사본 — 영속 상태와 끊어 저장되지 않게 한다. */

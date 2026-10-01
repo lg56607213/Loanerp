@@ -4,6 +4,7 @@ import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.ContractStatus;
 import com.jdend.erp.contract.support.DailyInterestCalculator;
 import com.jdend.erp.loan.policy.AcceleratedRepaymentPolicy;
+import com.jdend.erp.loan.policy.PaymentSurplusPolicy;
 import com.jdend.erp.payment.schedule.entity.PaymentSchedule;
 import org.springframework.stereotype.Component;
 
@@ -73,6 +74,24 @@ public class RepaymentAllocator {
                                       long amount, LocalDate paymentDate, long outstandingCost,
                                       boolean writeOffOrder,
                                       AcceleratedRepaymentPolicy acceleratedPolicy) {
+    return allocate(contract, schedules, amount, paymentDate, outstandingCost, writeOffOrder,
+        acceleratedPolicy, PaymentSurplusPolicy.REDUCE_PRINCIPAL);
+  }
+
+  /**
+   * @param surplusPolicy 도래한 회차를 다 메우고도 남은 돈을 어떻게 할지.
+   *   REDUCE_PRINCIPAL 이면 미도래 회차 원금까지 갚아 잔여원금이 줄고,
+   *   HOLD_AS_PREPAID 면 도래한 회차까지만 메우고 나머지를 초과금으로 남겨
+   *   호출부에서 선수금으로 적립한다.
+   *
+   *   <p>이자 충당은 정책과 무관하게 그대로 둔다. 경과이자는 이미 굴러간 이자라
+   *   선수금으로 미룰 성질이 아니다.
+   */
+  public RepaymentAllocation allocate(Contract contract, List<PaymentSchedule> schedules,
+                                      long amount, LocalDate paymentDate, long outstandingCost,
+                                      boolean writeOffOrder,
+                                      AcceleratedRepaymentPolicy acceleratedPolicy,
+                                      PaymentSurplusPolicy surplusPolicy) {
     RepaymentAllocation result = new RepaymentAllocation();
     if (amount <= 0) return result;
 
@@ -106,7 +125,7 @@ public class RepaymentAllocator {
         case COST -> applyCost(result, targets, schedules, remain, outstandingCost);
         case OVERDUE_INTEREST -> applyOverdueInterest(result, targets, remain, contract, asOf, overdueCharged);
         case INTEREST -> applyInterest(result, targets, remain, contract, asOf);
-        case PRINCIPAL -> applyPrincipal(result, principalTargets, remain, asOf);
+        case PRINCIPAL -> applyPrincipal(result, principalTargets, remain, asOf, surplusPolicy);
       };
     }
 
@@ -245,9 +264,12 @@ public class RepaymentAllocator {
    * (중도상환·조기완제).
    */
   private long applyPrincipal(RepaymentAllocation result, List<PaymentSchedule> targets,
-                              long remain, LocalDate asOf) {
+                              long remain, LocalDate asOf, PaymentSurplusPolicy surplusPolicy) {
     remain = fillPrincipal(result, targets, remain, ps -> isDue(ps, asOf));
-    if (remain > 0) {
+
+    // 도래하지 않은 회차의 원금까지 당겨 갚을지는 수납할 때 고른다.
+    // 선수금으로 두기로 했으면 남은 돈은 건드리지 않고 초과금으로 넘긴다.
+    if (remain > 0 && surplusPolicy != PaymentSurplusPolicy.HOLD_AS_PREPAID) {
       remain = fillPrincipal(result, targets, remain, ps -> !isDue(ps, asOf));
     }
     return remain;
