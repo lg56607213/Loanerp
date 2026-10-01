@@ -71,6 +71,30 @@
     tr.overdue-row td { color:#b91c1c; }
     .consult-content { white-space:pre-wrap; line-height:1.6; }
 
+    /* 탭 안의 등록 폼 */
+    .entry-form {
+      background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px;
+      padding:12px 14px; margin-bottom:12px;
+    }
+    .entry-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .entry-row .form-group { flex:0 0 auto; }
+    .entry-row .grow { flex:1 1 220px; }
+    .entry-row input, .entry-row select, .entry-row textarea {
+      height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px;
+      font-size:13px; font-family:inherit; width:100%;
+    }
+    .entry-row textarea { height:60px; padding:8px 10px; resize:vertical; line-height:1.5; }
+    .entry-row .amount { text-align:right; font-variant-numeric:tabular-nums; }
+    .btn-add { height:36px; padding:0 20px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; }
+    .btn-add:hover { background:#166534; }
+    .btn-add:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-del {
+      padding:4px 11px; background:#fff; color:#b91c1c; border:1px solid #fca5a5;
+      border-radius:4px; cursor:pointer; font-size:12px; font-weight:700;
+    }
+    .btn-del:hover { background:#fef2f2; }
+    .entry-hint { font-size:12px; color:#64748b; margin-top:8px; }
+
     .summary-line {
       background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px;
       padding:10px 14px; margin-bottom:10px; font-size:13px; color:#1e3a8a;
@@ -168,9 +192,22 @@
           </div>
 
           <div class="tab-panel active" id="panel-consult">
+            <div class="entry-form">
+              <div class="entry-row">
+                <div class="form-group" style="width:160px;">
+                  <label for="csDate">상담일</label>
+                  <input type="date" id="csDate">
+                </div>
+                <div class="form-group grow">
+                  <label for="csContent">상담내용</label>
+                  <textarea id="csContent" placeholder="통화&middot;방문&middot;문자 등 상담한 내용을 적으세요."></textarea>
+                </div>
+                <button class="btn-add" id="csAddBtn" onclick="addConsultation()">상담 등록</button>
+              </div>
+            </div>
             <table>
-              <thead><tr><th style="width:60px;">No</th><th style="width:130px;">상담일</th><th>상담내용</th><th style="width:150px;">등록일시</th></tr></thead>
-              <tbody id="tbConsult"><tr><td colspan="4" class="no-data">상담 내역이 없습니다.</td></tr></tbody>
+              <thead><tr><th style="width:60px;">No</th><th style="width:130px;">상담일</th><th>상담내용</th><th style="width:150px;">등록일시</th><th style="width:70px;"></th></tr></thead>
+              <tbody id="tbConsult"><tr><td colspan="5" class="no-data">상담 내역이 없습니다.</td></tr></tbody>
             </table>
           </div>
 
@@ -183,10 +220,36 @@
           </div>
 
           <div class="tab-panel" id="panel-payment">
+            <div class="entry-form">
+              <div class="entry-row">
+                <div class="form-group" style="width:160px;">
+                  <label for="pyDate">수납일</label>
+                  <input type="date" id="pyDate">
+                </div>
+                <div class="form-group" style="width:150px;">
+                  <label for="pyAmount">수납금액</label>
+                  <input type="text" id="pyAmount" class="amount" inputmode="numeric" placeholder="0"
+                         oninput="formatAmount(this)">
+                </div>
+                <div class="form-group" style="width:240px;">
+                  <label for="pyAccount">입금된 당사 계좌</label>
+                  <select id="pyAccount"><option value="">불러오는 중…</option></select>
+                </div>
+                <div class="form-group grow">
+                  <label for="pyMemo">비고</label>
+                  <input type="text" id="pyMemo" placeholder="선택 입력">
+                </div>
+                <button class="btn-add" id="pyAddBtn" onclick="addPayment()">수납 등록</button>
+              </div>
+              <div class="entry-hint">
+                등록하면 변제충당(이자 &rarr; 원금) 순서로 자동 반영되고 전표가 함께 만들어집니다.
+                잔여원금&middot;연체현황&middot;상환스케줄도 바로 다시 계산됩니다.
+              </div>
+            </div>
             <div class="summary-line" id="paymentSummary" style="display:none;"></div>
             <table>
-              <thead><tr><th style="width:60px;">No</th><th>수납일</th><th style="text-align:right;">수납액</th><th>수납방법</th><th>전표</th><th>비고</th></tr></thead>
-              <tbody id="tbPayment"><tr><td colspan="6" class="no-data">수납 내역이 없습니다.</td></tr></tbody>
+              <thead><tr><th style="width:60px;">No</th><th>수납일</th><th style="text-align:right;">수납액</th><th>입금계좌</th><th>전표</th><th>비고</th><th style="width:70px;"></th></tr></thead>
+              <tbody id="tbPayment"><tr><td colspan="7" class="no-data">수납 내역이 없습니다.</td></tr></tbody>
             </table>
           </div>
 
@@ -228,6 +291,7 @@
   <script src="../../assets/js/auth.js"></script>
   <script>
     let pickedRows = [];
+    let activeTab = 'consult';   // 등록 후 다시 그려도 보던 탭에 그대로 남는다
 
     function escHtml(s) {
       return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
@@ -316,6 +380,9 @@
         renderPayment(cn),
         renderSchedule(cn)
       ]);
+
+      // 등록 후 다시 불러온 경우에도 보던 탭에 그대로 남는다
+      switchTab(activeTab);
     }
 
     /** 실패해도 화면을 멈추지 않도록 기본값을 돌려주는 조회 */
@@ -370,6 +437,7 @@
     // ── 탭 ───────────────────────────────────────────────────
 
     function switchTab(name) {
+      activeTab = name;
       document.querySelectorAll('.tab-btn').forEach(b =>
         b.classList.toggle('active', b.dataset.tab === name));
       document.querySelectorAll('.tab-panel').forEach(p =>
@@ -380,13 +448,14 @@
       const rows = await safeJson(`${API_BASE_URL}/api/consultations?contractNumber=${encodeURIComponent(cn)}`, []);
       document.getElementById('cntConsult').textContent = `(${rows.length})`;
       const tb = document.getElementById('tbConsult');
-      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="no-data">상담 내역이 없습니다.</td></tr>'; return; }
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="5" class="no-data">상담 내역이 없습니다.</td></tr>'; return; }
       tb.innerHTML = rows.map((r, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${escHtml(r.consultDate ?? '')}</td>
           <td class="consult-content">${escHtml(r.consultContent ?? '')}</td>
           <td>${escHtml((r.createdAt ?? '').toString().replace('T', ' ').slice(0, 16))}</td>
+          <td><button class="btn-del" onclick="removeConsultation(${r.id})">삭제</button></td>
         </tr>`).join('');
     }
 
@@ -423,7 +492,7 @@
       const sum = document.getElementById('paymentSummary');
 
       if (!rows.length) {
-        tb.innerHTML = '<tr><td colspan="6" class="no-data">수납 내역이 없습니다.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="7" class="no-data">수납 내역이 없습니다.</td></tr>';
         sum.style.display = 'none';
         return;
       }
@@ -436,9 +505,10 @@
           <td>${i + 1}</td>
           <td>${escHtml(p.paymentDate ?? '')}</td>
           <td class="amount-cell">${num(p.paymentAmount)}</td>
-          <td>${escHtml(p.paymentMethod ?? '')}</td>
+          <td>${escHtml(p.companyAccount ?? '')}</td>
           <td>${p.voucherId ? ('#' + p.voucherId) : '<span style="color:#aaa;">없음</span>'}</td>
           <td>${escHtml(p.memo ?? '')}</td>
+          <td><button class="btn-del" onclick="removePayment(${p.id})">취소</button></td>
         </tr>`).join('');
     }
 
@@ -463,9 +533,184 @@
         </tr>`).join('');
     }
 
+    // ── 업무처리: 등록 · 삭제 ────────────────────────────────
+
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(),
+              String(d.getMonth() + 1).padStart(2, '0'),
+              String(d.getDate()).padStart(2, '0')].join('-');
+    }
+
+    /** 금액칸에 천단위 쉼표를 넣는다. 숫자가 아닌 글자는 버린다. */
+    function formatAmount(el) {
+      const digits = el.value.replace(/[^0-9]/g, '');
+      el.value = digits ? Number(digits).toLocaleString() : '';
+    }
+    function amountValue(el) {
+      return Number(el.value.replace(/[^0-9]/g, '') || 0);
+    }
+
+    /**
+     * 서버가 막은 이유를 그대로 보여준다.
+     *
+     * 승인된 전표가 걸린 수납을 취소하려 하면 '전표를 대기로 되돌리라'는
+     * 안내가 돌아온다. 그 문장을 삼키면 사용자는 왜 안 되는지 알 수 없다.
+     */
+    async function failMessage(res) {
+      try {
+        const body = await res.json();
+        if (body && body.message) return body.message;
+      } catch (_) { /* 본문이 JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    /** 등록·삭제 뒤에는 화면 전체를 다시 읽는다. 수납은 잔여원금과 연체·스케줄까지 바꾼다. */
+    async function refreshAfterChange() {
+      await loadAll();
+    }
+
+    // ── 상담 ────────────────────────────────────────────────
+
+    async function addConsultation() {
+      const cn = currentContract();
+      if (!cn) { alert('채권을 먼저 조회하세요.'); return; }
+
+      const dateEl = document.getElementById('csDate');
+      const contentEl = document.getElementById('csContent');
+      const date = dateEl.value;
+      const content = contentEl.value.trim();
+
+      if (!date) { alert('상담일을 입력하세요.'); dateEl.focus(); return; }
+      if (!content) { alert('상담내용을 입력하세요.'); contentEl.focus(); return; }
+
+      const btn = document.getElementById('csAddBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/consultations`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contractNumber: cn, consultDate: date, consultContent: content })
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        contentEl.value = '';
+        dateEl.value = todayISO();
+        await refreshAfterChange();
+      } catch (e) {
+        alert('상담을 등록하지 못했습니다.' + '\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function removeConsultation(id) {
+      if (!confirm('이 상담 내역을 삭제할까요?')) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/consultations/${id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        await refreshAfterChange();
+      } catch (e) {
+        alert('삭제하지 못했습니다.' + '\n\n' + e.message);
+      }
+    }
+
+    // ── 수납 ────────────────────────────────────────────────
+
+    /** 입금받은 당사 계좌 목록 — 내정보관리 > 통장관리 에 등록된 통장을 쓴다. */
+    async function loadBankAccounts() {
+      const sel = document.getElementById('pyAccount');
+      const accounts = await safeJson(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`, []);
+
+      if (!accounts.length) {
+        sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">선택하세요</option>'
+        + accounts.map(a => {
+            const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+            return `<option value="${escHtml(label)}">${escHtml(label)}</option>`;
+          }).join('');
+    }
+
+    async function addPayment() {
+      const cn = currentContract();
+      if (!cn) { alert('채권을 먼저 조회하세요.'); return; }
+
+      const dateEl = document.getElementById('pyDate');
+      const amountEl = document.getElementById('pyAmount');
+      const accountEl = document.getElementById('pyAccount');
+      const memoEl = document.getElementById('pyMemo');
+
+      const date = dateEl.value;
+      const amount = amountValue(amountEl);
+      const account = accountEl.value;
+
+      if (!date) { alert('수납일을 입력하세요.'); dateEl.focus(); return; }
+      if (!amount) { alert('수납금액을 입력하세요.'); amountEl.focus(); return; }
+      if (!account) { alert('입금된 당사 계좌를 선택하세요.'); accountEl.focus(); return; }
+
+      if (!confirm(`${Number(amount).toLocaleString()}원을 ${date} 자로 수납 등록할까요?`)) return;
+
+      const btn = document.getElementById('pyAddBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contractNumber: cn,
+            paymentDate: date,
+            paymentAmount: amount,
+            companyAccount: account,
+            memo: memoEl.value.trim() || null,
+            createVoucher: true
+          })
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        amountEl.value = '';
+        memoEl.value = '';
+        dateEl.value = todayISO();
+        await refreshAfterChange();
+      } catch (e) {
+        alert('수납을 등록하지 못했습니다.' + '\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /**
+     * 수납취소.
+     *
+     * 서버가 연결 전표를 지우고 변제충당을 다시 계산하므로
+     * 잔여원금 복구를 따로 누를 필요가 없다.
+     * 전표가 이미 승인된 상태면 서버가 막고 그 이유를 돌려준다.
+     */
+    async function removePayment(id) {
+      if (!confirm('이 수납을 취소할까요?\n\n연결된 전표가 함께 삭제되고 잔여원금이 다시 계산됩니다.')) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/${id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        await refreshAfterChange();
+      } catch (e) {
+        alert('취소하지 못했습니다.' + '\n\n' + e.message);
+      }
+    }
+
     (async () => {
       if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
       loadSidebar();
+
+      document.getElementById('csDate').value = todayISO();
+      document.getElementById('pyDate').value = todayISO();
+      await loadBankAccounts();
     })();
   </script>
 </body>
