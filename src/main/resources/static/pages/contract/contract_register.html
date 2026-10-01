@@ -491,14 +491,67 @@
       return (ed.getFullYear() - sd.getFullYear()) * 12 + (ed.getMonth() - sd.getMonth());
     }
 
-    function calcMonthlyPayment(method, principal, annualRate, months) {
+    /** 지금 고른 단수 설정 */
+    function currentRounding() {
+      return {
+        unit: Number($('roundingUnit').value || 1),
+        mode: $('roundingMode').value || '반올림'
+      };
+    }
+
+    /** 서버 AmountRounding 과 같은 규칙으로 끊는다. */
+    function roundAmount(value, rounding) {
+      if (!(value > 0)) return 0;
+      const unit = rounding.unit > 1 ? rounding.unit : 1;
+      const q = value / unit;
+      const n = rounding.mode === '절사' ? Math.floor(q)
+              : rounding.mode === '절상' ? Math.ceil(q)
+              : Math.round(q);
+      return n * unit;
+    }
+
+    function calcMonthlyPayment(method, principal, annualRate, months, rounding) {
       if (!principal || !months) return 0;
       const r = (annualRate || 0) / 100 / 12;
-      if (method === '만기일시') return Math.round(principal * r);
-      if (method === '원금균등') return Math.round(principal / months) + Math.round(principal * r);
-      if (r === 0) return Math.round(principal / months);
+      if (method === '만기일시') return roundAmount(principal * r, rounding);
+      if (method === '원금균등') {
+        return roundAmount(principal / months, rounding) + roundAmount(principal * r, rounding);
+      }
+      if (r === 0) return roundAmount(principal / months, rounding);
       const pow = Math.pow(1 + r, months);
-      return Math.round(principal * r * pow / (pow - 1));
+      return roundAmount(principal * r * pow / (pow - 1), rounding);
+    }
+
+    /**
+     * 회차를 실제로 돌려 합계를 낸다 (서버 스케줄 생성과 같은 순서).
+     *
+     * 1회차 납입액에 회차수를 곱하면 원금균등처럼 이자가 체감하는 방식에서
+     * 총 이자가 크게 부풀려진다. 단수를 적용한 뒤에는 그 차이가 더 벌어져
+     * 안내 금액을 믿을 수 없게 되므로 회차를 직접 더한다.
+     */
+    function simulateSchedule(method, principal, annualRate, months, rounding) {
+      const r = (annualRate || 0) / 100 / 12;
+      const fixedPayment = calcMonthlyPayment(method, principal, annualRate, months, rounding);
+      const equalPart = roundAmount(principal / months, rounding);
+
+      let remaining = principal;
+      let totalInterest = 0;
+      let firstPayment = 0;
+
+      for (let i = 1; i <= months; i++) {
+        const interest = roundAmount(remaining * r, rounding);
+        let part = method === '원금균등' ? equalPart
+                 : method === '만기일시' ? (i === months ? remaining : 0)
+                 : fixedPayment - interest;
+        if (part < 0) part = 0;
+        // 마지막 회차는 남은 잔액을 그대로 넣어 0으로 끝낸다 (서버와 같다)
+        if (i === months || part > remaining) part = remaining;
+
+        remaining -= part;
+        totalInterest += interest;
+        if (i === 1) firstPayment = part + interest;
+      }
+      return { fixedPayment, firstPayment, totalInterest };
     }
 
     function refreshSimulation() {
@@ -513,19 +566,31 @@
         return;
       }
 
-      const pay = calcMonthlyPayment(method, principal, rate, months);
-      const totalPay = method === '만기일시' ? (pay * months + principal) : pay * months;
-      const totalInterest = totalPay - principal;
+      const rounding = currentRounding();
+      const sim = simulateSchedule(method, principal, rate, months, rounding);
+
+      const pay = method === '원금균등' ? sim.firstPayment : sim.fixedPayment;
+      const totalInterest = sim.totalInterest;
+      const totalPay = principal + totalInterest;
 
       const label = method === '원금균등' ? '1회차 납입액(이후 체감)'
                   : method === '만기일시' ? '월 이자'
                   : '월납입액';
 
+      const unitLabel = rounding.unit === 100 ? '백원단위'
+                      : rounding.unit === 10 ? '십원단위' : '원단위';
+
+      // 일할은 달마다 일수가 달라 회차 이자가 바뀐다. 여기 숫자는 월할 기준 어림이다.
+      const dailyNote = ($('interestCalcType').value === '일할')
+        ? '<br><span style="color:#9a3412;">일할이라 달의 일수에 따라 회차 이자가 달라집니다. 위 금액은 월할 기준 참고치입니다.</span>'
+        : '';
+
       box.innerHTML =
-        `상환방식 <b>${method}</b> · 회차수 <b>${months}회</b><br>` +
+        `상환방식 <b>${method}</b> · 회차수 <b>${months}회</b> · 단수 <b>${unitLabel} ${rounding.mode}</b><br>` +
         `${label} <b>${money(pay)}원</b><br>` +
         `총 상환액 <b>${money(totalPay)}원</b> (원금 ${money(principal)}원 + 이자 ${money(totalInterest)}원)` +
-        (method === '만기일시' ? '<br><span style="color:#9a3412;">만기에 원금 전액을 상환합니다.</span>' : '');
+        (method === '만기일시' ? '<br><span style="color:#9a3412;">만기에 원금 전액을 상환합니다.</span>' : '') +
+        dailyNote;
     }
 
     // ── 목록 ────────────────────────────────────────────────────
@@ -657,12 +722,15 @@
 
       if (unit === 1 && mode === '반올림') {
         hint.textContent = '원단위 반올림은 지금까지와 같은 계산입니다.';
-        return;
+      } else {
+        const unitLabel = unit === 100 ? '백원' : (unit === 10 ? '십원' : '원');
+        hint.textContent =
+          `회차별 이자와 원금을 ${unitLabel}단위로 ${mode}합니다.`
+        + ' 마지막 회차는 남은 원금을 그대로 넣어 잔액이 정확히 0으로 끝납니다.';
       }
-      const unitLabel = unit === 100 ? '백원' : (unit === 10 ? '십원' : '원');
-      hint.textContent =
-        `회차별 이자와 원금을 ${unitLabel}단위로 ${mode}합니다.`
-      + ' 마지막 회차는 남은 원금을 그대로 넣어 잔액이 정확히 0으로 끝납니다.';
+
+      // 단수를 바꾸면 안내 금액도 그 자리에서 다시 계산한다
+      refreshSimulation();
     }
 
     function onInterestCalcChange() {
@@ -926,7 +994,8 @@
     ['interestRate', 'overdueRate'].forEach(id => {
       $(id).addEventListener('input', () => { validateRates(); refreshSimulation(); });
     });
-    ['startDate', 'endDate', 'installmentCount', 'repaymentMethod'].forEach(id => {
+    // 이자 계산(월할/일할)이 바뀌면 안내에 붙는 주의 문구가 달라진다
+    ['startDate', 'endDate', 'installmentCount', 'repaymentMethod', 'interestCalcType'].forEach(id => {
       $(id).addEventListener('change', refreshSimulation);
     });
 
