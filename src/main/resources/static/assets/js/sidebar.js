@@ -79,6 +79,7 @@ function loadSidebar() {
               <li class="has-sub">
                 <span class="menu-label">수납관리</span>
                 <ul>
+                  <li><a href="${basePath}pages/payment/contract_overview_total.html">종합관리</a></li>
                   <li><a href="${basePath}pages/payment/payment_register.html">수납등록</a></li>
                   <li><a href="${basePath}pages/payment/payment_cancel.html">수납취소</a></li>
                 </ul>

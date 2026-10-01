@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>종합관리 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .search-box { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:14px 16px; margin-bottom:16px; }
+    .search-row { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:13px; font-weight:600; color:#444; }
+    .form-group input { height:36px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+    .btn-primary { height:36px; padding:0 18px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:600; }
+    .btn-primary:hover { background:#1557b0; }
+
+    .input-with-icon { position:relative; }
+    .input-with-icon input { width:100%; padding-right:40px; }
+    .icon-btn {
+      position:absolute; right:4px; top:50%; transform:translateY(-50%);
+      width:30px; height:28px; border:1px solid #ddd; background:#fff;
+      border-radius:5px; cursor:pointer; font-size:14px; line-height:1;
+    }
+    .icon-btn:hover { background:#eef2f7; }
+
+    /* 고객 · 채권 머리 */
+    .head-card { display:none; border:1px solid #d8e2f0; border-radius:10px; overflow:hidden; margin-bottom:16px; }
+    .head-card.show { display:block; }
+    .head-top {
+      background:#1a3c7a; color:#fff; padding:14px 18px;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    }
+    .head-name { font-size:19px; font-weight:800; }
+    .head-sub { font-size:13px; color:#c7d7f0; margin-top:2px; }
+    .status-badge {
+      padding:6px 16px; border-radius:999px; font-size:14px; font-weight:800; background:#fff;
+    }
+    .st-정상 { color:#15803d; } .st-연체 { color:#b91c1c; }
+    .st-해지 { color:#b45309; } .st-상각 { color:#525252; } .st-종료 { color:#475569; }
+
+    .head-body { background:#fff; padding:16px 18px; }
+    .kv-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px 24px; }
+    .kv { display:flex; flex-direction:column; gap:2px; }
+    .kv-label { font-size:12px; color:#64748b; }
+    .kv-value { font-size:14px; font-weight:700; color:#1f2937; }
+    .kv-value.num { font-variant-numeric:tabular-nums; }
+
+    .section-title {
+      font-size:14px; font-weight:800; color:#1a3c7a; margin:18px 0 8px;
+      padding-bottom:6px; border-bottom:2px solid #e3e8ef;
+    }
+
+    /* 탭 */
+    .tabs { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .tab-btn {
+      height:36px; padding:0 16px; border:1px solid #cbd5e1; background:#fff; color:#475569;
+      border-radius:6px; cursor:pointer; font-size:13px; font-weight:700;
+    }
+    .tab-btn:hover { background:#f1f5f9; }
+    .tab-btn.active { background:#1a73e8; border-color:#1a73e8; color:#fff; }
+    .tab-count { font-weight:800; margin-left:5px; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:9px 10px; font-size:13px; text-align:left; }
+    th { background:#f8fafc; font-weight:700; white-space:nowrap; }
+    td.amount-cell { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:36px; }
+    tr.overdue-row td { color:#b91c1c; }
+    .consult-content { white-space:pre-wrap; line-height:1.6; }
+
+    .summary-line {
+      background:#eff6ff; border:1px solid #bfdbfe; border-radius:7px;
+      padding:10px 14px; margin-bottom:10px; font-size:13px; color:#1e3a8a;
+    }
+
+    /* 모달 */
+    .modal-backdrop {
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:9999;
+      align-items:center; justify-content:center; padding:20px;
+    }
+    .modal-backdrop.open { display:flex; }
+    .modal { width:min(920px,96vw); max-height:86vh; background:#fff; border-radius:10px; display:flex; flex-direction:column; }
+    .modal-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #eee; }
+    .modal-title { font-size:16px; font-weight:700; }
+    .modal-close { border:none; background:transparent; font-size:22px; cursor:pointer; line-height:1; }
+    .modal-body { padding:14px 16px; overflow:auto; }
+    .modal-search { display:flex; gap:8px; margin-bottom:12px; }
+    .modal-search input { flex:1; height:36px; padding:0 10px; border:1px solid #ddd; border-radius:5px; }
+    .pick-row { cursor:pointer; }
+    .pick-row:hover td { background:#eff6ff; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>종합관리</h1>
+      <p>수납관리 &gt; 종합관리</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="search-box">
+          <div class="search-row">
+            <div class="form-group">
+              <label for="contractNumber">채권번호</label>
+              <div class="input-with-icon" style="width:300px;">
+                <input type="text" id="contractNumber" placeholder="돋보기로 채권을 선택하세요"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();openPicker();}">
+                <button type="button" class="icon-btn" onclick="openPicker()" title="채권 찾기">🔍</button>
+              </div>
+            </div>
+            <button class="btn-primary" onclick="loadAll()">조회</button>
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-top:8px;">
+            고객명이나 채권번호 일부로 찾을 수 있습니다. 선택하면 이 채권의 모든 내용을 한 화면에서 봅니다.
+          </div>
+        </div>
+
+        <!-- 고객 · 채권 -->
+        <div class="head-card" id="headCard">
+          <div class="head-top">
+            <div>
+              <div class="head-name" id="hName">-</div>
+              <div class="head-sub" id="hSub">-</div>
+            </div>
+            <div class="status-badge" id="hStatus">-</div>
+          </div>
+          <div class="head-body">
+            <div class="section-title" style="margin-top:0;">고객 정보</div>
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-label">고객명</span><span class="kv-value" id="cName">-</span></div>
+              <div class="kv"><span class="kv-label">고객구분</span><span class="kv-value" id="cType">-</span></div>
+              <div class="kv"><span class="kv-label">연락처</span><span class="kv-value" id="cPhone">-</span></div>
+              <div class="kv"><span class="kv-label" id="cRegLabel">주민등록번호</span><span class="kv-value" id="cReg">-</span></div>
+              <div class="kv"><span class="kv-label">고객번호</span><span class="kv-value" id="cNo">-</span></div>
+              <div class="kv" style="grid-column:1/-1;"><span class="kv-label">주소</span><span class="kv-value" id="cAddr">-</span></div>
+            </div>
+
+            <div class="section-title">채권 정보</div>
+            <div class="kv-grid">
+              <div class="kv"><span class="kv-label">대출금</span><span class="kv-value num" id="lAmount">-</span></div>
+              <div class="kv"><span class="kv-label">잔여원금</span><span class="kv-value num" id="lRemain">-</span></div>
+              <div class="kv"><span class="kv-label">대출구분</span><span class="kv-value" id="lType">-</span></div>
+              <div class="kv"><span class="kv-label">상환방식</span><span class="kv-value" id="lMethod">-</span></div>
+              <div class="kv"><span class="kv-label">약정이율</span><span class="kv-value num" id="lRate">-</span></div>
+              <div class="kv"><span class="kv-label">연체이율</span><span class="kv-value num" id="lOverdueRate">-</span></div>
+              <div class="kv"><span class="kv-label">계약기간</span><span class="kv-value" id="lPeriod">-</span></div>
+              <div class="kv"><span class="kv-label">납입일자</span><span class="kv-value" id="lPayDay">-</span></div>
+              <div class="kv"><span class="kv-label">회차수</span><span class="kv-value num" id="lCount">-</span></div>
+              <div class="kv"><span class="kv-label">이자 계산</span><span class="kv-value" id="lCalc">-</span></div>
+              <div class="kv" style="grid-column:1/-1;"><span class="kv-label">비고</span><span class="kv-value" id="lRemarks">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 탭 -->
+        <div id="tabArea" style="display:none;">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="consult"  onclick="switchTab('consult')">상담내용<span class="tab-count" id="cntConsult"></span></button>
+            <button class="tab-btn"        data-tab="overdue"  onclick="switchTab('overdue')">연체현황<span class="tab-count" id="cntOverdue"></span></button>
+            <button class="tab-btn"        data-tab="payment"  onclick="switchTab('payment')">수납현황<span class="tab-count" id="cntPayment"></span></button>
+            <button class="tab-btn"        data-tab="schedule" onclick="switchTab('schedule')">상환스케줄<span class="tab-count" id="cntSchedule"></span></button>
+          </div>
+
+          <div class="tab-panel active" id="panel-consult">
+            <table>
+              <thead><tr><th style="width:60px;">No</th><th style="width:130px;">상담일</th><th>상담내용</th><th style="width:150px;">등록일시</th></tr></thead>
+              <tbody id="tbConsult"><tr><td colspan="4" class="no-data">상담 내역이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="tab-panel" id="panel-overdue">
+            <div class="summary-line" id="overdueSummary" style="display:none;"></div>
+            <table>
+              <thead><tr><th style="width:60px;">회차</th><th>납입예정일</th><th style="text-align:right;">청구액</th><th style="text-align:right;">납입액</th><th style="text-align:right;">미납액</th><th style="width:100px;">연체일수</th></tr></thead>
+              <tbody id="tbOverdue"><tr><td colspan="6" class="no-data">연체 내역이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="tab-panel" id="panel-payment">
+            <div class="summary-line" id="paymentSummary" style="display:none;"></div>
+            <table>
+              <thead><tr><th style="width:60px;">No</th><th>수납일</th><th style="text-align:right;">수납액</th><th>수납방법</th><th>전표</th><th>비고</th></tr></thead>
+              <tbody id="tbPayment"><tr><td colspan="6" class="no-data">수납 내역이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="tab-panel" id="panel-schedule">
+            <table>
+              <thead><tr><th style="width:60px;">회차</th><th>납입예정일</th><th style="text-align:right;">청구액</th><th style="text-align:right;">원금</th><th style="text-align:right;">이자</th><th style="text-align:right;">수납액</th><th style="text-align:right;">미납액</th><th style="text-align:right;">잔액</th><th style="width:90px;">상태</th></tr></thead>
+              <tbody id="tbSchedule"><tr><td colspan="9" class="no-data">상환스케줄이 없습니다.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 채권 찾기 -->
+  <div class="modal-backdrop" id="pickerBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">채권 찾기</span>
+        <button class="modal-close" onclick="closePicker()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-search">
+          <input type="text" id="pickKw" placeholder="고객명 · 채권번호로 검색"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();searchContracts();}">
+          <button class="btn-primary" onclick="searchContracts()">검색</button>
+        </div>
+        <table>
+          <thead><tr><th>채권번호</th><th>고객명</th><th>대출구분</th><th style="text-align:right;">대출금</th><th style="text-align:right;">잔여원금</th></tr></thead>
+          <tbody id="pickBody"><tr><td colspan="5" class="no-data">검색어를 입력하거나 그냥 검색을 누르세요.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    let pickedRows = [];
+
+    function escHtml(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function dash(v) { return (v === null || v === undefined || v === '') ? '-' : v; }
+    function currentContract() { return document.getElementById('contractNumber').value.trim(); }
+
+    // ── 채권 찾기 ────────────────────────────────────────────
+
+    function openPicker() {
+      document.getElementById('pickerBackdrop').classList.add('open');
+      document.getElementById('pickKw').value = currentContract();
+      searchContracts();
+      document.getElementById('pickKw').focus();
+    }
+    function closePicker() { document.getElementById('pickerBackdrop').classList.remove('open'); }
+    document.getElementById('pickerBackdrop').addEventListener('click', (e) => {
+      if (e.target.id === 'pickerBackdrop') closePicker();
+    });
+
+    async function searchContracts() {
+      const kw = document.getElementById('pickKw').value.trim();
+      const body = document.getElementById('pickBody');
+      body.innerHTML = '<tr><td colspan="5" class="no-data">불러오는 중…</td></tr>';
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(kw)}`,
+                                { credentials:'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        pickedRows = await res.json();
+        if (!pickedRows.length) {
+          body.innerHTML = '<tr><td colspan="5" class="no-data">검색 결과가 없습니다.</td></tr>';
+          return;
+        }
+        body.innerHTML = pickedRows.map((c, i) => `
+          <tr class="pick-row" onclick="pickContract(${i})">
+            <td>${escHtml(c.contractNumber)}</td>
+            <td>${escHtml(c.customerName ?? '')}</td>
+            <td>${escHtml(c.loanType ?? '')}</td>
+            <td class="amount-cell">${won(c.loanAmount)}</td>
+            <td class="amount-cell">${won(c.remainingPrincipal)}</td>
+          </tr>`).join('');
+      } catch (e) {
+        body.innerHTML = `<tr><td colspan="5" class="no-data">검색 실패: ${escHtml(e.message)}</td></tr>`;
+      }
+    }
+
+    function pickContract(idx) {
+      const c = pickedRows[idx];
+      if (!c) return;
+      document.getElementById('contractNumber').value = c.contractNumber || '';
+      closePicker();
+      loadAll();
+    }
+
+    // ── 전체 조회 ────────────────────────────────────────────
+
+    async function loadAll() {
+      const cn = currentContract();
+      if (!cn) { alert('돋보기로 채권을 먼저 선택하세요.'); return; }
+
+      let contract;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/contracts/by-number/${encodeURIComponent(cn)}/full`,
+                                { credentials:'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        contract = await res.json();
+      } catch (e) {
+        alert('채권을 불러오지 못했습니다.\n\n' + e.message);
+        return;
+      }
+
+      // 연체 여부는 미납 회차로 판정한다. 계약의 status 는 해지·상각·종료만 담고 있고,
+      // 정상/연체는 조회 시점에 정해지기 때문이다.
+      const overdue = await safeJson(`${API_BASE_URL}/api/overdue?contractNumber=${encodeURIComponent(cn)}`, []);
+
+      renderHead(contract, overdue);
+      document.getElementById('tabArea').style.display = 'block';
+
+      // 각 탭은 따로 채운다. 하나가 실패해도 나머지는 보이게 한다.
+      await Promise.all([
+        renderConsult(cn),
+        renderOverdue(overdue),
+        renderPayment(cn),
+        renderSchedule(cn)
+      ]);
+    }
+
+    /** 실패해도 화면을 멈추지 않도록 기본값을 돌려주는 조회 */
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+
+    function renderHead(c, overdue) {
+      const corporate = (c.customerType === '법인');
+
+      document.getElementById('hName').textContent = (c.customerName || '-') + ' · ' + (c.contractNumber || '');
+      document.getElementById('hSub').textContent =
+        `${dash(c.loanType)} · 대출금 ${won(c.loanAmount)} · 잔여원금 ${won(c.remainingPrincipal)}`;
+
+      // 해지·상각·종료는 계약에 저장된 값이 우선, 그 외는 미납 유무로 정상/연체를 가른다.
+      const stored = c.status;
+      const status = (stored && stored !== '정상') ? stored
+                   : (overdue && overdue.length > 0 ? '연체' : '정상');
+      const badge = document.getElementById('hStatus');
+      badge.textContent = status;
+      badge.className = 'status-badge st-' + status;
+
+      document.getElementById('cName').textContent  = dash(c.customerName);
+      document.getElementById('cType').textContent  = dash(c.customerType);
+      document.getElementById('cPhone').textContent = dash(c.customerPhone);
+      document.getElementById('cRegLabel').textContent = corporate ? '사업자등록번호' : '주민등록번호';
+      document.getElementById('cReg').textContent   = dash(c.customerRegistrationNumber);
+      document.getElementById('cNo').textContent    = dash(c.customerNumber);
+      document.getElementById('cAddr').textContent  = dash(c.customerAddress);
+
+      document.getElementById('lAmount').textContent = won(c.loanAmount);
+      document.getElementById('lRemain').textContent = won(c.remainingPrincipal);
+      document.getElementById('lType').textContent   = dash(c.loanType);
+      document.getElementById('lMethod').textContent = dash(c.repaymentMethod);
+      document.getElementById('lRate').textContent        = (c.interestRate ?? '-') + '%';
+      document.getElementById('lOverdueRate').textContent = (c.overdueRate ?? '-') + '%'
+        + (c.overdueChargeYn === false ? ' (미부과)' : '');
+      document.getElementById('lPeriod').textContent = `${dash(c.startDate)} ~ ${dash(c.endDate)}`;
+      document.getElementById('lPayDay').textContent =
+        (c.paymentDayType === '말일') ? '매월 말일' : (c.paymentDay ? ('매월 ' + c.paymentDay + '일') : '-');
+      document.getElementById('lCount').textContent   = (c.installmentCount ?? '-') + '회';
+      document.getElementById('lCalc').textContent    = dash(c.interestCalcType);
+      document.getElementById('lRemarks').textContent = dash(c.remarks);
+
+      document.getElementById('headCard').classList.add('show');
+    }
+
+    // ── 탭 ───────────────────────────────────────────────────
+
+    function switchTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.tab === name));
+      document.querySelectorAll('.tab-panel').forEach(p =>
+        p.classList.toggle('active', p.id === 'panel-' + name));
+    }
+
+    async function renderConsult(cn) {
+      const rows = await safeJson(`${API_BASE_URL}/api/consultations?contractNumber=${encodeURIComponent(cn)}`, []);
+      document.getElementById('cntConsult').textContent = `(${rows.length})`;
+      const tb = document.getElementById('tbConsult');
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="4" class="no-data">상담 내역이 없습니다.</td></tr>'; return; }
+      tb.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escHtml(r.consultDate ?? '')}</td>
+          <td class="consult-content">${escHtml(r.consultContent ?? '')}</td>
+          <td>${escHtml((r.createdAt ?? '').toString().replace('T', ' ').slice(0, 16))}</td>
+        </tr>`).join('');
+    }
+
+    function renderOverdue(rows) {
+      document.getElementById('cntOverdue').textContent = `(${rows.length})`;
+      const tb = document.getElementById('tbOverdue');
+      const sum = document.getElementById('overdueSummary');
+
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="6" class="no-data">연체 내역이 없습니다.</td></tr>';
+        sum.style.display = 'none';
+        return;
+      }
+      const unpaid = rows.reduce((a, r) => a + Number(r.unpaidAmount || 0), 0);
+      const maxDays = rows.reduce((a, r) => Math.max(a, Number(r.overdueDays || 0)), 0);
+      sum.style.display = 'block';
+      sum.innerHTML = `연체 <b>${rows.length}회차</b> · 미납 합계 <b>${won(unpaid)}</b> · 최장 연체 <b>${maxDays}일</b>`;
+
+      tb.innerHTML = rows.map(r => `
+        <tr class="overdue-row">
+          <td>${r.installmentNo ?? ''}</td>
+          <td>${escHtml(r.paymentDate ?? '')}</td>
+          <td class="amount-cell">${num(r.rentAmount)}</td>
+          <td class="amount-cell">${num(r.paidAmount)}</td>
+          <td class="amount-cell"><b>${num(r.unpaidAmount)}</b></td>
+          <td>${num(r.overdueDays)}일</td>
+        </tr>`).join('');
+    }
+
+    async function renderPayment(cn) {
+      const rows = await safeJson(`${API_BASE_URL}/api/payments/by-contract/${encodeURIComponent(cn)}`, []);
+      document.getElementById('cntPayment').textContent = `(${rows.length})`;
+      const tb = document.getElementById('tbPayment');
+      const sum = document.getElementById('paymentSummary');
+
+      if (!rows.length) {
+        tb.innerHTML = '<tr><td colspan="6" class="no-data">수납 내역이 없습니다.</td></tr>';
+        sum.style.display = 'none';
+        return;
+      }
+      const total = rows.reduce((a, p) => a + Number(p.paymentAmount || 0), 0);
+      sum.style.display = 'block';
+      sum.innerHTML = `수납 <b>${rows.length}건</b> · 합계 <b>${won(total)}</b>`;
+
+      tb.innerHTML = rows.map((p, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${escHtml(p.paymentDate ?? '')}</td>
+          <td class="amount-cell">${num(p.paymentAmount)}</td>
+          <td>${escHtml(p.paymentMethod ?? '')}</td>
+          <td>${p.voucherId ? ('#' + p.voucherId) : '<span style="color:#aaa;">없음</span>'}</td>
+          <td>${escHtml(p.memo ?? '')}</td>
+        </tr>`).join('');
+    }
+
+    async function renderSchedule(cn) {
+      const data = await safeJson(`${API_BASE_URL}/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(cn)}`, null);
+      const rows = (data && data.schedule) || [];
+      document.getElementById('cntSchedule').textContent = `(${rows.length})`;
+      const tb = document.getElementById('tbSchedule');
+
+      if (!rows.length) { tb.innerHTML = '<tr><td colspan="9" class="no-data">상환스케줄이 없습니다.</td></tr>'; return; }
+      tb.innerHTML = rows.map(s => `
+        <tr${Number(s.unpaid || 0) > 0 ? ' class="overdue-row"' : ''}>
+          <td>${s.no ?? ''}</td>
+          <td>${escHtml(s.payDate ?? '')}</td>
+          <td class="amount-cell">${num(s.rent)}</td>
+          <td class="amount-cell">${num(s.principal)}</td>
+          <td class="amount-cell">${num(s.interest)}</td>
+          <td class="amount-cell">${num(s.paid)}</td>
+          <td class="amount-cell">${num(s.unpaid)}</td>
+          <td class="amount-cell">${num(s.balance)}</td>
+          <td>${escHtml(s.status ?? '')}</td>
+        </tr>`).join('');
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+    })();
+  </script>
+</body>
+</html>
