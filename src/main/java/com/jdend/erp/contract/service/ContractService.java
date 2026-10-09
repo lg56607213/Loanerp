@@ -182,6 +182,7 @@ public class ContractService {
         .paymentDay(req.paymentDay)
         .paymentDayType(PaymentDayType.orDefault(req.paymentDayType))
         .interestCalcType(InterestCalcType.orDefault(req.interestCalcType))
+        .executeAccount(blankToNullStr(req.executeAccount))
         .roundingUnit(rounding.unit())
         .roundingMode(rounding.mode())
         .installmentCount(installments)
@@ -268,6 +269,9 @@ public class ContractService {
     if (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount())) {
       c.setInstallmentCount(req.getInstallmentCount());
       scheduleAffected = true;
+    }
+    if (req.getExecuteAccount() != null) {
+      c.setExecuteAccount(blankToNullStr(req.getExecuteAccount()));
     }
     // 단수 설정이 바뀌면 회차 금액이 전부 달라지므로 스케줄을 다시 만든다.
     AmountRounding newRounding = AmountRounding.of(req.getRoundingUnit(), req.getRoundingMode());
@@ -386,13 +390,28 @@ public class ContractService {
               .accountCode(bankCode)
               .account(bankName)
               .amount(amount)
-              .description("대출금 지급")
+              .description(payoutDescription(c))
               .build()))
           .build());
     } catch (Exception e) {
       log.warn("대출실행 전표 생성 실패 (채권은 그대로 등록됨) contractNumber={} : {}",
           c.getContractNumber(), e.getMessage());
     }
+  }
+
+  /**
+   * 실행 전표 대변 적요 — 어느 통장에서 나갔는지 함께 적는다.
+   *
+   * 통장이 여럿이면 계좌가 없는 "대출금 지급" 만으로는 전표와 통장 내역을 맞출 수 없다.
+   * 수납 전표가 입금 계좌를 적는 것과 같은 형식으로 둔다.
+   */
+  private static String payoutDescription(Contract c) {
+    String acct = blankToNullStr(c.getExecuteAccount());
+    return acct == null ? "대출금 지급" : "대출금 지급 [" + acct + "]";
+  }
+
+  private static String blankToNullStr(String s) {
+    return (s == null || s.trim().isEmpty()) ? null : s.trim();
   }
 
   /** 이 채권의 대출 실행 전표를 지운다. 수납·상각 전표는 건드리지 않는다. */
@@ -546,6 +565,7 @@ public class ContractService {
         .paymentDay(c.getPaymentDay())
         .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
         .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
+        .executeAccount(c.getExecuteAccount())
         .roundingUnit(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).unit())
         .roundingMode(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).mode())
         .installmentCount(c.getInstallmentCount())
@@ -580,6 +600,7 @@ public class ContractService {
         .paymentDay(c.getPaymentDay())
         .paymentDayType(PaymentDayType.orDefault(c.getPaymentDayType()))
         .interestCalcType(InterestCalcType.orDefault(c.getInterestCalcType()))
+        .executeAccount(c.getExecuteAccount())
         .roundingUnit(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).unit())
         .roundingMode(AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode()).mode())
         .installmentCount(nvl(c.getInstallmentCount()))

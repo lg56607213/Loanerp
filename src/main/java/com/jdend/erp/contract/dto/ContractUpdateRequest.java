@@ -30,6 +30,7 @@ public class ContractUpdateRequest {
   private Integer paymentDay;
   private String paymentDayType;
   private String interestCalcType;
+  private String executeAccount;
   private Integer roundingUnit;
   private String roundingMode;
   private Integer installmentCount;

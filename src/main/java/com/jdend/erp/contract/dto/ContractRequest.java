@@ -31,6 +31,7 @@ public class ContractRequest {
   public String paymentDayType;   // 일자 / 말일
   public String interestCalcType; // 월할 / 일할
 
+  public String executeAccount;   // 대출금을 내준 당사 계좌
   public Integer roundingUnit;    // 납입금액 단수 단위 1 / 10 / 100
   public String roundingMode;     // 절사 / 절상 / 반올림
   public Integer installmentCount;

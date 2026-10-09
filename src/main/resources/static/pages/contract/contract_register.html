@@ -290,6 +290,11 @@
                 <div class="field-hint">미입력 시 시작일자로 등록됩니다.</div>
               </div>
               <div class="form-group">
+                <label>지급 계좌</label>
+                <select id="executeAccount"><option value="">불러오는 중…</option></select>
+                <div class="field-hint">대출금을 내준 당사 통장입니다. 실행 전표 대변(보통예금) 적요에 적힙니다.</div>
+              </div>
+              <div class="form-group">
                 <label class="required">시작일자</label>
                 <input type="date" id="startDate" required>
               </div>
@@ -478,6 +483,30 @@
         ok = false;
       }
       return ok;
+    }
+
+    /** 대출금을 내준 통장 — 내정보관리 > 통장관리 에 등록된 통장에서 고른다. */
+    async function loadPayoutAccounts() {
+      const sel = $('executeAccount');
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`,
+                                { credentials: 'include' });
+        if (!res.ok) throw new Error();
+        const accounts = await res.json();
+        if (!accounts.length) {
+          sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>';
+          return;
+        }
+        sel.innerHTML = '<option value="">선택하세요</option>'
+          + accounts.map(a => {
+              const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+              const esc = String(label).replaceAll('&','&amp;').replaceAll('<','&lt;')
+                                       .replaceAll('>','&gt;').replaceAll('"','&quot;');
+              return `<option value="${esc}">${esc}</option>`;
+            }).join('');
+      } catch (_) {
+        sel.innerHTML = '<option value="">통장 목록을 불러오지 못했습니다</option>';
+      }
     }
 
     /** 대부업법 최고이자율(연 %). 서버 LoanRateValidator.MAX_RATE 와 같은 값이다. */
@@ -876,6 +905,7 @@
         overdueChargeYn: $('overdueChargeYn').value === 'true',
         repaymentMethod: strVal('repaymentMethod'),
         executeDate: strVal('executeDate'),
+        executeAccount: $('executeAccount').value || null,
         startDate: strVal('startDate'),
         endDate: strVal('endDate'),
         paymentDay: $('paymentDay').value === '말일' ? null : Number($('paymentDay').value),
@@ -906,6 +936,7 @@
       $('overdueChargeYn').value = c.overdueChargeYn === false ? 'false' : 'true';
       $('repaymentMethod').value = c.repaymentMethod || '원리금균등';
       $('executeDate').value = c.executeDate || '';
+      $('executeAccount').value = c.executeAccount || '';
       $('startDate').value = c.startDate || '';
       $('endDate').value = c.endDate || '';
       fillPaymentDayOptions();
@@ -1078,6 +1109,7 @@
 
     loadSidebar();
     fillPaymentDayOptions();
+    loadPayoutAccounts();
     onInterestCalcChange();
     onRoundingChange();
     validateRates();

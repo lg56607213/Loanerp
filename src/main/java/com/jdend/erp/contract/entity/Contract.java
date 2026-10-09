@@ -105,6 +105,15 @@ public class Contract {
    * 납입금액 단수 단위 — 1 / 10 / 100. 비면 1(원단위).
    * 월할 계약은 백원 단위로 떨어지게 약정하는 일이 많다.
    */
+  /**
+   * 대출금을 내준 당사 계좌.
+   *
+   * 실행 전표의 대변(보통예금) 적요에 적는다. 통장이 여럿이면 어느 통장에서
+   * 나간 돈인지 전표만 보고는 알 수 없어 통장 대사가 되지 않는다.
+   */
+  @Column(name="execute_account", length=100)
+  private String executeAccount;
+
   @Column(name="rounding_unit")
   private Integer roundingUnit;
 

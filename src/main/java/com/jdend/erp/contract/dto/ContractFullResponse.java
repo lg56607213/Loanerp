@@ -38,6 +38,7 @@ public class ContractFullResponse {
   public Integer paymentDay;
   public String paymentDayType;
   public String interestCalcType;
+  public String executeAccount;
   public Integer roundingUnit;
   public String roundingMode;
   public Integer installmentCount;
