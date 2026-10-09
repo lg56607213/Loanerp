@@ -58,3 +58,6 @@ run-server.bat
 
 # 운영 중인 jar 사본 (배포가 생성)
 current/
+
+# Cloudflare wrangler 로컬 캐시 — 계정 id·이메일이 들어간다
+.wrangler/
