@@ -1,7 +1,10 @@
 package com.jdend.erp.loan.repayment;
 
 import com.jdend.erp.contract.entity.Contract;
+import com.jdend.erp.contract.entity.InterestCalcType;
+import com.jdend.erp.contract.entity.RepaymentMethod;
 import com.jdend.erp.contract.repository.ContractRepository;
+import com.jdend.erp.contract.support.AmountRounding;
 import com.jdend.erp.legal.repository.LegalCostItemRepository;
 import com.jdend.erp.loan.policy.AcceleratedRepaymentPolicy;
 import com.jdend.erp.loan.policy.PaymentSurplusPolicy;
@@ -15,9 +18,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 
@@ -53,7 +60,6 @@ public class RepaymentPostingService {
     if (c == null) return last;
 
     List<PaymentSchedule> schedules = scheduleRepo.findByContractNumberOrderByInstallmentNoAsc(contractNumber);
-    resetAllocations(schedules);
 
     // 상각일 이후 수납만 상각 순서(원금 우선)를 쓴다. 상각 전에 받은 수납은
     // 그때 일반 순서로 전표가 발행됐으므로 재계산해도 같은 결과가 나와야 한다.
@@ -61,13 +67,46 @@ public class RepaymentPostingService {
         .map(w -> w.getWriteOffDate())
         .orElse(null);
 
+    List<Payment> payments = orderedByApplyDate(contractNumber);
+
+    // 충당과 회차 이자는 서로를 물고 있다.
+    //   조기상환으로 원금이 줄면 이후 회차 이자가 줄고,
+    //   이자가 줄면 같은 수납에서 원금으로 가는 몫이 늘어 원금이 또 줄어든다.
+    // 그래서 '충당 → 이자 재계산'을 금액이 더 안 바뀔 때까지 되풀이한다.
+    // 보통 두 번이면 멈춘다. 끝내 안 멈추면 마지막 결과를 쓰고 로그를 남긴다.
+    NavigableMap<LocalDate, Long> timeline = new TreeMap<>();
+    for (int pass = 1; pass <= MAX_INTEREST_PASSES; pass++) {
+      timeline = new TreeMap<>();
+      last = replay(c, schedules, payments, writeOffDate, contractNumber, timeline);
+
+      if (!recalcScheduledInterest(c, schedules, timeline)) break;
+
+      if (pass == MAX_INTEREST_PASSES) {
+        log.warn("회차 이자 재계산이 {}회 안에 안정되지 않았습니다. contractNumber={}",
+            MAX_INTEREST_PASSES, contractNumber);
+      }
+    }
+
+    refreshRowBalances(schedules);
+    scheduleRepo.saveAll(schedules);
+    updateRemainingPrincipal(c, schedules);
+    return last;
+  }
+
+  /** 충당을 처음부터 다시 흘려보낸다. timeline 에는 수납일별 '그 뒤의 남은 원금'이 쌓인다. */
+  private RepaymentAllocation replay(Contract c, List<PaymentSchedule> schedules,
+                                     List<Payment> payments, LocalDate writeOffDate,
+                                     String contractNumber,
+                                     NavigableMap<LocalDate, Long> timeline) {
+    RepaymentAllocation last = new RepaymentAllocation();
+    resetAllocations(schedules);
+
     // 변제충당 1순위 법적비용.
     // 수납 시점까지 '이미 발생한' 비용만 충당 대상이다. 총액을 그냥 쓰면 나중에 등록한
     // 비용이 그 이전 수납에까지 소급 적용돼, 이미 완납이던 회차가 부분납으로 되돌아가고
     // 없던 지연배상금이 붙는다. 상각 순서를 상각일 기준으로 정하는 것과 같은 이유다.
     long allocatedCost = 0L;
 
-    List<Payment> payments = orderedByApplyDate(contractNumber);
     for (Payment p : payments) {
       long amount = p.getPaymentAmount() == null ? 0L : p.getPaymentAmount();
       if (amount <= 0) continue;
@@ -79,10 +118,11 @@ public class RepaymentPostingService {
           AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
           PaymentSurplusPolicy.of(p.getSurplusPolicy()));
       allocatedCost += last.getCost();
-    }
 
-    scheduleRepo.saveAll(schedules);
-    updateRemainingPrincipal(c, schedules);
+      // 그 날짜까지 '실제로' 갚은 원금 누계. 약정상 줄어드는 몫과 구분해야
+      // 조기상환으로 더 갚은 금액만 골라낼 수 있다.
+      timeline.put(date, totalPaidPrincipal(schedules));
+    }
     return last;
   }
 
@@ -221,6 +261,155 @@ public class RepaymentPostingService {
   }
 
   /** 잔여원금 = 회차 원금 합계 − 충당된 원금 합계 */
+  /** 충당·이자 재계산을 몇 번까지 되풀이할지 */
+  private static final int MAX_INTEREST_PASSES = 5;
+
+  /** 아직 갚지 않은 원금 합계 */
+  private static long outstandingPrincipal(List<PaymentSchedule> schedules) {
+    return schedules.stream().mapToLong(PaymentSchedule::unpaidPrincipal).sum();
+  }
+
+  /** 지금까지 실제로 갚은 원금 합계 */
+  private static long totalPaidPrincipal(List<PaymentSchedule> schedules) {
+    return schedules.stream().mapToLong(ps -> nz(ps.getPaidPrincipal())).sum();
+  }
+
+  /**
+   * 회차 이자를 '그 기간에 실제로 남아 있던 원금' 기준으로 다시 계산한다.
+   *
+   * 조기상환으로 원금이 줄어도 회차 이자는 등록 당시 금액 그대로였다.
+   * 500만원을 빌리고 일주일 뒤 200만원을 갚아도 이후 회차 이자가 계속
+   * 500만원 기준이라, 실제로 받을 이자보다 많이 청구되고 있었다.
+   *
+   * 원금 상환 일정은 건드리지 않는다. 이자만 줄어 납입액이 그만큼 작아진다.
+   *
+   * @return 금액이 하나라도 바뀌었으면 true (바뀌었으면 충당을 다시 흘려보내야 한다)
+   */
+  private boolean recalcScheduledInterest(Contract c, List<PaymentSchedule> schedules,
+                                          NavigableMap<LocalDate, Long> timeline) {
+    if (schedules.isEmpty()) return false;
+    BigDecimal rate = c.getInterestRate();
+    if (rate == null || rate.signum() <= 0) return false;
+
+    long loanAmount = c.getLoanAmount() == null ? 0L : c.getLoanAmount();
+    AmountRounding rounding = AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode());
+    boolean daily = InterestCalcType.isDaily(c.getInterestCalcType())
+        && !RepaymentMethod.EQUAL_PAYMENT.equals(c.getRepaymentMethod());
+
+    List<PaymentSchedule> ordered = schedules.stream()
+        .sorted(Comparator.comparing(PaymentSchedule::getInstallmentNo,
+            Comparator.nullsLast(Comparator.naturalOrder())))
+        .toList();
+
+    boolean changed = false;
+    long scheduledPaidBefore = 0L;      // 앞 회차들의 약정 원금 누계
+    for (PaymentSchedule ps : ordered) {
+      long scheduledOpening = Math.max(0L, loanAmount - scheduledPaidBefore);
+      long thisPrincipal = nz(ps.getPrincipalAmount());
+
+      // 기한이익상실로 청구가 멈춘 회차는 건드리지 않는다. 그 회차의 약정이자는
+      // 이미 정산에서 접어 둔 것이라 여기서 되살리면 중복으로 붙는다.
+      if (ps.isAcceleratedLine()) { scheduledPaidBefore += thisPrincipal; continue; }
+
+      Long computed = periodInterest(ps, rate, daily, rounding, timeline,
+          scheduledOpening, scheduledPaidBefore);
+      scheduledPaidBefore += thisPrincipal;
+      if (computed == null) continue;
+
+      long before = ps.getInterestAmount() == null ? 0L : ps.getInterestAmount();
+      if (before == computed) continue;
+
+      ps.setInterestAmount(computed);
+      ps.setRentAmount(nz(ps.getPrincipalAmount()) + computed);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * 한 회차 기간의 이자 — 그 기간에 실제로 남아 있던 원금에 붙인다.
+   *
+   * 기준 잔액은 두 가지를 합쳐 정한다.
+   *   1. 약정상 잔액 — 대출금에서 앞 회차들의 약정 원금을 뺀 값.
+   *      원금균등처럼 회차마다 원금이 줄어드는 방식에서 이자가 체감하는 근거다.
+   *      연체로 실제로 못 받았더라도 약정이자는 제때 갚은 것으로 보고 매긴다
+   *      (못 받은 몫은 지연배상금으로 따로 계산한다).
+   *   2. 조기상환 — 약정보다 더 갚은 금액만큼 잔액을 더 줄인다.
+   *      기간 중간에 갚았으면 그 날짜로 기간을 쪼개 앞뒤 잔액을 달리 본다.
+   *
+   * 일수는 스케줄 생성과 같게 시작일·종료일을 모두 센다. 반올림 방식도 생성기와
+   * 맞춰 일할은 원 단위 절사 뒤 단수 적용, 월할은 단수 적용만 한다.
+   * 그래야 조기상환이 없는 채권에서 등록 당시와 똑같은 금액이 나온다.
+   *
+   * @param scheduledOpening 이 회차 시작 시점의 약정 잔액
+   * @param scheduledPaidBefore 이 회차 앞까지 약정상 갚았어야 할 원금 누계
+   */
+  private Long periodInterest(PaymentSchedule ps, BigDecimal annualRatePercent, boolean daily,
+                              AmountRounding rounding, NavigableMap<LocalDate, Long> timeline,
+                              long scheduledOpening, long scheduledPaidBefore) {
+    LocalDate billStart = ps.getBillStartDate();
+    LocalDate billEnd = ps.getBillEndDate();
+    if (billStart == null || billEnd == null || billEnd.isBefore(billStart)) return null;
+
+    // 경계를 '시작일 하루 전'으로 잡아 시작일도 하루로 세게 한다
+    LocalDate from = billStart.minusDays(1);
+    long totalDays = ChronoUnit.DAYS.between(from, billEnd);
+    if (totalDays <= 0) return null;
+
+    BigDecimal yearFraction = annualRatePercent.divide(BigDecimal.valueOf(100), 16, RoundingMode.HALF_UP);
+    BigDecimal perDay = daily
+        ? yearFraction.divide(BigDecimal.valueOf(365), 16, RoundingMode.HALF_UP)
+        // 월할: 한 달치 이자를 그 기간의 일수로 나눠 하루치를 만든다.
+        // 구간이 하나뿐이면 잔액 x 월이율 그대로라 기존 계산과 어긋나지 않는다.
+        : yearFraction.divide(BigDecimal.valueOf(12), 16, RoundingMode.HALF_UP)
+                      .divide(BigDecimal.valueOf(totalDays), 16, RoundingMode.HALF_UP);
+
+    BigDecimal total = BigDecimal.ZERO;
+    LocalDate cursor = from;
+    while (cursor.isBefore(billEnd)) {
+      LocalDate next = timeline.higherKey(cursor);
+      LocalDate segEnd = (next == null || next.isAfter(billEnd)) ? billEnd : next;
+
+      long days = ChronoUnit.DAYS.between(cursor, segEnd);
+      if (days > 0) {
+        Map.Entry<LocalDate, Long> e = timeline.floorEntry(cursor);
+        long actuallyPaid = (e == null) ? 0L : e.getValue();
+        // 약정보다 더 갚은 만큼만 잔액에서 더 뺀다
+        long extraPrepaid = Math.max(0L, actuallyPaid - scheduledPaidBefore);
+        long balance = Math.max(0L, scheduledOpening - extraPrepaid);
+
+        if (balance > 0) {
+          total = total.add(BigDecimal.valueOf(balance).multiply(perDay).multiply(BigDecimal.valueOf(days)));
+        }
+      }
+      cursor = segEnd;
+    }
+
+    // 일할은 생성기(DailyInterestCalculator)와 같이 원 단위를 먼저 절사한다
+    return daily
+        ? rounding.apply(total.setScale(0, RoundingMode.DOWN).longValue())
+        : rounding.apply(total);
+  }
+
+  /**
+   * 회차별 '그 회차를 낸 뒤의 남은 원금'을 실제 충당 결과로 다시 채운다.
+   * 조기상환 뒤에도 스케줄의 잔액 칸이 옛 숫자로 남아 있으면 화면이 어긋나 보인다.
+   */
+  private void refreshRowBalances(List<PaymentSchedule> schedules) {
+    List<PaymentSchedule> ordered = schedules.stream()
+        .sorted(Comparator.comparing(PaymentSchedule::getInstallmentNo,
+            Comparator.nullsLast(Comparator.naturalOrder())))
+        .toList();
+
+    long remaining = outstandingPrincipal(ordered);
+    for (PaymentSchedule ps : ordered) {
+      remaining -= ps.unpaidPrincipal();
+      ps.setRemainingPrincipal(Math.max(0L, remaining));
+    }
+  }
+
+  private static long nz(Long v) { return v == null ? 0L : v; }
+
   private void updateRemainingPrincipal(Contract c, List<PaymentSchedule> schedules) {
     if (schedules.isEmpty()) return;
     long remaining = schedules.stream()
