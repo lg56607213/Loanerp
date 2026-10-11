@@ -166,6 +166,17 @@
                       <span class="info-value" id="displayContractStatus">-</span>
                     </div>
                   </div>
+                  <div class="info-row">
+                    <div class="info-item">
+                      <span class="info-label">미회수원금</span>
+                      <span class="info-value" id="displayRemainingPrincipal">-</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="info-label" id="payoffLabel">완납금액 (입금일자 기준)</span>
+                      <span class="info-value" id="displayPayoff">-</span>
+                      <span class="field-note" id="payoffBreakdown"></span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -462,6 +473,7 @@
         document.getElementById('displayRentAmount').textContent = (d.monthlyPayment ?? 0).toLocaleString() + ' 원';
         document.getElementById('displayContractStatus').textContent = d.contractStatus || '-';
         document.getElementById('customerInfo').classList.add('active');
+        loadPayoff(cn);
 
         await Promise.all([
           loadPaymentHistory(cn),
@@ -776,6 +788,51 @@
 
     let prepaidBalance = 0;
 
+    /**
+     * 미회수원금과 '입금일자 기준 완납금액'을 보여준다.
+     *
+     * 완납금액은 중도상환 정산과 같은 계산을 쓴다 —
+     * 잔여원금 + 미납이자 + 경과이자 + 지연배상금 + 법적비용.
+     * 그날 전액을 받으려면 얼마를 받아야 하는지가 수납 화면에서 바로 보여야 한다.
+     */
+    async function loadPayoff(contractNumber) {
+      const amountEl = document.getElementById('displayPayoff');
+      const principalEl = document.getElementById('displayRemainingPrincipal');
+      const noteEl = document.getElementById('payoffBreakdown');
+      const asOf = document.getElementById('paymentDate').value;
+
+      document.getElementById('payoffLabel').textContent =
+        asOf ? `완납금액 (${asOf} 기준)` : '완납금액 (입금일자 기준)';
+
+      if (!contractNumber) { principalEl.textContent = '-'; amountEl.textContent = '-'; noteEl.textContent = ''; return; }
+
+      amountEl.textContent = '계산 중…';
+      try {
+        const qs = asOf ? `?asOf=${encodeURIComponent(asOf)}` : '';
+        const res = await fetch(`${API_BASE_URL}/api/loans/${encodeURIComponent(contractNumber)}/settlement${qs}`,
+                                { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const s = await res.json();
+
+        principalEl.textContent = won(s.remainingPrincipal);
+        amountEl.textContent = won(s.totalDue);
+
+        // 어떻게 그 금액이 나왔는지 한 줄로 — 금액만 보면 따질 수가 없다
+        const parts = [];
+        if (s.remainingPrincipal) parts.push(`원금 ${won(s.remainingPrincipal)}`);
+        if (s.unpaidInterest)     parts.push(`미납이자 ${won(s.unpaidInterest)}`);
+        if (s.accruedInterest)    parts.push(`경과이자 ${won(s.accruedInterest)}`);
+        if (s.overdueInterest)    parts.push(`지연배상금 ${won(s.overdueInterest)}`);
+        if (s.legalCost)          parts.push(`법적비용 ${won(s.legalCost)}`);
+        noteEl.textContent = parts.join(' + ')
+          + (s.accrualDays ? ` (경과 ${s.accrualDays}일)` : '');
+      } catch (e) {
+        principalEl.textContent = '-';
+        amountEl.textContent = '계산 실패';
+        noteEl.textContent = e.message;
+      }
+    }
+
     /** 이 채권에 쌓여 있는 선수금을 읽어 안내문에 보여준다. */
     async function loadPrepaidBalance(contractNumber) {
       const note = document.getElementById('prepaidNote');
@@ -850,6 +907,13 @@
       clearScheduleStatus('계약을 조회하면 수납 현황이 표시됩니다.');
       onSurplusChange();
       onSourceChange();
+
+      // 입금일자가 바뀌면 그날 기준 완납금액도 달라진다
+      document.getElementById('paymentDate').addEventListener('change', () => {
+        const cn = document.getElementById('contractNumber').value.trim();
+        if (cn) loadPayoff(cn);
+      });
+
       await loadBankAccounts();
     });
   </script>
