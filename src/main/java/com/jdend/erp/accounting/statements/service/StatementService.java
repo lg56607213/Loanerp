@@ -268,11 +268,16 @@ public class StatementService {
 
     visiting.remove(node.getId());
 
-    // 자식이 있는 집계 계정(4001 등)은 전표 금액을 직접 가져오지 않고 자식 합산만 사용한다.
-    // 자식이 없는 리프 계정만 전표에서 ownAmount를 가져온다.
-    long ownAmount = children.isEmpty()
-        ? signedNetAmount(node.getCategory(), node.getAccountCode(), debit, credit)
-        : 0L;
+    // 자기 앞으로 달린 전표 금액은 자식이 있든 없든 그대로 더한다.
+    //
+    // 전에는 자식이 있으면 자기 금액을 버렸다. 집계 계정에 중복으로 더해질까 봐
+    // 그랬지만, 대손충당금처럼 차감 계정을 자식으로 두는 계정은 그 자신이
+    // 전표를 받는 계정이다. 그래서 장기대여금(100302)에 5,000,000 을 올려도
+    // 자식(장기대여금 대손충당금)이 있다는 이유로 0 으로 나왔다.
+    //
+    // 1003 대출채권 같은 순수 집계 계정은 전표를 받지 않아(기표 '미사용')
+    // 여기서 가져올 금액 자체가 0 이므로 중복으로 더해지지 않는다.
+    long ownAmount = signedNetAmount(node.getCategory(), node.getAccountCode(), debit, credit);
     long childrenSum = children.stream().mapToLong(StatementNodeResponse::getAmount).sum();
 
     return StatementNodeResponse.builder()
