@@ -25,6 +25,7 @@ import com.jdend.erp.accounting.voucher.service.VoucherService;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
 import com.jdend.erp.loan.support.LoanReceivableAccount;
+import com.jdend.erp.loan.repayment.RepaymentPostingService;
 import com.jdend.erp.payment.schedule.service.PaymentScheduleAutoGeneratorService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ public class ContractService {
   private final VoucherApprovalGuard voucherApprovalGuard;
   private final CustomerRepository customerRepo;
   private final PaymentScheduleAutoGeneratorService scheduleAutoGen;
+  private final RepaymentPostingService repaymentPosting;
   private final VoucherService voucherService;
   private final VoucherRepository voucherRepository;
   private final OtherAccountSettingsService accountSettings;
@@ -216,6 +218,10 @@ public class ContractService {
       }
     }
 
+    // 수정은 실행 전표를 지우고 다시 만든다. 승인된 전표를 말없이 지우면
+    // 이미 장부에 반영된 금액이 소리 없이 바뀐다 — 삭제·수납취소와 같은 규칙을 지킨다.
+    requireExecutionVoucherNotApproved(c.getContractNumber());
+
     boolean scheduleAffected = false;
 
     if (isNotBlank(req.getCustomerNumber()) && !req.getCustomerNumber().equals(c.getCustomerNumber())) {
@@ -306,6 +312,11 @@ public class ContractService {
     } else {
       scheduleAutoGen.ensureGenerated(c);
     }
+
+    // 대출금이 바뀌면 잔여원금도 따라가야 한다. 수납을 다시 흘려보내 계산하므로
+    // 수납이 없으면 대출금 전액이 되고, 있으면 그만큼 뺀 금액이 된다.
+    // 이걸 빼먹어 대출금만 바뀌고 잔여원금은 옛 금액으로 남아 있었다.
+    repaymentPosting.recompute(c.getContractNumber());
 
     // 대출금·기간·실행일이 바뀌면 실행 분개의 금액이나 계정(단기/장기)이 달라진다.
     // 증분으로 고치면 어긋나기 쉬워 지우고 다시 만든다.
@@ -412,6 +423,31 @@ public class ContractService {
 
   private static String blankToNullStr(String s) {
     return (s == null || s.trim().isEmpty()) ? null : s.trim();
+  }
+
+  /**
+   * 실행 전표가 승인 상태면 수정을 막는다.
+   *
+   * 수정은 전표를 지우고 다시 만드는 방식이라, 승인된 전표가 조용히 사라지고
+   * 금액이 다른 전표로 바뀐다. 승인 전표는 이미 장부에 반영된 것이라
+   * 되돌릴 기회 없이 바뀌면 안 된다.
+   */
+  private void requireExecutionVoucherNotApproved(String contractNumber) {
+    Voucher exec = findExecutionVoucher(contractNumber);
+    if (exec == null || !VoucherApprovalGuard.APPROVED.equals(exec.getStatus())) return;
+
+    throw new IllegalStateException(
+        "대출을 수정하려면 먼저 실행 전표 " + exec.getVoucherNo() + " 의 승인을 취소해야 합니다."
+      + " 회계관리 > 전표등록 > 전표승인 에서 채권번호로 찾아 '대기' 버튼을 누른 뒤 다시 시도하세요."
+      + " 수정하면 실행 전표를 다시 만들기 때문에, 승인된 전표를 그대로 두면 장부가 어긋납니다.");
+  }
+
+  /** 이 채권의 대출 실행 전표. 없으면 null. */
+  private Voucher findExecutionVoucher(String contractNumber) {
+    if (contractNumber == null || contractNumber.isBlank()) return null;
+    return voucherRepository
+        .findByMemoStartingWithOrderByIdAsc(EXEC_VOUCHER_MEMO + " / 계약번호: " + contractNumber)
+        .stream().findFirst().orElse(null);
   }
 
   /** 이 채권의 대출 실행 전표를 지운다. 수납·상각 전표는 건드리지 않는다. */
