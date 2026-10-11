@@ -75,4 +75,19 @@ public interface StatementAggRepository extends JpaRepository<VoucherLine, Long>
       @Param("accountCodes") List<String> accountCodes,
       @Param("status") String status
   );
+
+  /** 기간 안의 전표 라인 전부 — 재무제표 반영 여부를 줄 단위로 따질 때 쓴다. */
+  @Query("""
+    select l
+      from VoucherLine l
+      join fetch l.voucher v
+     where v.voucherDate between :start and :end
+       and (:status is null or :status = '' or v.status = :status)
+     order by v.voucherDate asc, v.id asc, l.sortOrder asc
+  """)
+  List<VoucherLine> findLinesBetween(
+      @Param("start") LocalDate start,
+      @Param("end") LocalDate end,
+      @Param("status") String status
+  );
 }

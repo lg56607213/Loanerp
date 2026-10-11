@@ -2,6 +2,7 @@ package com.jdend.erp.accounting.statements.service;
 
 import com.jdend.erp.accounting.statements.dto.*;
 import com.jdend.erp.accounting.statements.repository.StatementAggRepository;
+import com.jdend.erp.accounting.voucher.entity.VoucherLine;
 import com.jdend.erp.management.financial.entity.FinancialStatementAccount;
 import com.jdend.erp.management.financial.repository.FinancialStatementAccountRepository;
 import lombok.RequiredArgsConstructor;
@@ -303,5 +304,81 @@ public class StatementService {
   private static String safe(String s) {
     if (s == null) return "";
     return s.trim().replaceAll("\\s+", " ");
+  }
+
+  /**
+   * 재무제표에 안 잡히는 전표 라인을 찾아 이유와 함께 돌려준다.
+   *
+   * 전표를 제대로 쳤는데 재무제표에서 금액이 비면 어디서 샜는지 알 길이 없었다.
+   * 집계는 계정코드로만 하고, 계정 트리에서 '사용'인 계정만 타고 내려가므로
+   * 다음 경우는 전표가 승인돼 있어도 조용히 빠진다.
+   *
+   *   1. 계정코드가 비어 있다 — 코드 없이 만들어진 전표
+   *   2. 계정코드가 재무제표관리에 없다 — 코드를 바꾸거나 지운 경우
+   *   3. 그 계정이나 상위 계정이 '미사용'이다 — 트리에서 끊겨 합산되지 않는다
+   */
+  @Transactional(readOnly = true)
+  public List<UnreflectedLineResponse> unreflected(LocalDate start, LocalDate end, String status) {
+    if (start == null || end == null) {
+      throw new IllegalArgumentException("startDate, endDate 는 필수입니다.");
+    }
+
+    Map<String, FinancialStatementAccount> byCode = accountRepo.findAll().stream()
+        .filter(a -> a.getAccountCode() != null)
+        .collect(Collectors.toMap(FinancialStatementAccount::getAccountCode, a -> a, (x, y) -> x));
+    Map<Long, FinancialStatementAccount> byId = byCode.values().stream()
+        .collect(Collectors.toMap(FinancialStatementAccount::getId, a -> a, (x, y) -> x));
+
+    List<UnreflectedLineResponse> out = new ArrayList<>();
+    for (VoucherLine l : aggRepo.findLinesBetween(start, end, status)) {
+      String reason = reasonNotReflected(l.getAccountCode(), byCode, byId);
+      if (reason == null) continue;
+
+      out.add(UnreflectedLineResponse.builder()
+          .voucherId(l.getVoucher().getId())
+          .voucherNo(l.getVoucher().getVoucherNo())
+          .voucherDate(l.getVoucher().getVoucherDate())
+          .status(l.getVoucher().getStatus())
+          .lineType(l.getLineType())
+          .accountCode(l.getAccountCode())
+          .accountName(l.getAccountName())
+          .amount(l.getAmount())
+          .description(l.getDescription())
+          .reason(reason)
+          .build());
+    }
+    return out;
+  }
+
+  /** 반영되면 null, 안 되면 그 이유 */
+  private String reasonNotReflected(String code,
+                                    Map<String, FinancialStatementAccount> byCode,
+                                    Map<Long, FinancialStatementAccount> byId) {
+    if (code == null || code.isBlank()) {
+      return "계정코드가 비어 있습니다. 전표를 열어 계정을 다시 고르고 저장하세요.";
+    }
+    FinancialStatementAccount a = byCode.get(code.trim());
+    if (a == null) {
+      return "계정코드 " + code + " 가 재무제표관리에 없습니다. 삭제됐거나 코드가 바뀐 계정입니다.";
+    }
+    if (!"사용".equals(a.getIsActive())) {
+      return "계정 " + code + " " + a.getAccountName() + " 이(가) '미사용' 입니다."
+           + " 재무제표관리에서 '사용'으로 바꾸면 반영됩니다.";
+    }
+    // 상위로 올라가며 끊긴 곳이 있는지 — 중간이 미사용이면 트리에서 통째로 빠진다
+    FinancialStatementAccount cur = a;
+    Set<Long> seen = new HashSet<>();
+    while (cur != null && cur.getParentId() != null && seen.add(cur.getId())) {
+      FinancialStatementAccount parent = byId.get(cur.getParentId());
+      if (parent == null) {
+        return "상위 계정이 없어 트리에서 끊겼습니다. (" + cur.getAccountCode() + " 의 상위)";
+      }
+      if (!"사용".equals(parent.getIsActive())) {
+        return "상위 계정 " + parent.getAccountCode() + " " + parent.getAccountName()
+             + " 이(가) '미사용' 이라 하위 금액이 합산되지 않습니다.";
+      }
+      cur = parent;
+    }
+    return null;
   }
 }

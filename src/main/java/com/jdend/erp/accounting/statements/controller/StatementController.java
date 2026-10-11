@@ -30,18 +30,18 @@ public class StatementController {
   public IncomeStatementResponse income(
       @RequestParam LocalDate startDate,
       @RequestParam LocalDate endDate,
-      @RequestParam(required = false, defaultValue = "승인") String status
+      @RequestParam(required = false) String status
   ) {
-    return service.income(startDate, endDate, status);
+    return service.income(startDate, endDate, defaultStatus(status));
   }
 
   // GET /api/statements/balance?referenceDate=2026-03-03&status=승인
   @GetMapping("/balance")
   public BalanceSheetResponse balance(
       @RequestParam LocalDate referenceDate,
-      @RequestParam(required = false, defaultValue = "승인") String status
+      @RequestParam(required = false) String status
   ) {
-    return service.balance(referenceDate, status);
+    return service.balance(referenceDate, defaultStatus(status));
   }
 
   // GET /api/statements/balance/details?accountCode=1001&referenceDate=2026-04-20&status=승인
@@ -51,9 +51,9 @@ public class StatementController {
       @RequestParam String accountCode,
       @RequestParam(required = false) LocalDate startDate,
       @RequestParam LocalDate referenceDate,
-      @RequestParam(required = false, defaultValue = "승인") String status
+      @RequestParam(required = false) String status
   ) {
-    return service.balanceDetails(accountCode, startDate, referenceDate, status);
+    return service.balanceDetails(accountCode, startDate, referenceDate, defaultStatus(status));
   }
 
   // GET /api/statements/balance/details/export — 단일 계정 상세내역 엑셀 다운로드
@@ -62,10 +62,10 @@ public class StatementController {
       @RequestParam String accountCode,
       @RequestParam(required = false) LocalDate startDate,
       @RequestParam LocalDate referenceDate,
-      @RequestParam(required = false, defaultValue = "승인") String status,
+      @RequestParam(required = false) String status,
       @RequestParam(required = false, defaultValue = "계정") String accountName
   ) {
-    List<BalanceDetailRowResponse> rows = service.balanceDetails(accountCode, startDate, referenceDate, status);
+    List<BalanceDetailRowResponse> rows = service.balanceDetails(accountCode, startDate, referenceDate, defaultStatus(status));
     String[] headers = {"전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = rows.stream().map(r -> new Object[]{
         r.getVoucherDate(), r.getVoucherNo(),
@@ -86,7 +86,7 @@ public class StatementController {
   @GetMapping("/balance/export")
   public ResponseEntity<byte[]> balanceExport(
       @RequestParam LocalDate referenceDate,
-      @RequestParam(required = false, defaultValue = "승인") String status
+      @RequestParam(required = false) String status
   ) {
     String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = new ArrayList<>();
@@ -117,7 +117,7 @@ public class StatementController {
   public ResponseEntity<byte[]> incomeExport(
       @RequestParam LocalDate startDate,
       @RequestParam LocalDate endDate,
-      @RequestParam(required = false, defaultValue = "승인") String status
+      @RequestParam(required = false) String status
   ) {
     String[] headers = {"계정구분", "전표일자", "전표번호", "구분", "계정명", "금액", "적요", "계약번호", "메모", "상태"};
     List<Object[]> data = new ArrayList<>();
@@ -141,5 +141,32 @@ public class StatementController {
         .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename*=UTF-8''" + encodedName3)
         .contentType(MediaType.APPLICATION_OCTET_STREAM)
         .body(excel);
+  }
+
+  /**
+   * 상태 필터 기본값.
+   *
+   * 파라미터를 아예 안 주면 승인분만 본다(재무제표의 기본). 빈 값으로 주면
+   * '전체'라는 뜻이라 그대로 넘긴다.
+   *
+   * 전에는 @RequestParam 의 defaultValue 를 썼는데, 스프링은 값이 빈 문자열일
+   * 때도 기본값으로 바꿔 버린다. 그래서 화면에서 '전체'를 골라도 승인분만
+   * 나왔고, 대기 전표가 왜 안 보이는지 알 수 없었다.
+   */
+  private static String defaultStatus(String status) {
+    return status == null ? "승인" : status;
+  }
+
+  /**
+   * 재무제표에 반영되지 않는 전표 라인 점검.
+   * 전표는 쳤는데 재무제표에서 금액이 비는 건을 찾아 이유까지 알려준다.
+   */
+  @GetMapping("/unreflected")
+  public List<UnreflectedLineResponse> unreflected(
+      @RequestParam LocalDate startDate,
+      @RequestParam LocalDate endDate,
+      @RequestParam(required = false) String status
+  ) {
+    return service.unreflected(startDate, endDate, defaultStatus(status));
   }
 }
