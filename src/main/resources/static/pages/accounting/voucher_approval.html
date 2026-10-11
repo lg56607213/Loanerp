@@ -67,10 +67,16 @@
             <div class="form-group">
               <label for="searchStatus">상태</label>
               <select id="searchStatus">
-                <option value="">전체</option>
-                <option value="대기" selected>대기</option>
+                <option value="" selected>전체</option>
+                <option value="대기">대기</option>
                 <option value="승인">승인</option>
               </select>
+            </div>
+
+            <div class="form-group">
+              <label for="searchKeyword">전표번호 · 채권번호</label>
+              <input type="text" id="searchKeyword" placeholder="번호 일부로 찾기"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();searchVouchers();}">
             </div>
 
             <div class="form-group btn-group">
@@ -115,7 +121,9 @@
         </div>
 
         <div class="info-text">
-          * 승인 / 대기 / 삭제 선택가능 &nbsp;|&nbsp; * 행을 더블클릭하면 전표 상세를 볼 수 있습니다
+          * 승인 / 대기 / 삭제 선택가능 &nbsp;|&nbsp; * 행을 더블클릭하면 전표 상세를 볼 수 있습니다<br>
+          * 승인된 수납·대출을 취소하려면 여기서 그 전표를 <b>대기</b>로 되돌린 뒤 원본 화면에서 취소하세요.
+          전표번호나 채권번호로 찾으면 조회기간과 무관하게 나옵니다.
         </div>
       </div>
     </div>
@@ -193,6 +201,7 @@
       const startDate = $("searchStartDate").value || "";
       const endDate = $("searchEndDate").value || "";
       const status = $("searchStatus").value || "";
+      const keyword = ($("searchKeyword").value || "").trim();
 
       if(startDate && endDate && startDate > endDate){
         return alert("조회시작일이 조회종료일보다 늦을 수 없습니다.");
@@ -202,6 +211,9 @@
       if(startDate) qs.set("startDate", startDate);
       if(endDate) qs.set("endDate", endDate);
       if(status) qs.set("status", status);
+      // 번호로 찾을 때는 서버가 조회기간을 무시한다.
+      // 대출 실행 전표의 일자는 실행일이라 몇 달 전일 수 있다.
+      if(keyword) qs.set("keyword", keyword);
 
       const res = await fetch(`${API_BASE_URL}/api/vouchers?` + qs.toString());
       await mustOk(res);

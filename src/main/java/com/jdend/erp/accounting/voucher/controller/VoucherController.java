@@ -52,19 +52,21 @@ public class VoucherController {
     public List<VoucherApprovalRowResponse> listForApproval(
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "") String status
+            @RequestParam(required = false, defaultValue = "") String status,
+            @RequestParam(required = false, defaultValue = "") String keyword
     ) {
-        return voucherService.listForApproval(startDate, endDate, status);
+        return voucherService.listForApproval(startDate, endDate, status, keyword);
     }
 
-    // GET /api/vouchers?startDate=2026-03-01&endDate=2026-03-31&status=대기
+    // GET /api/vouchers?startDate=2026-03-01&endDate=2026-03-31&status=대기&keyword=2026031000006
     @GetMapping
     public List<VoucherApprovalRowResponse> list(
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
-            @RequestParam(required = false, defaultValue = "") String status
+            @RequestParam(required = false, defaultValue = "") String status,
+            @RequestParam(required = false, defaultValue = "") String keyword
     ) {
-        return voucherService.listForApproval(startDate, endDate, status);
+        return voucherService.listForApproval(startDate, endDate, status, keyword);
     }
 
     // POST /api/vouchers/approve  { "ids":[1,2,3] }

@@ -158,7 +158,17 @@ public class VoucherService {
      */
     @Transactional(readOnly = true)
     public List<VoucherApprovalRowResponse> listForApproval(LocalDate startDate, LocalDate endDate, String status) {
-        return voucherRepository.searchForApprovalRange(startDate, endDate, status).stream()
+        return listForApproval(startDate, endDate, status, null);
+    }
+
+    /**
+     * @param keyword 전표번호·채권번호·적요로 찾는다. 주면 조회기간을 무시한다.
+     */
+    @Transactional(readOnly = true)
+    public List<VoucherApprovalRowResponse> listForApproval(LocalDate startDate, LocalDate endDate,
+                                                            String status, String keyword) {
+        String kw = keyword == null ? "" : keyword.trim();
+        return voucherRepository.searchForApprovalRange(startDate, endDate, status, kw).stream()
                 .flatMap(v -> {
                     List<VoucherLine> lines = v.getLines().stream()
                             .sorted(Comparator.comparing(VoucherLine::getSortOrder, Comparator.nullsLast(Integer::compareTo)))
