@@ -106,7 +106,8 @@ public class PaymentService {
         .build());
 
     // 변제충당 반영 — 회차별 원금/이자/지연배상금 충당 실적을 다시 계산한다.
-    RepaymentAllocation alloc = repaymentPosting.recompute(saved.getContractNumber());
+    // 전표는 '이 수납'이 무엇에 충당됐는지를 적어야 한다 (마지막 수납이 아니라)
+    RepaymentAllocation alloc = repaymentPosting.recompute(saved.getContractNumber(), saved.getId());
     excess = alloc.getExcess();
 
     boolean shouldCreateVoucher = req.getCreateVoucher() == null || req.getCreateVoucher();
@@ -212,7 +213,7 @@ public class PaymentService {
     long excess   = Math.max(0L, req.getPaymentAmount() - totalDue);
 
     // 수정된 금액·일자로 충당을 처음부터 다시 계산한다.
-    RepaymentAllocation alloc = repaymentPosting.recompute(p.getContractNumber());
+    RepaymentAllocation alloc = repaymentPosting.recompute(p.getContractNumber(), p.getId());
     excess = alloc.getExcess();
 
     boolean shouldCreateVoucher = req.getCreateVoucher() == null || req.getCreateVoucher();

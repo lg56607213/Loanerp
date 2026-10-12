@@ -49,10 +49,25 @@ public class RepaymentPostingService {
 
   /**
    * 채권의 충당 실적을 전부 다시 계산하고 잔여원금을 갱신한다.
-   * @return 마지막 수납 건의 충당 결과 (전표 분개에 사용). 수납이 없으면 빈 결과.
+   * @return 마지막 수납 건의 충당 결과. 수납이 없으면 빈 결과.
    */
   @Transactional
   public RepaymentAllocation recompute(String contractNumber) {
+    return recompute(contractNumber, null);
+  }
+
+  /**
+   * 충당을 다시 계산하고 <b>지정한 수납 한 건</b>의 충당 결과를 돌려준다.
+   *
+   * 전표는 그 수납이 무엇에 충당됐는지를 적어야 한다. 그냥 '마지막 수납'의
+   * 결과를 쓰면, 날짜를 소급해 등록한 수납의 전표에 다른 수납의 금액이 찍힌다.
+   * 실제로 12월 수납이 있는 채권에 10월자 수납 100만원을 넣으면, 10월 전표의
+   * 차변은 100만원인데 대변은 1,500만원으로 대차가 깨졌다.
+   *
+   * @param focusPaymentId 결과를 돌려받을 수납 id. null 이면 마지막 수납 기준.
+   */
+  @Transactional
+  public RepaymentAllocation recompute(String contractNumber, Long focusPaymentId) {
     RepaymentAllocation last = new RepaymentAllocation();
     if (contractNumber == null || contractNumber.isBlank()) return last;
 
@@ -77,7 +92,7 @@ public class RepaymentPostingService {
     NavigableMap<LocalDate, Long> timeline = new TreeMap<>();
     for (int pass = 1; pass <= MAX_INTEREST_PASSES; pass++) {
       timeline = new TreeMap<>();
-      last = replay(c, schedules, payments, writeOffDate, contractNumber, timeline);
+      last = replay(c, schedules, payments, writeOffDate, contractNumber, timeline, focusPaymentId);
 
       if (!recalcScheduledInterest(c, schedules, timeline)) break;
 
@@ -97,8 +112,10 @@ public class RepaymentPostingService {
   private RepaymentAllocation replay(Contract c, List<PaymentSchedule> schedules,
                                      List<Payment> payments, LocalDate writeOffDate,
                                      String contractNumber,
-                                     NavigableMap<LocalDate, Long> timeline) {
+                                     NavigableMap<LocalDate, Long> timeline,
+                                     Long focusPaymentId) {
     RepaymentAllocation last = new RepaymentAllocation();
+    RepaymentAllocation focused = null;
     resetAllocations(schedules);
 
     // 변제충당 1순위 법적비용.
@@ -118,12 +135,13 @@ public class RepaymentPostingService {
           AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
           PaymentSurplusPolicy.of(p.getSurplusPolicy()));
       allocatedCost += last.getCost();
+      if (focusPaymentId != null && focusPaymentId.equals(p.getId())) focused = last;
 
       // 그 날짜까지 '실제로' 갚은 원금 누계. 약정상 줄어드는 몫과 구분해야
       // 조기상환으로 더 갚은 금액만 골라낼 수 있다.
       timeline.put(date, totalPaidPrincipal(schedules));
     }
-    return last;
+    return focused != null ? focused : last;
   }
 
   /**
