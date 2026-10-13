@@ -117,7 +117,21 @@
       <div class="card-body split-container">
 
         <div class="top-panel" id="paymentFormSection">
-          <h3 class="panel-title">수납 등록</h3>
+          <h3 class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span>수납 등록</span>
+            <span style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;">
+              <label for="bulkVoucherMode" style="color:#64748b;">일괄등록 전표</label>
+              <select id="bulkVoucherMode"
+                      style="height:30px;border:1px solid #ccc;border-radius:5px;padding:0 8px;font-size:12px;">
+                <option value="N">발생 안 함</option>
+                <option value="Y">발생</option>
+              </select>
+              <button type="button" id="bulkUploadBtn"
+                      style="height:30px;padding:0 12px;background:#0f766e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:12px;">
+                엑셀 일괄등록
+              </button>
+            </span>
+          </h3>
           <div class="panel-content">
             <form id="paymentForm">
 
@@ -375,6 +389,7 @@
   <script src="../../assets/js/sidebar.js"></script>
   <script src="../../assets/js/config.js"></script>
   <script src="../../assets/js/role.js"></script>
+  <script src="../../assets/js/excel-upload.js"></script>
 
   <script>
     const resizer = document.getElementById('resizer');
@@ -934,6 +949,21 @@
       onSurplusChange();
       onSourceChange();
       onVoucherModeChange();
+
+      // 과거 내역을 옮길 때는 전표를 만들지 않는 것이 보통이라 기본값을 '발생 안 함'으로 둔다.
+      document.getElementById('bulkUploadBtn').addEventListener('click', () => {
+        const makeVoucher = document.getElementById('bulkVoucherMode').value === 'Y';
+        openExcelUploadModal({
+          title: '수납 엑셀 일괄등록' + (makeVoucher ? ' (전표 발생)' : ' (전표 없음)'),
+          templateUrl: '/payments/bulk-upload/template',
+          previewUrl: `/payments/bulk-upload?createVoucher=${makeVoucher}&dryRun=true`,
+          uploadUrl: `/payments/bulk-upload?createVoucher=${makeVoucher}&dryRun=false`,
+          onSuccess: async () => {
+            const cn = document.getElementById('contractNumber').value.trim();
+            if (cn) await searchContract();
+          }
+        });
+      });
 
       // 입금일자가 바뀌면 그날 기준 완납금액도 달라진다
       document.getElementById('paymentDate').addEventListener('change', () => {
