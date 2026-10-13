@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상환스케줄 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .split { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start; }
+    @media (max-width: 1100px) { .split { grid-template-columns:1fr; } }
+
+    .box { border:1px solid #e3e8ef; border-radius:10px; background:#fff; overflow:hidden; }
+    .box-head { background:#f8fafc; padding:10px 14px; font-size:14px; font-weight:800; color:#1a3c7a; border-bottom:1px solid #e3e8ef; }
+    .box-body { padding:12px 14px; }
+
+    .search-row { display:flex; gap:8px; margin-bottom:10px; }
+    .search-row input { flex:1; height:34px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+    .btn-primary { height:34px; padding:0 14px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-add { height:34px; padding:0 16px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-add:hover { background:#166534; }
+    .btn-add:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-row { padding:3px 10px; background:#fff; color:#15803d; border:1px solid #86efac; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-row:hover { background:#f0fdf4; }
+
+    .contract-list { max-height:620px; overflow:auto; }
+    .contract-item { padding:10px 12px; border-bottom:1px solid #eef2f7; cursor:pointer; }
+    .contract-item:hover { background:#f1f5f9; }
+    .contract-item.active { background:#eff6ff; border-left:3px solid #1a73e8; padding-left:9px; }
+    .ci-no { font-size:12px; color:#64748b; }
+    .ci-name { font-size:14px; font-weight:700; color:#1f2937; }
+    .ci-amt { font-size:12px; color:#475569; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+    .head-strip { display:flex; flex-wrap:wrap; gap:14px 24px; padding:12px 14px; background:#1a3c7a; color:#fff; }
+    .hs { display:flex; flex-direction:column; gap:2px; }
+    .hs-l { font-size:11px; color:#c7d7f0; }
+    .hs-v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:8px 9px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; position:sticky; top:0; }
+    td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:40px; }
+    tfoot td { background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; }
+    tr.unpaid td { color:#b91c1c; }
+    tr.paid td { color:#15803d; }
+    .table-wrap { max-height:520px; overflow:auto; }
+
+    .entry { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+    .entry-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .fg { display:flex; flex-direction:column; gap:4px; }
+    .fg label { font-size:12px; font-weight:600; color:#444; }
+    .fg input, .fg select { height:34px; padding:0 9px; border:1px solid #ccc; border-radius:5px; font-size:13px; width:100%; background:#fff; }
+    .fg input.amount { text-align:right; font-variant-numeric:tabular-nums; }
+    .hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>상환스케줄</h1>
+      <p>수납관리 &gt; 상환스케줄</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+        <div class="split">
+
+          <div class="box">
+            <div class="box-head">채권 목록</div>
+            <div class="box-body">
+              <div class="search-row">
+                <input type="text" id="kw" placeholder="고객명 · 채권번호"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();loadContracts();}">
+                <button class="btn-primary" onclick="loadContracts()">검색</button>
+              </div>
+              <div class="contract-list" id="contractList">
+                <div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="box-head" id="schedTitle">상환스케줄 — 왼쪽에서 채권을 고르세요</div>
+
+            <div class="head-strip" id="headStrip" style="display:none;">
+              <div class="hs"><span class="hs-l">고객</span><span class="hs-v" id="hCustomer">-</span></div>
+              <div class="hs"><span class="hs-l">대출금</span><span class="hs-v" id="hLoan">-</span></div>
+              <div class="hs"><span class="hs-l">미회수원금</span><span class="hs-v" id="hRemain">-</span></div>
+              <div class="hs"><span class="hs-l">상환방식</span><span class="hs-v" id="hMethod">-</span></div>
+              <div class="hs"><span class="hs-l">계약기간</span><span class="hs-v" id="hPeriod">-</span></div>
+            </div>
+
+            <div class="box-body">
+              <div class="entry" id="entryBox" style="display:none;">
+                <div class="entry-row">
+                  <div class="fg" style="width:150px;">
+                    <label for="pDate">수납일</label>
+                    <input type="date" id="pDate">
+                  </div>
+                  <div class="fg" style="width:150px;">
+                    <label for="pAmount">수납금액</label>
+                    <input type="text" id="pAmount" class="amount" inputmode="numeric" placeholder="0" oninput="formatAmount(this)">
+                  </div>
+                  <div class="fg" style="width:150px;">
+                    <label for="pApplyDate">충당기준일</label>
+                    <input type="date" id="pApplyDate">
+                  </div>
+                  <div class="fg" style="width:140px;">
+                    <label for="pVoucher">전표 발생</label>
+                    <select id="pVoucher">
+                      <option value="N">발생 안 함</option>
+                      <option value="Y">발생</option>
+                    </select>
+                  </div>
+                  <div class="fg" style="width:200px;">
+                    <label for="pAccount">입금된 당사 계좌</label>
+                    <select id="pAccount"><option value="">불러오는 중…</option></select>
+                  </div>
+                  <button class="btn-add" id="pAddBtn" onclick="addPayment()">수납 등록</button>
+                </div>
+                <div class="hint">
+                  회차의 <b>수납</b> 버튼을 누르면 그 회차의 납입예정일과 미납액이 위에 채워집니다.
+                  과거 내역을 옮기는 중이라면 전표 발생을 <b>'발생 안 함'</b>으로 두세요.
+                </div>
+              </div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:54px;">회차</th>
+                      <th>납입예정일</th>
+                      <th class="num" style="text-align:right;">청구액</th>
+                      <th class="num" style="text-align:right;">원금</th>
+                      <th class="num" style="text-align:right;">이자</th>
+                      <th class="num" style="text-align:right;">수납액</th>
+                      <th class="num" style="text-align:right;">미납액</th>
+                      <th class="num" style="text-align:right;">잔액</th>
+                      <th style="width:78px;">상태</th>
+                      <th style="width:64px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="schedBody">
+                    <tr><td colspan="10" class="no-data">왼쪽 목록에서 채권을 고르면 상환스케줄이 표시됩니다.</td></tr>
+                  </tbody>
+                  <tfoot id="schedFoot" style="display:none;">
+                    <tr>
+                      <td colspan="2">합계</td>
+                      <td class="num" id="sumRent">0</td>
+                      <td class="num" id="sumPrincipal">0</td>
+                      <td class="num" id="sumInterest">0</td>
+                      <td class="num" id="sumPaid">0</td>
+                      <td class="num" id="sumUnpaid">0</td>
+                      <td colspan="3"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    let contracts = [];
+    let current = null;
+
+    function esc(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function el(id) { return document.getElementById(id); }
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'),
+              String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function formatAmount(e) {
+      const digits = e.value.replace(/[^0-9]/g, '');
+      e.value = digits ? Number(digits).toLocaleString() : '';
+    }
+    function amountValue(e) { return Number(e.value.replace(/[^0-9]/g, '') || 0); }
+
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    // ── 채권 목록 ───────────────────────────────────────────
+
+    async function loadContracts() {
+      const kw = el('kw').value.trim();
+      const box = el('contractList');
+      box.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>';
+
+      contracts = await safeJson(
+        `${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(kw)}`, []);
+
+      if (!contracts.length) {
+        box.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;">채권이 없습니다.</div>';
+        return;
+      }
+      box.innerHTML = contracts.map((c, i) => `
+        <div class="contract-item" data-i="${i}" onclick="pick(${i})">
+          <div class="ci-no">${esc(c.contractNumber)}</div>
+          <div class="ci-name">${esc(c.customerName ?? '')}</div>
+          <div class="ci-amt">대출 ${won(c.loanAmount)} · 잔여 ${won(c.remainingPrincipal)}</div>
+        </div>`).join('');
+    }
+
+    async function pick(i) {
+      const c = contracts[i];
+      if (!c) return;
+      current = c;
+
+      document.querySelectorAll('.contract-item').forEach(x =>
+        x.classList.toggle('active', Number(x.dataset.i) === i));
+
+      el('schedTitle').textContent = `상환스케줄 — ${c.contractNumber} ${c.customerName ?? ''}`;
+      el('hCustomer').textContent = c.customerName ?? '-';
+      el('hLoan').textContent     = won(c.loanAmount);
+      el('hRemain').textContent   = won(c.remainingPrincipal);
+      el('hMethod').textContent   = c.loanType ?? '-';
+      el('hPeriod').textContent   = `${c.startDate ?? '-'} ~ ${c.endDate ?? '-'}`;
+      el('headStrip').style.display = 'flex';
+      el('entryBox').style.display = 'block';
+
+      await loadSchedule(c.contractNumber);
+    }
+
+    // ── 상환스케줄 ──────────────────────────────────────────
+
+    async function loadSchedule(cn) {
+      const body = el('schedBody');
+      body.innerHTML = '<tr><td colspan="10" class="no-data">불러오는 중…</td></tr>';
+
+      const data = await safeJson(
+        `${API_BASE_URL}/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(cn)}`, null);
+      const rows = (data && data.schedule) || [];
+
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="10" class="no-data">상환스케줄이 없습니다.</td></tr>';
+        el('schedFoot').style.display = 'none';
+        return;
+      }
+
+      body.innerHTML = rows.map(r => {
+        const unpaid = Number(r.unpaid || 0);
+        const cls = r.status === '완납' ? 'paid' : (unpaid > 0 && r.status === '미납' ? 'unpaid' : '');
+        return `
+        <tr class="${cls}">
+          <td>${r.no ?? ''}</td>
+          <td>${esc(r.payDate ?? '')}</td>
+          <td class="num">${num(r.rent)}</td>
+          <td class="num">${num(r.principal)}</td>
+          <td class="num">${num(r.interest)}</td>
+          <td class="num">${num(r.paid)}</td>
+          <td class="num"><b>${num(r.unpaid)}</b></td>
+          <td class="num">${num(r.balance)}</td>
+          <td>${esc(r.status ?? '')}</td>
+          <td>${unpaid > 0
+                ? `<button class="btn-row" onclick="fillFrom('${esc(r.payDate ?? '')}', ${unpaid})">수납</button>`
+                : ''}</td>
+        </tr>`;
+      }).join('');
+
+      const sum = (k) => rows.reduce((a, r) => a + Number(r[k] || 0), 0);
+      el('sumRent').textContent      = num(sum('rent'));
+      el('sumPrincipal').textContent = num(sum('principal'));
+      el('sumInterest').textContent  = num(sum('interest'));
+      el('sumPaid').textContent      = num(sum('paid'));
+      el('sumUnpaid').textContent    = num(sum('unpaid'));
+      el('schedFoot').style.display  = '';
+    }
+
+    /** 회차의 납입예정일·미납액을 등록칸에 채운다. 과거 내역을 옮길 때 그대로 쓰면 된다. */
+    function fillFrom(dueDate, unpaid) {
+      if (dueDate) { el('pDate').value = dueDate; el('pApplyDate').value = dueDate; }
+      el('pAmount').value = Number(unpaid || 0).toLocaleString();
+      el('pAmount').focus();
+    }
+
+    // ── 수납 등록 ───────────────────────────────────────────
+
+    async function loadBankAccounts() {
+      const sel = el('pAccount');
+      const accounts = await safeJson(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`, []);
+      if (!accounts.length) { sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>'; return; }
+      sel.innerHTML = '<option value="">선택하세요</option>'
+        + accounts.map(a => {
+            const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+            return `<option value="${esc(label)}">${esc(label)}</option>`;
+          }).join('');
+    }
+
+    async function addPayment() {
+      if (!current) { alert('왼쪽에서 채권을 먼저 고르세요.'); return; }
+
+      const date = el('pDate').value;
+      const amount = amountValue(el('pAmount'));
+      const account = el('pAccount').value;
+      const makeVoucher = el('pVoucher').value === 'Y';
+
+      if (!date) { alert('수납일을 입력하세요.'); el('pDate').focus(); return; }
+      if (!amount) { alert('수납금액을 입력하세요.'); el('pAmount').focus(); return; }
+      if (makeVoucher && !account) { alert('입금된 당사 계좌를 선택하세요.'); el('pAccount').focus(); return; }
+
+      if (!confirm(`${Number(amount).toLocaleString()}원을 ${date} 자로 수납 등록할까요?`
+                 + (makeVoucher ? '' : '\n\n전표는 만들지 않습니다.'))) return;
+
+      const btn = el('pAddBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contractNumber: current.contractNumber,
+            paymentDate: date,
+            paymentAmount: amount,
+            applyDate: el('pApplyDate').value || null,
+            companyAccount: account || null,
+            surplusPolicy: '원금충당',
+            paymentSource: '보통예금',
+            createVoucher: makeVoucher
+          })
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        el('pAmount').value = '';
+        await refreshCurrent();
+      } catch (e) {
+        alert('등록하지 못했습니다.\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    /** 수납 뒤에는 스케줄과 잔여원금이 함께 바뀌므로 둘 다 다시 읽는다. */
+    async function refreshCurrent() {
+      const cn = current.contractNumber;
+      const list = await safeJson(
+        `${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(cn)}`, []);
+      const hit = list.find(x => x.contractNumber === cn);
+      if (hit) {
+        current = hit;
+        el('hRemain').textContent = won(hit.remainingPrincipal);
+        const idx = contracts.findIndex(x => x.contractNumber === cn);
+        if (idx >= 0) {
+          contracts[idx] = hit;
+          const node = document.querySelector(`.contract-item[data-i="${idx}"] .ci-amt`);
+          if (node) node.textContent = `대출 ${won(hit.loanAmount)} · 잔여 ${won(hit.remainingPrincipal)}`;
+        }
+      }
+      await loadSchedule(cn);
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+
+      el('pDate').value = todayISO();
+      await Promise.all([loadContracts(), loadBankAccounts()]);
+    })();
+  </script>
+</body>
+</html>
