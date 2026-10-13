@@ -254,6 +254,13 @@
                   <label for="pyAccount">입금된 당사 계좌</label>
                   <select id="pyAccount"><option value="">불러오는 중…</option></select>
                 </div>
+                <div class="form-group" style="width:140px;">
+                  <label for="pyVoucher">전표 발생</label>
+                  <select id="pyVoucher">
+                    <option value="Y">발생</option>
+                    <option value="N">발생 안 함</option>
+                  </select>
+                </div>
                 <div class="form-group grow">
                   <label for="pyMemo">비고</label>
                   <input type="text" id="pyMemo" placeholder="선택 입력">
@@ -263,6 +270,8 @@
               <div class="entry-hint" id="pyHint">
                 등록하면 변제충당(이자 &rarr; 원금) 순서로 자동 반영되고 전표가 함께 만들어집니다.
                 잔여원금&middot;연체현황&middot;상환스케줄도 바로 다시 계산됩니다.
+                <br>과거 내역을 옮겨 적을 때는 <b>전표 발생을 '발생 안 함'</b>으로 두세요 &mdash;
+                그 시기 장부는 이미 마감돼 있어 지금 전표를 끊으면 재무제표에 두 번 반영됩니다.
                 <br>충당기준일은 납입일 전에 미리 받았을 때 납입일자를 적으면 그날짜로 이자를 계산합니다(비우면 수납일).
               </div>
             </div>
@@ -715,7 +724,7 @@
             applyDate: document.getElementById('pyApplyDate').value || null,
             surplusPolicy: document.getElementById('pySurplus').value,
             paymentSource: source,
-            createVoucher: true
+            createVoucher: document.getElementById('pyVoucher').value !== 'N'
           })
         });
         if (!res.ok) { alert(await failMessage(res)); return; }

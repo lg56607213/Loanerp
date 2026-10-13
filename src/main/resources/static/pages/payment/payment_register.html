@@ -228,6 +228,15 @@
                   </div>
 
                   <div class="form-group">
+                    <label for="createVoucher">전표 발생</label>
+                    <select id="createVoucher" name="createVoucher" onchange="onVoucherModeChange()">
+                      <option value="Y">발생 (기본)</option>
+                      <option value="N">발생 안 함</option>
+                    </select>
+                    <div class="field-note" id="voucherModeNote"></div>
+                  </div>
+
+                  <div class="form-group">
                     <label for="paymentNote">비고</label>
                     <input type="text" id="paymentNote" name="paymentNote" placeholder="비고사항을 입력하세요">
                   </div>
@@ -721,7 +730,7 @@
         applyDate: document.getElementById('applyDate').value || null,
         surplusPolicy: document.getElementById('surplusPolicy').value,
         paymentSource: source,
-        createVoucher: true
+        createVoucher: (document.getElementById('createVoucher').value !== 'N')
       };
 
       if (!payload.contractNumber) return alert('계약번호를 입력하세요.');
@@ -877,6 +886,23 @@
       }
     }
 
+    /**
+     * 전표를 만들지 말지.
+     *
+     * 과거 내역을 뒤늦게 옮겨 적을 때는 전표를 만들면 안 된다. 그 시기의 장부는
+     * 이미 마감돼 있어, 지금 전표를 끊으면 재무제표가 두 번 반영된다.
+     * 충당·잔여원금 계산은 전표와 무관하게 그대로 돌아간다.
+     */
+    function onVoucherModeChange() {
+      const off = document.getElementById('createVoucher').value === 'N';
+      document.getElementById('voucherModeNote').innerHTML = off
+        ? '<span style="color:#b45309;font-weight:700;">전표를 만들지 않습니다.</span>'
+        + ' 재무제표·자금일보에 반영되지 않습니다. 과거 내역을 옮겨 적을 때만 쓰세요.'
+        : '수납 전표가 자동으로 만들어집니다.';
+      // 전표를 안 만들면 대변 계정 안내는 의미가 없다
+      document.getElementById('voucherNote').style.display = off ? 'none' : '';
+    }
+
     function onSurplusChange() {
       const v = document.getElementById('surplusPolicy').value;
       document.getElementById('surplusNote').textContent = (v === '선수금')
@@ -907,6 +933,7 @@
       clearScheduleStatus('계약을 조회하면 수납 현황이 표시됩니다.');
       onSurplusChange();
       onSourceChange();
+      onVoucherModeChange();
 
       // 입금일자가 바뀌면 그날 기준 완납금액도 달라진다
       document.getElementById('paymentDate').addEventListener('change', () => {
