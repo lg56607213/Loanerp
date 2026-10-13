@@ -15,6 +15,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.temporal.ChronoUnit;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -61,7 +64,7 @@ public class LoanSettlementService {
 
     LocalDate accrualFrom = lastDueDateOnOrBefore(schedules, asOf, c.getStartDate());
     long accrualDays = DailyInterestCalculator.overdueDays(accrualFrom, asOf);
-    long accruedInterest = accruedByBalanceTimeline(c, remainingPrincipal, accrualFrom, asOf);
+    long accruedInterest = accruedOnSchedule(c, schedules, asOf, remainingPrincipal);
 
     boolean charged = !Boolean.FALSE.equals(c.getOverdueChargeYn());
     boolean protectionApplies = protectionApplies(c);
@@ -96,32 +99,73 @@ public class LoanSettlementService {
    *
    * 수납일마다 잔액이 바뀌므로 그 지점에서 구간을 끊고 각 구간은 그때의 잔액으로 매긴다.
    */
-  private long accruedByBalanceTimeline(Contract c, long endingPrincipal,
-                                        LocalDate from, LocalDate to) {
-    if (from == null || to == null || !to.isAfter(from)) return 0L;
+  /**
+   * 경과이자 — 아직 도래하지 않은 회차에서 지금까지 굴러간 이자.
+   *
+   * <p>변제충당(RepaymentAllocator)과 <b>같은 식</b>을 쓴다. 두 계산이 어긋나면
+   * 화면이 알려준 완납금액을 그대로 넣어도 다 충당되지 않고 차액이 선수금으로 남는다.
+   *
+   * <p>전에는 '미회수 원금 전액'에 일할로 매겼다. 연체 채권에서는 그 원금에 이미
+   * 지연배상금이 붙고 있어 같은 원금에 이자를 두 번 물리는 셈이었다. 실제로
+   * 1,000만원 원금균등 9회차 연체 건에서 36,412원이 과다 산정돼 선수금으로 떨어졌다.
+   * 이제 회차에 예정된 이자를 넘지 않게 해 중복을 끊는다.
+   */
+  /**
+   * 회차 약정이자 중 기준일까지 지나간 몫.
+   *
+   * 일수는 스케줄 생성과 같게 시작일·종료일을 모두 센다.
+   * 기간이 다 지났으면 전액, 아직 시작 전이면 0.
+   */
+  private static long proRatedScheduledInterest(PaymentSchedule ps, LocalDate asOf) {
+    long scheduled = nz(ps.getInterestAmount());
+    if (scheduled <= 0) return 0L;
 
-    NavigableMap<LocalDate, Long> timeline =
-        repaymentPosting.principalBalanceTimeline(c.getContractNumber());
+    LocalDate start = ps.getBillStartDate();
+    LocalDate end = ps.getBillEndDate();
+    if (start == null || end == null || asOf == null) return scheduled;
 
-    // 기간 안에서 잔액이 바뀐 지점들. from 당일의 변동은 이미 반영된 것으로 본다.
-    NavigableMap<LocalDate, Long> inWindow = timeline.subMap(from, false, to, true);
-    if (inWindow.isEmpty()) {
-      return DailyInterestCalculator.accrued(endingPrincipal, c.getInterestRate(), from, to);
+    long total = ChronoUnit.DAYS.between(start, end) + 1;
+    if (total <= 0) return scheduled;
+
+    long elapsed = ChronoUnit.DAYS.between(start, asOf) + 1;
+    if (elapsed <= 0) return 0L;
+    if (elapsed >= total) return scheduled;
+
+    return BigDecimal.valueOf(scheduled)
+        .multiply(BigDecimal.valueOf(elapsed))
+        .divide(BigDecimal.valueOf(total), 0, RoundingMode.DOWN)
+        .longValue();
+  }
+
+  private long accruedOnSchedule(Contract c, List<PaymentSchedule> schedules,
+                                 LocalDate asOf, long outstandingPrincipal) {
+    if (asOf == null || outstandingPrincipal <= 0) return 0L;
+
+    long sum = 0L;
+    for (PaymentSchedule ps : schedules) {
+      // 기한이익상실로 청구가 멈춘 회차는 세지 않는다
+      if (ps.isAcceleratedLine()) continue;
+      // 도래한 회차의 이자는 미납이자에서 이미 세고 있다
+      if (isDue(ps, asOf)) continue;
+
+      LocalDate from = ps.getBillStartDate();
+      if (from == null || !asOf.isAfter(from)) continue;
+      if (ps.getBillEndDate() != null && asOf.isAfter(ps.getBillEndDate())) continue;
+
+      long accrued = DailyInterestCalculator.accrued(
+          outstandingPrincipal, c.getInterestRate(), from, asOf);
+
+      // 그 회차에 예정된 이자 중 '오늘까지 지나간 몫'을 넘지 못한다.
+      //
+      // 회차 전체 이자로 막으면 아직 오지 않은 날의 이자까지 받게 된다.
+      // 완제하면 그 회차는 중간에 끝나므로, 스케줄도 지나간 날수만큼만 이자를
+      // 매긴다(RepaymentPostingService 의 회차 이자 재계산). 같은 비율로 자른다.
+      long scheduled = proRatedScheduledInterest(ps, asOf);
+      if (scheduled > 0) accrued = Math.min(accrued, scheduled);
+
+      sum += Math.max(0L, accrued - nz(ps.getPaidInterest()));
     }
-
-    // 구간 시작 잔액 — from 이전의 마지막 이력이 있으면 그 값, 없으면 대출금 전액
-    Map.Entry<LocalDate, Long> before = timeline.floorEntry(from);
-    long balance = before != null ? before.getValue() : nz(c.getLoanAmount());
-
-    long accrued = 0L;
-    LocalDate cursor = from;
-    for (Map.Entry<LocalDate, Long> e : inWindow.entrySet()) {
-      accrued += DailyInterestCalculator.accrued(balance, c.getInterestRate(), cursor, e.getKey());
-      balance = e.getValue();          // 그날 수납을 반영한 뒤의 잔액
-      cursor = e.getKey();
-    }
-    accrued += DailyInterestCalculator.accrued(balance, c.getInterestRate(), cursor, to);
-    return accrued;
+    return sum;
   }
 
   /**
@@ -192,7 +236,9 @@ public class LoanSettlementService {
                           boolean charged, boolean protectionApplies) {
     StringBuilder sb = new StringBuilder();
     sb.append("경과이자는 ").append(from).append(" 다음날부터 ").append(asOf)
-      .append("까지 ").append(days).append("일간 일할(365일) 계산했습니다.");
+      .append("까지 ").append(days).append("일간 일할(365일) 계산했습니다.")
+      .append(" 다만 그 회차에 예정된 이자를 넘지 않습니다 —")
+      .append(" 연체 원금에는 지연배상금이 따로 붙으므로 같은 원금에 이자를 두 번 물리지 않기 위함입니다.");
     if (c.getInterestRate() != null) {
       sb.append(" 약정이율 연 ").append(c.getInterestRate()).append("%.");
     }
