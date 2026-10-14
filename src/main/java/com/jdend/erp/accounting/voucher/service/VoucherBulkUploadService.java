@@ -27,7 +27,10 @@ import static com.jdend.erp.common.excel.ExcelRowParsers.*;
  *
  * <p><b>그룹핑 규칙</b><br>
  * "전표번호"를 입력하면 같은 전표일자 + 같은 전표번호의 행들이 하나의 전표로 묶인다(복합전표 작성 시 사용).
- * "전표번호"를 비워두면 해당 행 혼자 독립 전표가 되며, 전표번호는 자동채번된다.
+ * "전표번호"를 비워두면 <b>같은 전표일자</b>의 행들이 한 전표로 묶인다. 일일전표처럼 그날
+ * 거래를 모아 올릴 때 번호를 적지 않아도 된다. 전표번호는 자동채번된다.
+ *
+ * <p>같은 날 거래를 전표 여러 건으로 나누고 싶으면 그때 전표번호를 적는다.
  *
  * <p>묶은 그룹 안에서 차변 합계와 대변 합계가 같으면 정상, 다르면 그 그룹 전체를 오류로 보고한다.
  */
@@ -40,12 +43,14 @@ public class VoucherBulkUploadService {
   );
 
   private static final List<List<String>> SAMPLE_ROWS = List.of(
-      // 1:1 단순전표 (전표번호 공란 → 자동채번, 한 행에 차변+대변 모두)
-      List.of("20260625", "", "100101", "1000000", "보통예금 입금", "400101", "1000000", "이자수익"),
-      List.of("20260625", "", "100101", "55000",   "보통예금 입금", "200101", "55000",   "미지급금 상환"),
-      // 전표번호로 행을 묶는 복합전표 (차변1 : 대변2) → 전표번호 V001 두 행이 하나의 전표
-      List.of("20260626", "V001", "100101", "1300000", "보통예금 입금", "100502", "977214", "대여금 원금회수"),
-      List.of("20260626", "V001", "",        "",         "",             "400101", "322786", "이자수익")
+      // 전표번호를 비우면 같은 전표일자끼리 한 전표로 묶인다.
+      // 아래 두 행은 20260625 로 같아서 한 전표가 된다 (차변 1,300,000 = 대변 977,214 + 322,786).
+      List.of("20260625", "", "100101", "1300000", "보통예금 입금", "100302", "977214", "대여금 원금회수"),
+      List.of("20260625", "", "",        "",        "",             "400101", "322786", "이자수익"),
+      // 같은 날 거래를 전표 여러 건으로 나누려면 그때 전표번호를 적는다.
+      // 아래 두 행은 날짜가 같지만 번호가 달라 전표 두 건이 된다.
+      List.of("20260626", "V001", "100101", "1000000", "보통예금 입금", "400101", "1000000", "이자수익"),
+      List.of("20260626", "V002", "500212", "55000",   "지급수수료",     "100101", "55000",   "보통예금 출금")
   );
 
   /** application.yml의 erp.voucher.bulk-upload.max-rows 값으로 재정의 가능. 기본 3000행. */
@@ -129,9 +134,19 @@ public class VoucherBulkUploadService {
       LocalDate rowDate = null;
       try { rowDate = dateVal(row, "전표일자"); } catch (Exception ignored) {}
 
-      String key = (voucherNo != null && rowDate != null)
-          ? "G:" + rowDate + ":" + voucherNo
-          : "R:" + rowNumber;
+      String key;
+      if (voucherNo != null && rowDate != null) {
+        // 전표번호를 적으면 그 번호로 묶는다. 같은 날 여러 전표를 나눠 올릴 때 쓴다.
+        key = "G:" + rowDate + ":" + voucherNo;
+      } else if (rowDate != null) {
+        // 전표번호를 비우면 같은 전표일자끼리 한 전표로 묶는다.
+        // 일일전표처럼 그날 거래를 모아 올릴 때 번호를 일일이 적지 않아도 된다.
+        key = "D:" + rowDate;
+      } else {
+        // 전표일자가 날짜로 읽히지 않으면 날짜로 묶을 수가 없다.
+        // 그 행만 따로 둬서 오류를 그 행에만 보고한다.
+        key = "R:" + rowNumber;
+      }
       groups.computeIfAbsent(key, k -> new ArrayList<>()).add(i);
     }
     return groups;
@@ -144,6 +159,8 @@ public class VoucherBulkUploadService {
     return ExcelUploadResultResponse.RowError.builder()
         .rowNumber(rowNumbers.get(0)).message(rowLabel + ": " + message).build();
   }
+
+
 
   private VoucherCreateRequest toRequest(List<Map<String, String>> rows, List<Integer> indices) {
     LocalDate voucherDate = null;
