@@ -23,7 +23,7 @@ public class BankTransactionService {
   private final PaymentBankTransactionRepository repo;
 
   private static final List<String> EXCEL_HEADERS  = List.of("일자", "입금액", "출금액", "잔액", "적요");
-  private static final List<String> EXCEL_SAMPLE   = List.of("2026-01-01", "1000000", "", "5000000", "이자수납");
+  private static final List<String> EXCEL_SAMPLE   = List.of("20260101", "1000000", "", "5000000", "이자수납");
 
   @Transactional(readOnly = true)
   public List<BankTransactionRowResponse> search(String bank, String accountNo, LocalDate startDate, LocalDate endDate) {
@@ -211,65 +211,16 @@ public class BankTransactionService {
   private boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
 
   /**
-   * 은행에서 받은 파일은 날짜 표기가 제각각이라 넓게 받는다.
-   * POI 는 셀 서식대로 문자열을 만들어 주므로, 서식이 m/d/yyyy 인 셀은
-   * "8/7/2023" 처럼 넘어온다. 예전에는 yyyy-MM-dd 만 받아 이런 행이 전부 탈락했다.
+   * 날짜 파싱은 엑셀 업로드 공통 규칙을 따른다(ExcelRowParsers.parseDate).
+   *
+   * 은행 파일은 표기가 제각각이고, 양식에 적는 8자리 숫자(20260630)도 받아야 한다.
+   * 같은 규칙을 두 벌 두면 한쪽만 고쳐져 어느 파일은 읽히고 어느 파일은 탈락한다.
    */
   private LocalDate parseDate(String s) {
-    String raw = safe(s);
-    if (raw.isBlank()) throw new IllegalArgumentException("빈 값");
-
-    // 엑셀 날짜 일련번호가 서식 없이 그대로 넘어온 경우.
-    // 엑셀은 1900-02-29 를 존재한 날처럼 세므로 기준일이 1899-12-30 이다.
-    if (raw.matches("^\\d{5}(\\.0+)?$")) {
-      long serial = (long) Double.parseDouble(raw);
-      return LocalDate.of(1899, 12, 30).plusDays(serial);
-    }
-
-    // 엑셀이 20260801 을 천단위 서식으로 "20,260,801" 로 내려주는 경우가 있어 쉼표를 먼저 턴다.
-    String v = raw.replace(",", "").replace(".", "-").replace("/", "-").replace(" ", "");
-    v = v.replace("년", "-").replace("월", "-").replace("일", "");
-    v = v.replaceAll("-+$", "");
-
-    if (v.matches("^\\d{8}$")) {
-      v = v.substring(0, 4) + "-" + v.substring(4, 6) + "-" + v.substring(6, 8);
-    }
-
-    String[] p = v.split("-");
-    if (p.length == 3) {
-      // 표기가 여러 가지라 후보를 만들어 보고 실제로 존재하는 날짜를 고른다.
-      // 엑셀 기본 날짜 서식(numFmtId 14)은 m/d/yy 라 "12/29/23" 처럼 두 자리 연도로 온다.
-      Integer a = toInt(p[0]), b = toInt(p[1]), c = toInt(p[2]);
-      if (a != null && b != null && c != null) {
-        if (p[0].length() == 4) {
-          LocalDate d = tryDate(a, b, c);            // yyyy-M-d
-          if (d != null) return d;
-        }
-        if (p[2].length() == 4) {
-          LocalDate d = tryDate(c, a, b);            // M-d-yyyy
-          if (d != null) return d;
-        }
-        if (p[2].length() == 2) {
-          LocalDate d = tryDate(2000 + c, a, b);     // M-d-yy (엑셀 기본)
-          if (d != null) return d;
-        }
-        if (p[0].length() == 2) {
-          LocalDate d = tryDate(2000 + a, b, c);     // yy-M-d
-          if (d != null) return d;
-        }
-      }
-    }
-    return LocalDate.parse(v, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+    return com.jdend.erp.common.excel.ExcelRowParsers.parseDate(s);
   }
 
-  private Integer toInt(String s) {
-    try { return Integer.parseInt(s); } catch (Exception e) { return null; }
-  }
 
-  /** 존재하지 않는 날짜(13월 등)면 null 을 돌려 다음 후보로 넘어가게 한다. */
-  private LocalDate tryDate(int year, int month, int day) {
-    try { return LocalDate.of(year, month, day); } catch (Exception e) { return null; }
-  }
 
   private long parseMoney(String s) {
     String v = safe(s);

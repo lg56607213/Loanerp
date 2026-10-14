@@ -38,9 +38,9 @@ public class PaymentBulkUploadService {
   );
 
   private static final List<String> SAMPLE_ROW = List.of(
-      "CRD260101001001", "2023-08-21", "2007670", "주거래통장 새마을금고 9002-2082-9219-3",
+      "CRD260101001001", "20230821", "2007670", "주거래통장 새마을금고 9002-2082-9219-3",
       "", "원금충당", "보통예금",
-      "샘플 행입니다. 지우고 실제 데이터를 넣으세요. 충당기준일은 비우면 입금일자를 씁니다."
+      "샘플 행입니다. 지우고 실제 데이터를 넣으세요. 날짜는 8자리 숫자(20230821)로 적습니다. 충당기준일은 비우면 입금일자를 씁니다."
   );
 
   private final PaymentService paymentService;
@@ -106,7 +106,7 @@ public class PaymentBulkUploadService {
       throw new IllegalArgumentException("계약번호를 찾을 수 없습니다: " + req.getContractNumber());
     }
     if (req.getPaymentDate() == null) {
-      throw new IllegalArgumentException("입금일자가 비어 있거나 날짜 형식이 아닙니다.");
+      throw new IllegalArgumentException("입금일자가 비어 있거나 날짜가 아닙니다. 8자리 숫자로 적으세요. 예: 20260630");
     }
     if (req.getPaymentAmount() == null || req.getPaymentAmount() <= 0) {
       throw new IllegalArgumentException("입금금액은 1 이상이어야 합니다.");

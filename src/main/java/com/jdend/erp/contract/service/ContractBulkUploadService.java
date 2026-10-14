@@ -32,8 +32,8 @@ public class ContractBulkUploadService {
 
   private static final List<String> SAMPLE_ROW = List.of(
       "C001", "개인", "신용대출", "10000000", "19.9", "20", "Y",
-      "원리금균등", "2026-01-01", "2026-01-01", "2027-12-31", "25", "24",
-      "샘플 행입니다. 실제 데이터로 바꿔서 업로드하세요."
+      "원리금균등", "20260101", "20260101", "20271231", "25", "24",
+      "샘플 행입니다. 실제 데이터로 바꿔서 업로드하세요. 날짜는 8자리 숫자(20260101)로 적습니다."
   );
 
   private final ContractService contractService;
