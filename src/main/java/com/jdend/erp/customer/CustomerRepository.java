@@ -10,6 +10,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
   Optional<Customer> findByCustomerNumber(String customerNumber);
 
+  /** 사업자등록번호(개인은 주민등록번호)로 찾는다. 유니크 제약이 걸린 열이다. */
+  Optional<Customer> findByRegistrationNumber(String registrationNumber);
+
   @Query("select max(c.customerNumber) from Customer c")
   String findMaxCustomerNumber();
 

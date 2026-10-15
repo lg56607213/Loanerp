@@ -230,6 +230,7 @@
       openExcelUploadModal({
         title: '고객 엑셀 업로드',
         templateUrl: '/api/customers/bulk-upload/template',
+        previewUrl: '/api/customers/bulk-upload/preview',
         uploadUrl: '/api/customers/bulk-upload',
         onSuccess: () => loadCustomers(),
       });

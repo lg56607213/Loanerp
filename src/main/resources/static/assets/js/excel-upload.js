@@ -184,11 +184,14 @@
           throw new Error(`HTTP ${res.status} ${text}`.trim());
         }
         const data = await res.json();
-        if (twoStep) {
-          renderSaveResult(data);
-        } else {
-          renderPreviewResult(data); // 단계 없는 경우 기존 방식
-        }
+
+        // 저장한 결과는 저장 결과로 보여준다.
+        //
+        // 전에는 1단계 모드에서 저장해 놓고도 미리보기 화면을 그렸다. 그 화면에는
+        // "정상 N건을 저장하시겠습니까? [저장]" 줄이 함께 나오므로, 이미 들어간
+        // 데이터를 한 번 더 저장하게 됐다. 고객 업로드에서 22건이 전부
+        // "Duplicate entry" 로 떨어진 것이 이 때문이다.
+        renderSaveResult(data);
       } catch (e) {
         resultBox.innerHTML = `<div class="xu-summary warn">저장 실패: ${escapeHtml(e.message)}</div>`;
       } finally {

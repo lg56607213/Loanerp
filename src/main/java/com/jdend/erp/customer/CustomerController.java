@@ -135,6 +135,16 @@ public class CustomerController {
                 .body(bulkUploadService.template());
     }
 
+    /**
+     * 저장하지 않고 검사만 한다. 이미 등록된 고객과 겹치는 행이 있으면 저장 전에
+     * 보여주기 위한 것이다. 올리고 나서 실패 목록을 보는 것보다 낫다.
+     */
+    @PostMapping("/bulk-upload/preview")
+    public ExcelUploadResultResponse bulkUploadPreview(@RequestParam("file") MultipartFile file, HttpSession session) {
+        permissionService.requireManager(session);
+        return bulkUploadService.upload(file, true);
+    }
+
     @PostMapping("/bulk-upload")
     public ExcelUploadResultResponse bulkUpload(@RequestParam("file") MultipartFile file, HttpSession session) {
         // BUG-05 수정: 대량 업로드도 책임자 권한 필요
