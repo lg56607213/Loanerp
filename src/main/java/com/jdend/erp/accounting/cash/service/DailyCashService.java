@@ -181,17 +181,28 @@ public class DailyCashService {
           creditMap.put(a.getId(), 0L);
         }
 
+        // 어느 통장인지 알 수 없는 라인을 모아 둔다.
+        // 엑셀로 일괄 업로드한 전표처럼 적요에 계좌번호가 없으면 여기로 들어간다.
+        // 전에는 그냥 버려서 자금일보에서 금액이 통째로 사라졌다.
+        long noneOpening = 0L, noneDebit = 0L, noneCredit = 0L;
+
         for (Object[] row : prevLines) {
           String lt = (String) row[0]; long amt = toLong(row[1]); String desc = (String) row[2];
           BankAccount m = matchBankAccount(desc, accounts);
-          if (m != null) openingMap.merge(m.getId(), "DEBIT".equals(lt) ? amt : -amt, Long::sum);
+          long signed = "DEBIT".equals(lt) ? amt : -amt;
+          if (m != null) openingMap.merge(m.getId(), signed, Long::sum);
+          else           noneOpening += signed;
         }
         for (Object[] row : todayLines) {
           String lt = (String) row[0]; long amt = toLong(row[1]); String desc = (String) row[2];
           BankAccount m = matchBankAccount(desc, accounts);
+          boolean in = "DEBIT".equals(lt);
           if (m != null) {
-            if ("DEBIT".equals(lt)) debitMap.merge(m.getId(), amt, Long::sum);
-            else                     creditMap.merge(m.getId(), amt, Long::sum);
+            if (in) debitMap.merge(m.getId(), amt, Long::sum);
+            else    creditMap.merge(m.getId(), amt, Long::sum);
+          } else {
+            if (in) noneDebit += amt;
+            else    noneCredit += amt;
           }
         }
 
@@ -206,6 +217,18 @@ public class DailyCashService {
           bankIn += dep; bankOut += crd; totalPrev += op; totalBalance += bal;
           banks.add(DailyFundReportResponse.BankRow.builder()
               .bankName(label).prevBalance(op).income(dep).expense(crd).balance(bal)
+              .build());
+        }
+
+        // 통장을 가려내지 못한 몫은 따로 한 줄로 보여준다.
+        // 합계에는 넣어야 전표 총액과 자금일보가 맞는다.
+        if (noneOpening != 0 || noneDebit != 0 || noneCredit != 0) {
+          long bal = noneOpening + noneDebit - noneCredit;
+          bankIn += noneDebit; bankOut += noneCredit;
+          totalPrev += noneOpening; totalBalance += bal;
+          banks.add(DailyFundReportResponse.BankRow.builder()
+              .bankName("통장없음")
+              .prevBalance(noneOpening).income(noneDebit).expense(noneCredit).balance(bal)
               .build());
         }
       }

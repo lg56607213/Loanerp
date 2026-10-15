@@ -97,6 +97,11 @@ public class DashboardService {
       creditMap.put(a.getId(), 0L);
     }
 
+    // 어느 통장인지 알 수 없는 라인을 모아 둔다.
+    // 엑셀로 일괄 업로드한 전표처럼 적요에 계좌번호가 없으면 여기로 들어간다.
+    // 전에는 그냥 버려서 통장 요약 합계가 전표 총액과 맞지 않았다.
+    long noneOpening = 0L, noneDebit = 0L, noneCredit = 0L;
+
     for (Object[] row : prevLines) {
       String lineType = (String) row[0];
       long amount = toLong(row[1]);
@@ -104,16 +109,21 @@ public class DashboardService {
       long delta = "DEBIT".equals(lineType) ? amount : -amount;
       BankAccount matched = matchBankAccount(desc, accounts);
       if (matched != null) openingMap.merge(matched.getId(), delta, Long::sum);
+      else                 noneOpening += delta;
     }
 
     for (Object[] row : todayLines) {
       String lineType = (String) row[0];
       long amount = toLong(row[1]);
       String desc = (String) row[2];
+      boolean in = "DEBIT".equals(lineType);
       BankAccount matched = matchBankAccount(desc, accounts);
       if (matched != null) {
-        if ("DEBIT".equals(lineType)) debitMap.merge(matched.getId(), amount, Long::sum);
-        else                           creditMap.merge(matched.getId(), amount, Long::sum);
+        if (in) debitMap.merge(matched.getId(), amount, Long::sum);
+        else    creditMap.merge(matched.getId(), amount, Long::sum);
+      } else {
+        if (in) noneDebit += amount;
+        else    noneCredit += amount;
       }
     }
 
@@ -132,6 +142,20 @@ public class DashboardService {
           .yesterdayDeposit(dep)
           .yesterdayWithdrawal(crd)
           .currentBalance(op + dep - crd)
+          .build());
+    }
+
+    // 통장을 가려내지 못한 몫은 따로 한 줄로 보여준다.
+    // 숨기면 통장 합계와 재무상태표의 보통예금이 어긋난 채로 남는다.
+    if (noneOpening != 0 || noneDebit != 0 || noneCredit != 0) {
+      result.add(DashboardBankSummaryRow.builder()
+          .bankName("통장없음")
+          .accountNumber(null)
+          .accountAlias("통장없음")
+          .balance2DaysAgo(noneOpening)
+          .yesterdayDeposit(noneDebit)
+          .yesterdayWithdrawal(noneCredit)
+          .currentBalance(noneOpening + noneDebit - noneCredit)
           .build());
     }
     return result;
