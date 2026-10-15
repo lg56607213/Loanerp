@@ -4,6 +4,8 @@ import com.jdend.erp.common.excel.ExcelReader;
 import com.jdend.erp.common.excel.ExcelTemplateWriter;
 import com.jdend.erp.common.excel.ExcelUploadResultResponse;
 import com.jdend.erp.contract.dto.ContractRequest;
+import com.jdend.erp.customer.Customer;
+import com.jdend.erp.customer.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,17 +28,19 @@ import static com.jdend.erp.common.excel.ExcelRowParsers.*;
 public class ContractBulkUploadService {
 
   private static final List<String> HEADERS = List.of(
-      "고객번호", "고객구분", "대출구분", "대출금", "이자율", "연체이율", "연체이자부과",
+      "고객번호", "고객구분", "고객명", "대출구분", "대출금", "이자율", "연체이율", "연체이자부과",
       "상환방식", "실행일", "시작일자", "종료일자", "납입일자", "회차수", "비고"
   );
 
   private static final List<String> SAMPLE_ROW = List.of(
-      "C001", "개인", "신용대출", "10000000", "19.9", "20", "Y",
+      "C001", "개인", "홍길동", "신용대출", "10000000", "19.9", "20", "Y",
       "원리금균등", "20260101", "20260101", "20271231", "25", "24",
       "샘플 행입니다. 실제 데이터로 바꿔서 업로드하세요. 날짜는 8자리 숫자(20260101)로 적습니다."
+          + " 고객번호를 모르면 비우고 고객명만 적어도 됩니다(같은 이름이 둘 이상이면 고객번호가 필요합니다)."
   );
 
   private final ContractService contractService;
+  private final CustomerRepository customerRepo;
 
   public byte[] template() {
     return ExcelTemplateWriter.write(HEADERS, SAMPLE_ROW);
@@ -88,7 +92,7 @@ public class ContractBulkUploadService {
 
   private ContractRequest toRequest(Map<String, String> row) {
     return ContractRequest.builder()
-        .customerNumber(str(row, "고객번호"))
+        .customerNumber(resolveCustomerNumber(row))
         .customerType(str(row, "고객구분"))
         .loanType(str(row, "대출구분"))
         .loanAmount(longVal(row, "대출금"))
@@ -103,6 +107,52 @@ public class ContractBulkUploadService {
         .installmentCount(intVal(row, "회차수"))
         .remarks(str(row, "비고"))
         .build();
+  }
+
+  /**
+   * 어느 고객인지 정한다 — 고객번호가 있으면 그것으로, 없으면 고객명으로 찾는다.
+   *
+   * <p>내려받은 자료에는 고객번호가 없고 이름만 있는 경우가 흔하다. 이름만 적어도
+   * 올릴 수 있어야 쓸모가 있다. 다만 같은 이름이 둘 이상이면 어느 쪽인지 ERP 가
+   * 고를 수 없으므로 고객번호를 달라고 한다 — 엉뚱한 사람에게 대출이 붙는 것보다 낫다.
+   *
+   * <p>둘 다 적혀 있으면 서로 맞는지 본다. 행을 섞어 붙여 넣다가 번호와 이름이
+   * 어긋나는 일이 생기는데, 그대로 올리면 이름만 보고는 알아채지 못한다.
+   */
+  private String resolveCustomerNumber(Map<String, String> row) {
+    String number = str(row, "고객번호");
+    String name   = str(row, "고객명");
+
+    if (number != null && !number.isBlank()) {
+      Customer c = customerRepo.findByCustomerNumber(number.trim()).orElse(null);
+      if (c == null) {
+        throw new IllegalArgumentException("고객번호를 찾을 수 없습니다: " + number
+            + " — 고객관리에 먼저 등록하거나 번호를 확인하세요.");
+      }
+      if (name != null && !name.isBlank() && !name.trim().equals(c.getCustomerName())) {
+        throw new IllegalArgumentException(
+            "고객번호와 고객명이 서로 다릅니다: " + number + " 는 '" + c.getCustomerName()
+            + "' 인데 파일에는 '" + name.trim() + "' 로 적혀 있습니다.");
+      }
+      return c.getCustomerNumber();
+    }
+
+    if (name == null || name.isBlank()) {
+      throw new IllegalArgumentException("고객번호나 고객명 중 하나는 적어야 합니다.");
+    }
+
+    List<Customer> found = customerRepo.findByCustomerName(name.trim());
+    if (found.isEmpty()) {
+      throw new IllegalArgumentException("고객명을 찾을 수 없습니다: " + name
+          + " — 고객관리에 먼저 등록하거나 이름을 확인하세요.");
+    }
+    if (found.size() > 1) {
+      String numbers = found.stream().map(Customer::getCustomerNumber).limit(5)
+          .collect(java.util.stream.Collectors.joining(", "));
+      throw new IllegalArgumentException("같은 이름의 고객이 " + found.size() + "명입니다: " + name
+          + " (" + numbers + ") — 고객번호를 적어 주세요.");
+    }
+    return found.get(0).getCustomerNumber();
   }
 
   /** 이자율 셀 — "19.9" / "19.9%" 모두 허용 */
