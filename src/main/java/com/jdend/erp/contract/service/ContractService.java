@@ -176,7 +176,11 @@ public class ContractService {
     requireEffectiveRateWithinCap(c);
     contractRepo.save(c);
     scheduleAutoGen.ensureGenerated(c);
-    createExecutionVoucher(c);
+
+    // 전표를 만들지는 고를 수 있다. 그 시기 전표를 이미 따로 올렸다면 만들지 않는다.
+    if (req.createVoucher == null || req.createVoucher) {
+      createExecutionVoucher(c);
+    }
     return toResponse(c);
   }
 
@@ -340,8 +344,15 @@ public class ContractService {
 
     // 대출금·기간·실행일이 바뀌면 실행 분개의 금액이나 계정(단기/장기)이 달라진다.
     // 증분으로 고치면 어긋나기 쉬워 지우고 다시 만든다.
+    // 실행 전표는 '있던 건만' 다시 만든다.
+    //
+    // 전표 없이 옮겨 적은 대출(또는 중복이라 전표를 지운 대출)을 나중에 수정했다고
+    // 해서 전표가 되살아나면 안 된다. 지운 쪽은 지운 대로 두는 것이 맞다.
+    boolean hadVoucher = findExecutionVoucher(c.getContractNumber()) != null;
     deleteExecutionVoucher(c.getContractNumber());
-    createExecutionVoucher(c);
+    if (hadVoucher) {
+      createExecutionVoucher(c);
+    }
 
     return toResponse(c);
   }

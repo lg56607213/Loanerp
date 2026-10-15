@@ -30,15 +30,16 @@ public class ContractBulkUploadService {
 
   private static final List<String> HEADERS = List.of(
       "고객번호", "고객구분", "고객명", "대출구분", "대출금", "이자율", "연체이율", "연체이자부과",
-      "상환방식", "실행일", "시작일자", "종료일자", "납입일자", "회차수", "비고"
+      "상환방식", "실행일", "시작일자", "종료일자", "납입일자", "회차수", "전표발생", "비고"
   );
 
   private static final List<String> SAMPLE_ROW = List.of(
       "C001", "개인", "홍길동", "신용대출", "10000000", "19.9", "20", "Y",
-      "원리금균등", "20260101", "20260101", "20271231", "25", "24",
+      "원리금균등", "20260101", "20260101", "20271231", "25", "24", "Y",
       "샘플 행입니다. 실제 데이터로 바꿔서 업로드하세요. 날짜는 8자리 숫자(20260101)로 적습니다."
           + " 고객번호를 모르면 비우고 고객명만 적어도 됩니다(같은 이름이 둘 이상이면 고객번호가 필요합니다)."
           + " 납입일자는 숫자(25) 또는 '말일' 로 적습니다."
+          + " 전표발생은 Y/N 입니다. 그 시기 전표를 이미 따로 올렸으면 N 으로 두세요(비우면 Y)."
   );
 
   private final ContractService contractService;
@@ -108,8 +109,34 @@ public class ContractBulkUploadService {
         .paymentDay(paymentDayOf(row))
         .paymentDayType(paymentDayTypeOf(row))
         .installmentCount(intVal(row, "회차수"))
+        .createVoucher(createVoucherOf(row))
         .remarks(str(row, "비고"))
         .build();
+  }
+
+  /**
+   * 전표발생 셀 — 대출 실행 전표를 만들지 여부.
+   *
+   * <p>그 시기 전표를 전표 일괄업로드로 이미 올린 뒤 대출을 옮겨 적는 일이 많다.
+   * 그때 전표까지 또 만들면 같은 실행 건이 두 번 적혀 재무상태표의 대여금과
+   * 보통예금이 두 배로 잡힌다.
+   *
+   * <p>비우면 만든다 — 지금까지와 같고, 평소 등록에서는 전표가 나와야 한다.
+   */
+  private static Boolean createVoucherOf(Map<String, String> row) {
+    String v = str(row, "전표발생");
+    if (v == null || v.isBlank()) return Boolean.TRUE;
+
+    String t = v.trim();
+    if (t.equalsIgnoreCase("N") || t.equals("아니오") || t.equals("미발생")
+        || t.equals("발생안함") || t.equalsIgnoreCase("false") || t.equals("0")) {
+      return Boolean.FALSE;
+    }
+    if (t.equalsIgnoreCase("Y") || t.equals("예") || t.equals("발생")
+        || t.equalsIgnoreCase("true") || t.equals("1")) {
+      return Boolean.TRUE;
+    }
+    throw new IllegalArgumentException("전표발생은 Y 또는 N 으로 적으세요. 적힌 값: " + v);
   }
 
   /**

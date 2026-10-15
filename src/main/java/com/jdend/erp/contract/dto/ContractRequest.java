@@ -35,6 +35,14 @@ public class ContractRequest {
   public Integer roundingUnit;    // 납입금액 단수 단위 1 / 10 / 100
   public String roundingMode;     // 절사 / 절상 / 반올림
   public Integer installmentCount;
+
+  /**
+   * 대출 실행 전표를 만들지 여부. 비우면 만든다(지금까지와 같다).
+   *
+   * 그 시기 전표를 이미 따로 올려 둔 뒤 대출을 옮겨 적을 때 'N' 으로 둔다.
+   * 그러지 않으면 같은 실행 건이 전표로 두 번 적힌다.
+   */
+  public Boolean createVoucher;
   public Long monthlyPayment;     // 미입력 시 상환방식에 따라 자동 산출
 
   public String status;

@@ -304,6 +304,23 @@ body {
   color: #4a5568;
 }
 
+/* 삭제처럼 되돌릴 수 없는 동작 — 눈에 띄되 먼저 눈이 가지는 않게 테두리만 붉게 둔다 */
+.btn-danger {
+  background: #fff;
+  color: #d93025;
+  border: 1px solid #f0b4b0;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.btn-danger:disabled {
+  color: #bbb;
+  border-color: #e0e0e0;
+  cursor: not-allowed;
+}
+
 .btn-secondary:hover {
   background: #cbd5e0;
 }

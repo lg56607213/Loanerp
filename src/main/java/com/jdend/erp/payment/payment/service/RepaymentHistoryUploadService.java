@@ -44,13 +44,15 @@ import static com.jdend.erp.common.excel.ExcelRowParsers.str;
 public class RepaymentHistoryUploadService {
 
   private static final List<String> HEADERS = List.of(
-      "계약번호", "상환일자", "원금", "이자", "상환후잔액", "비고"
+      "계약번호", "상환일자", "원금", "이자", "상환후잔액", "전표발생", "당사계좌", "비고"
   );
 
   private static final List<String> SAMPLE_ROW = List.of(
-      "CRD260101001001", "20230821", "1990410", "17260", "8009590",
+      "CRD260101001001", "20230821", "1990410", "17260", "8009590", "N", "",
       "샘플 행입니다. 지우고 실제 데이터를 넣으세요. 날짜는 8자리 숫자(20230821)로 적습니다."
           + " 상환후잔액은 비워도 되며, 적으면 ERP 계산값과 맞는지 대조합니다."
+          + " 전표발생은 Y/N 이고 비우면 N 입니다 — 그 시기 전표를 따로 올렸다면 N 으로 두세요."
+          + " 당사계좌는 전표발생이 Y 일 때만 씁니다(비우면 자금일보에서 통장없음으로 모입니다)."
   );
 
   private final PaymentService paymentService;
@@ -118,7 +120,8 @@ public class RepaymentHistoryUploadService {
   // ── 한 행 읽기 · 검사 ──────────────────────────────────────
 
   private record Parsed(Contract contract, LocalDate date,
-                        long principal, long interest, Long balance, String memo) { }
+                        long principal, long interest, Long balance,
+                        boolean createVoucher, String companyAccount, String memo) { }
 
   private static String keyOf(Parsed p) {
     return p.contract().getContractNumber() + "|" + p.date() + "|" + p.principal() + "|" + p.interest();
@@ -147,6 +150,13 @@ public class RepaymentHistoryUploadService {
     }
     if (principal + interest <= 0) {
       throw new IllegalArgumentException("원금과 이자가 모두 비어 있습니다. 한쪽이라도 금액이 있어야 합니다.");
+    }
+
+    boolean createVoucher = createVoucherOf(row);
+    String account = str(row, "당사계좌");
+    if (!createVoucher && account != null && !account.isBlank()) {
+      // 막을 일은 아니지만 알려는 준다 — 전표를 만들지 않으면 계좌는 쓰이지 않는다
+      throw new IllegalArgumentException("전표발생이 N 인데 당사계좌가 적혀 있습니다. 계좌를 비우거나 전표발생을 Y 로 하세요.");
     }
 
     // 이미 올린 같은 건인지 — 계약번호·일자·금액이 모두 같으면 같은 건으로 본다.
@@ -196,7 +206,34 @@ public class RepaymentHistoryUploadService {
       }
     }
 
-    return new Parsed(c, date, principal, interest, balance, str(row, "비고"));
+    return new Parsed(c, date, principal, interest, balance, createVoucher, account, str(row, "비고"));
+  }
+
+  /**
+   * 전표발생 셀 — 이 상환 건의 전표를 만들지 여부.
+   *
+   * <p><b>비우면 만들지 않는다(N).</b> 대출 업로드와 기본값이 반대인데, 이쪽은 지난
+   * 내역을 옮겨 적는 일에만 쓰기 때문이다. 그 시기 전표는 전표 일괄업로드로 이미
+   * 올려 둔 경우가 대부분이고, 여기서 또 만들면 같은 입금이 두 번 적힌다.
+   *
+   * <p>Y 로 두면 보통의 수납과 똑같이 전표가 나간다. 이때 차변 보통예금, 대변은
+   * 올린 원금은 대여금으로 이자는 이자수익으로 — 계산한 값이 아니라 <b>파일에 적힌
+   * 그 금액</b>으로 끊긴다.
+   */
+  private static boolean createVoucherOf(Map<String, String> row) {
+    String v = str(row, "전표발생");
+    if (v == null || v.isBlank()) return false;
+
+    String t = v.trim();
+    if (t.equalsIgnoreCase("Y") || t.equals("예") || t.equals("발생")
+        || t.equalsIgnoreCase("true") || t.equals("1")) {
+      return true;
+    }
+    if (t.equalsIgnoreCase("N") || t.equals("아니오") || t.equals("미발생")
+        || t.equals("발생안함") || t.equalsIgnoreCase("false") || t.equals("0")) {
+      return false;
+    }
+    throw new IllegalArgumentException("전표발생은 Y 또는 N 으로 적으세요. 적힌 값: " + v);
   }
 
   /** 이 채권에 이미 올라가 있는 상환 원금 누계 */
@@ -216,9 +253,10 @@ public class RepaymentHistoryUploadService {
         .fixedInterest(p.interest())
         .fixedBalance(p.balance())
         .memo(p.memo())
+        .companyAccount(p.companyAccount())
         .surplusPolicy("원금충당")
         .paymentSource("보통예금")
-        .createVoucher(false)          // 그 시기 전표는 전표 일괄업로드로 따로 올린다
+        .createVoucher(p.createVoucher())
         .build();
   }
 

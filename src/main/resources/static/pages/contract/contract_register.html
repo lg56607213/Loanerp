@@ -134,6 +134,8 @@
           <button type="button" class="btn btn-primary" id="searchBtn">조회</button>
           <button type="button" class="btn btn-secondary" id="excelDownloadBtn">엑셀 다운로드</button>
           <button type="button" class="btn btn-secondary" id="excelUploadBtn">엑셀 업로드</button>
+          <span id="contractSelectedCount" style="font-size:12px;color:#888;"></span>
+          <button type="button" class="btn btn-danger" id="bulkDeleteBtn" onclick="bulkDeleteContracts()" disabled>선택 삭제</button>
           <button type="button" class="btn btn-primary" id="addContractBtn"><span>+ 대출 추가</span></button>
         </div>
       </div>
@@ -143,6 +145,8 @@
           <table class="data-table">
             <thead>
               <tr>
+                <th style="width:36px;" data-noexport><input type="checkbox" id="selectAllContracts" onchange="toggleSelectAllContracts()" title="이 쪽 전체 선택"></th>
+                <th style="width:54px;">NO</th>
                 <th style="min-width:150px;">채권번호</th>
                 <th style="min-width:120px;">고객</th>
                 <th class="num" style="min-width:110px;">대출금</th>
@@ -670,7 +674,7 @@
 
       if (rows.length === 0) {
         tbody.innerHTML = `
-          <tr><td colspan="9">
+          <tr><td colspan="11">
             <div class="empty-state">
               <span class="ico">📄</span>
               <div class="msg">등록된 채권이 없습니다.</div>
@@ -678,7 +682,7 @@
             </div>
           </td></tr>`;
       } else {
-        tbody.innerHTML = rows.map(c => {
+        tbody.innerHTML = rows.map((c, i) => {
           // 회수 진행률 — 원금을 얼마나 갚았는지. 잔여원금 아래 얇은 막대로 보여준다.
           const loan = Number(c.loanAmount || 0);
           const left = Number(c.remainingPrincipal || 0);
@@ -693,6 +697,8 @@
 
           return `
           <tr>
+            <td data-noexport><input type="checkbox" class="contract-check" data-id="${c.id}" onchange="refreshContractSelection()"></td>
+            <td>${start + i + 1}</td>
             <td>
               <div class="cell-no">${escHtml(c.contractNumber)}</div>
               <div class="cell-sub">${escHtml(c.loanType || '-')}</div>
@@ -726,6 +732,79 @@
         }).join('');
       }
       renderPagination();
+      refreshContractSelection();   // 쪽을 넘기면 선택은 풀린다
+    }
+
+    // ── 선택 · 일괄 삭제 ────────────────────────────────────────
+
+    function contractChecks() {
+      return Array.from(document.querySelectorAll('.contract-check'));
+    }
+
+    function toggleSelectAllContracts() {
+      const on = $('selectAllContracts').checked;
+      contractChecks().forEach(c => { c.checked = on; });
+      refreshContractSelection();
+    }
+
+    function refreshContractSelection() {
+      const all = contractChecks();
+      const n = all.filter(c => c.checked).length;
+
+      $('bulkDeleteBtn').disabled = (n === 0);
+      $('contractSelectedCount').textContent = n ? `${n}건 선택` : '';
+
+      const head = $('selectAllContracts');
+      head.checked = (all.length > 0 && n === all.length);
+      head.indeterminate = (n > 0 && n < all.length);
+    }
+
+    /**
+     * 고른 채권을 하나씩 지운다.
+     *
+     * 한 번에 보내는 길을 따로 두지 않고 기존 삭제를 되풀이한다. 채권 삭제에는
+     * 스케줄·미수·상담 정리와 실행전표 처리가 딸려 있어서, 그 경로를 그대로 타는
+     * 편이 안전하다. 수납이 있거나 전표가 승인된 건은 서버가 막으므로, 막힌 건은
+     * 이유와 함께 모아서 보여준다.
+     */
+    async function bulkDeleteContracts() {
+      const ids = contractChecks().filter(c => c.checked).map(c => Number(c.dataset.id));
+      if (!ids.length) { alert('지울 채권을 먼저 고르세요.'); return; }
+
+      const picked = filtered.filter(c => ids.includes(Number(c.id)));
+      const lines = picked.slice(0, 10)
+        .map(c => `· ${c.contractNumber} ${c.customerName || ''} ${money(c.loanAmount)}`)
+        .join('\n');
+
+      if (!confirm(`고른 ${ids.length}건을 삭제할까요?\n\n${lines}`
+                 + (picked.length > 10 ? `\n… 외 ${picked.length - 10}건` : '')
+                 + '\n\n상환스케줄·미수·상담과 대출실행 전표도 함께 정리됩니다.'
+                 + '\n수납이 있는 채권은 지워지지 않습니다(수납취소를 먼저 하세요).')) return;
+
+      const btn = $('bulkDeleteBtn');
+      btn.disabled = true;
+      let done = 0;
+      const failed = [];
+
+      for (const id of ids) {
+        const c = picked.find(x => Number(x.id) === id);
+        try {
+          await api('/contracts/' + id, 'DELETE');
+          done++;
+        } catch (err) {
+          failed.push(`${c ? c.contractNumber : id}: ${err.message}`);
+        }
+      }
+
+      await loadContracts();
+
+      if (failed.length) {
+        alert(`${done}건을 지웠습니다. ${failed.length}건은 지우지 못했습니다.\n\n`
+            + failed.slice(0, 10).join('\n')
+            + (failed.length > 10 ? `\n… 외 ${failed.length - 10}건` : ''));
+      } else {
+        alert(`${done}건을 지웠습니다.`);
+      }
     }
 
     function renderPagination() {
