@@ -64,6 +64,7 @@ function loadSidebar() {
               </li>
               <li><a href="${basePath}pages/contract/legal_proceeding.html">법적절차</a></li>
               <li><a href="${basePath}pages/payment/consultation_register.html">상담등록</a></li>
+              <li><a href="${basePath}pages/contract/scan_manage.html">스캔관리</a></li>
             </ul>
           </li>
           <li class="has-sub">

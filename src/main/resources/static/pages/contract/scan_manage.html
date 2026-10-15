@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스캔관리 | JDEND ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .split { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start; }
+    @media (max-width: 1100px) { .split { grid-template-columns:1fr; } }
+
+    .box { border:1px solid #e3e8ef; border-radius:10px; background:#fff; overflow:hidden; }
+    .box-head { background:#f8fafc; padding:10px 14px; font-size:14px; font-weight:800; color:#1a3c7a; border-bottom:1px solid #e3e8ef; }
+    .box-body { padding:12px 14px; }
+
+    .search-row { display:flex; gap:8px; margin-bottom:8px; }
+    .search-row input { flex:1; height:34px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+    .only-row { display:flex; align-items:center; gap:6px; font-size:12px; color:#475569; margin-bottom:10px; }
+
+    .btn-primary { height:34px; padding:0 14px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-add { height:34px; padding:0 16px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-add:hover { background:#166534; }
+    .btn-add:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-row { padding:3px 9px; background:#fff; color:#1a73e8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-row:hover { background:#eff6ff; }
+    .btn-row.del { color:#b91c1c; border-color:#fecaca; }
+    .btn-row.del:hover { background:#fef2f2; }
+
+    .contract-list { max-height:620px; overflow:auto; }
+    .contract-item { padding:10px 12px; border-bottom:1px solid #eef2f7; cursor:pointer; }
+    .contract-item:hover { background:#f1f5f9; }
+    .contract-item.active { background:#eff6ff; border-left:3px solid #1a73e8; padding-left:9px; }
+    .ci-no { font-size:12px; color:#64748b; }
+    .ci-name { font-size:14px; font-weight:700; color:#1f2937; }
+    .ci-amt { font-size:12px; color:#475569; margin-top:2px; font-variant-numeric:tabular-nums; }
+    .ci-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+    .tag { font-size:11px; font-weight:700; padding:1px 6px; border-radius:10px; border:1px solid transparent; }
+    .tag.c  { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+    .tag.k  { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .tag.l  { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
+    .tag.none { background:#f8fafc; color:#94a3b8; border-color:#e2e8f0; }
+
+    .head-strip { display:flex; flex-wrap:wrap; gap:14px 24px; padding:12px 14px; background:#1a3c7a; color:#fff; }
+    .hs { display:flex; flex-direction:column; gap:2px; }
+    .hs-l { font-size:11px; color:#c7d7f0; }
+    .hs-v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+    .entry { background:#f8fafc; border:1px solid #e3e8ef; border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+    .entry-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .fg { display:flex; flex-direction:column; gap:4px; }
+    .fg label { font-size:12px; font-weight:600; color:#444; }
+    .fg input, .fg select { height:34px; padding:0 9px; border:1px solid #ccc; border-radius:5px; font-size:13px; width:100%; background:#fff; }
+    .hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+
+    .drop { margin-top:10px; border:2px dashed #cbd5e1; border-radius:8px; background:#fff; padding:14px; text-align:center; cursor:pointer; }
+    .drop:hover, .drop.over { border-color:#1a73e8; background:#eff6ff; }
+    .drop-main { font-size:13px; font-weight:700; color:#334155; }
+    .drop-sub { font-size:12px; color:#64748b; margin-top:3px; }
+    .picked { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+    .picked-item { display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; border:1px solid #e3e8ef; border-radius:5px; padding:5px 9px; font-size:12px; }
+    .picked-item .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .picked-item .sz { color:#64748b; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .picked-item.bad { border-color:#fecaca; background:#fef2f2; color:#b91c1c; }
+
+    .tabs { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+    .tab { padding:6px 12px; border:1px solid #e3e8ef; border-radius:16px; background:#fff; font-size:12px; font-weight:700; color:#475569; cursor:pointer; }
+    .tab.active { background:#1a3c7a; color:#fff; border-color:#1a3c7a; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:8px 9px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; position:sticky; top:0; }
+    td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:40px; }
+    td.nm { max-width:260px; overflow:hidden; text-overflow:ellipsis; }
+    .table-wrap { max-height:520px; overflow:auto; }
+
+    .modal-back { position:fixed; inset:0; background:rgba(15,23,42,.72); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal-back.show { display:flex; }
+    .modal { background:#fff; border-radius:10px; width:min(1000px, 94vw); height:min(88vh, 900px); display:flex; flex-direction:column; overflow:hidden; }
+    .modal-head { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #e3e8ef; background:#f8fafc; }
+    .modal-title { font-size:14px; font-weight:800; color:#1a3c7a; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .modal-body { flex:1; background:#f1f5f9; overflow:auto; display:flex; align-items:center; justify-content:center; }
+    .modal-body iframe { width:100%; height:100%; border:none; background:#fff; }
+    .modal-body img { max-width:100%; max-height:100%; background:#fff; }
+    .btn-ghost { height:30px; padding:0 12px; background:#fff; border:1px solid #cbd5e1; border-radius:5px; font-size:12px; font-weight:700; color:#334155; cursor:pointer; }
+    .btn-ghost:hover { background:#f1f5f9; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>스캔관리</h1>
+      <p>채권관리 &gt; 스캔관리</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+        <div class="split">
+
+          <div class="box">
+            <div class="box-head">채권 목록</div>
+            <div class="box-body">
+              <div class="search-row">
+                <input type="text" id="kw" placeholder="고객명 · 채권번호"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();loadContracts();}">
+                <button class="btn-primary" onclick="loadContracts()">검색</button>
+              </div>
+              <label class="only-row">
+                <input type="checkbox" id="onlyScan" onchange="loadContracts()">
+                스캔 서류가 있는 건만 보기
+              </label>
+              <div class="contract-list" id="contractList">
+                <div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="box-head" id="scanTitle">스캔내역 — 왼쪽에서 채권을 고르세요</div>
+
+            <div class="head-strip" id="headStrip" style="display:none;">
+              <div class="hs"><span class="hs-l">고객</span><span class="hs-v" id="hCustomer">-</span></div>
+              <div class="hs"><span class="hs-l">대출금</span><span class="hs-v" id="hLoan">-</span></div>
+              <div class="hs"><span class="hs-l">계약기간</span><span class="hs-v" id="hPeriod">-</span></div>
+              <div class="hs"><span class="hs-l">계약서</span><span class="hs-v" id="hC">0</span></div>
+              <div class="hs"><span class="hs-l">추심관련서류</span><span class="hs-v" id="hK">0</span></div>
+              <div class="hs"><span class="hs-l">법적절차서류</span><span class="hs-v" id="hL">0</span></div>
+            </div>
+
+            <div class="box-body">
+              <div class="entry" id="entryBox" style="display:none;">
+                <div class="entry-row">
+                  <div class="fg" style="width:160px;">
+                    <label for="fCategory">서류구분</label>
+                    <select id="fCategory"></select>
+                  </div>
+                  <div class="fg" style="width:230px;">
+                    <label for="fTitle">서류명</label>
+                    <input type="text" id="fTitle" placeholder="비우면 파일 이름을 씁니다">
+                  </div>
+                  <div class="fg" style="width:150px;">
+                    <label for="fDate">서류일자</label>
+                    <input type="date" id="fDate">
+                  </div>
+                  <div class="fg" style="width:230px;">
+                    <label for="fMemo">비고</label>
+                    <input type="text" id="fMemo" placeholder="송달일, 접수법원 등">
+                  </div>
+                  <button class="btn-add" id="upBtn" onclick="uploadFiles()">스캔 등록</button>
+                </div>
+
+                <div class="drop" id="drop" onclick="document.getElementById('fFiles').click()">
+                  <div class="drop-main">여기로 파일을 끌어다 놓거나 눌러서 고르세요</div>
+                  <div class="drop-sub" id="dropSub">PDF · JPG · PNG / 한 장 10MB 까지 · 여러 장 동시 가능</div>
+                  <input type="file" id="fFiles" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none;"
+                         onchange="showPicked(this.files)">
+                </div>
+                <div class="picked" id="picked"></div>
+
+                <div class="hint">
+                  서류는 <b>대출채권(계약번호) 기준</b>으로 보관됩니다. 같은 고객이라도 채권이 다르면 따로 올려야 합니다.
+                  삭제는 책임자 권한이 있어야 합니다.
+                </div>
+              </div>
+
+              <div class="tabs" id="tabs" style="display:none;"></div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:120px;">서류구분</th>
+                      <th>서류명</th>
+                      <th style="width:100px;">서류일자</th>
+                      <th>파일명</th>
+                      <th class="num" style="width:84px;">크기</th>
+                      <th style="width:90px;">등록자</th>
+                      <th style="width:140px;">등록일시</th>
+                      <th style="width:170px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="scanBody">
+                    <tr><td colspan="8" class="no-data">왼쪽 목록에서 채권을 고르면 스캔내역이 표시됩니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-back" id="viewer" onclick="if(event.target===this) closeViewer()">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title" id="vTitle">-</span>
+        <button class="btn-ghost" onclick="openInTab()">새 창에서 열기</button>
+        <button class="btn-ghost" onclick="downloadCurrent()">내려받기</button>
+        <button class="btn-ghost" onclick="closeViewer()">닫기</button>
+      </div>
+      <div class="modal-body" id="vBody"></div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script>
+    const CATEGORIES = ['계약서', '추심관련서류', '법적절차서류'];
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const ALLOWED = ['pdf', 'jpg', 'jpeg', 'png'];
+
+    let contracts = [];
+    let scans = [];
+    let current = null;
+    let filterCategory = '';
+    let viewing = null;
+
+    function esc(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function el(id) { return document.getElementById(id); }
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'),
+              String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function size(bytes) {
+      const n = Number(bytes || 0);
+      if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + 'MB';
+      if (n >= 1024) return Math.round(n / 1024) + 'KB';
+      return n + 'B';
+    }
+    function when(ts) {
+      if (!ts) return '-';
+      return String(ts).replace('T', ' ').slice(0, 16);
+    }
+    function extOf(name) {
+      const i = String(name || '').lastIndexOf('.');
+      return i < 0 ? '' : String(name).slice(i + 1).toLowerCase();
+    }
+
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    // ── 채권 목록 ───────────────────────────────────────────
+
+    async function loadContracts() {
+      const kw = el('kw').value.trim();
+      const only = el('onlyScan').checked;
+      const box = el('contractList');
+      box.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>';
+
+      contracts = await safeJson(
+        `${API_BASE_URL}/api/contract-scans/contracts?kw=${encodeURIComponent(kw)}&withScanOnly=${only}`, []);
+
+      if (!contracts.length) {
+        box.innerHTML = only
+          ? '<div style="padding:30px;text-align:center;color:#aaa;">스캔 서류가 등록된 채권이 없습니다.</div>'
+          : '<div style="padding:30px;text-align:center;color:#aaa;">채권이 없습니다.</div>';
+        return;
+      }
+      box.innerHTML = contracts.map((c, i) => `
+        <div class="contract-item" data-i="${i}" onclick="pick(${i})">
+          <div class="ci-no">${esc(c.contractNumber)}</div>
+          <div class="ci-name">${esc(c.customerName ?? '')}</div>
+          <div class="ci-amt">대출 ${won(c.loanAmount)}</div>
+          <div class="ci-tags">${tagsOf(c)}</div>
+        </div>`).join('');
+
+      // 목록을 다시 읽어도 보고 있던 채권은 그대로 둔다
+      if (current) {
+        const idx = contracts.findIndex(x => x.contractNumber === current.contractNumber);
+        if (idx >= 0) {
+          current = contracts[idx];
+          markActive(idx);
+          applyCounts(current);
+        }
+      }
+    }
+
+    function tagsOf(c) {
+      if (!Number(c.totalCount || 0)) return '<span class="tag none">서류 없음</span>';
+      const out = [];
+      if (c.contractDocCount)   out.push(`<span class="tag c">계약서 ${c.contractDocCount}</span>`);
+      if (c.collectionDocCount) out.push(`<span class="tag k">추심 ${c.collectionDocCount}</span>`);
+      if (c.legalDocCount)      out.push(`<span class="tag l">법적 ${c.legalDocCount}</span>`);
+      return out.join('');
+    }
+
+    function markActive(i) {
+      document.querySelectorAll('.contract-item').forEach(x =>
+        x.classList.toggle('active', Number(x.dataset.i) === i));
+    }
+
+    function applyCounts(c) {
+      el('hC').textContent = `${c.contractDocCount || 0}건`;
+      el('hK').textContent = `${c.collectionDocCount || 0}건`;
+      el('hL').textContent = `${c.legalDocCount || 0}건`;
+    }
+
+    async function pick(i) {
+      const c = contracts[i];
+      if (!c) return;
+      current = c;
+      markActive(i);
+
+      el('scanTitle').textContent = `스캔내역 — ${c.contractNumber} ${c.customerName ?? ''}`;
+      el('hCustomer').textContent = c.customerName ?? '-';
+      el('hLoan').textContent     = won(c.loanAmount);
+      el('hPeriod').textContent   = `${c.startDate ?? '-'} ~ ${c.endDate ?? '-'}`;
+      applyCounts(c);
+      el('headStrip').style.display = 'flex';
+      el('entryBox').style.display = 'block';
+      el('tabs').style.display = 'flex';
+
+      await loadScans();
+    }
+
+    // ── 구분 탭 ─────────────────────────────────────────────
+
+    function renderTabs() {
+      const all = [{ v:'', t:'전체' }].concat(CATEGORIES.map(c => ({ v:c, t:c })));
+      el('tabs').innerHTML = all.map(x =>
+        `<button class="tab ${x.v === filterCategory ? 'active' : ''}"
+                 onclick="setFilter('${x.v}')">${esc(x.t)}</button>`).join('');
+    }
+
+    async function setFilter(v) {
+      filterCategory = v;
+      renderTabs();
+      await loadScans();
+    }
+
+    // ── 스캔내역 ────────────────────────────────────────────
+
+    async function loadScans() {
+      if (!current) return;
+      const body = el('scanBody');
+      body.innerHTML = '<tr><td colspan="8" class="no-data">불러오는 중…</td></tr>';
+
+      const url = `${API_BASE_URL}/api/contract-scans?contractNumber=`
+                + encodeURIComponent(current.contractNumber)
+                + (filterCategory ? `&category=${encodeURIComponent(filterCategory)}` : '');
+      const rows = await safeJson(url, []);
+
+      if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="8" class="no-data">${
+          filterCategory ? esc(filterCategory) + '가 없습니다.' : '등록된 스캔 서류가 없습니다.'}</td></tr>`;
+        return;
+      }
+
+      // 파일명·서류명을 onclick 문자열에 끼워 넣지 않는다. 이름에 홑따옴표가 하나만
+      // 섞여도 속성이 끊겨 그 줄의 버튼이 전부 죽는다. 흔한 파일명이다.
+      scans = rows;
+      body.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td>${esc(r.docCategory)}</td>
+          <td class="nm" title="${esc(r.docTitle)}">${esc(r.docTitle)}</td>
+          <td>${esc(r.docDate ?? '-')}</td>
+          <td class="nm" title="${esc(r.originalName)}">${esc(r.originalName)}</td>
+          <td class="num">${size(r.fileSize)}</td>
+          <td>${esc(r.uploadedBy ?? '-')}</td>
+          <td>${esc(when(r.createdAt))}</td>
+          <td>
+            ${r.previewable ? `<button class="btn-row" onclick="view(${i})">보기</button>` : ''}
+            <button class="btn-row" onclick="download(${i})">저장</button>
+            <button class="btn-row del" onclick="removeScan(${i})">삭제</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    // ── 등록 ────────────────────────────────────────────────
+
+    /** 고른 파일을 보여주고, 서버에 보내기 전에 형식·크기를 먼저 걸러 준다. */
+    function showPicked(files) {
+      const list = Array.from(files || []);
+      const box = el('picked');
+      if (!list.length) { box.innerHTML = ''; return; }
+
+      box.innerHTML = list.map(f => {
+        const bad = !ALLOWED.includes(extOf(f.name)) ? 'PDF·JPG·PNG 만 됩니다'
+                  : (f.size > MAX_SIZE ? '10MB 를 넘습니다' : '');
+        return `<div class="picked-item ${bad ? 'bad' : ''}">
+                  <span class="nm">${esc(f.name)}${bad ? ' — ' + bad : ''}</span>
+                  <span class="sz">${size(f.size)}</span>
+                </div>`;
+      }).join('');
+    }
+
+    function pickedProblems(files) {
+      return Array.from(files).filter(f =>
+        !ALLOWED.includes(extOf(f.name)) || f.size > MAX_SIZE);
+    }
+
+    async function uploadFiles() {
+      if (!current) { alert('왼쪽에서 채권을 먼저 고르세요.'); return; }
+
+      const input = el('fFiles');
+      const files = input.files;
+      if (!files || !files.length) { alert('올릴 파일을 고르세요.'); return; }
+
+      const bad = pickedProblems(files);
+      if (bad.length) {
+        alert('올릴 수 없는 파일이 있습니다.\n\n'
+            + bad.map(f => '· ' + f.name).join('\n')
+            + '\n\nPDF · JPG · PNG, 한 장 10MB 까지입니다.');
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('contractNumber', current.contractNumber);
+      fd.append('docCategory', el('fCategory').value);
+      if (el('fTitle').value.trim()) fd.append('docTitle', el('fTitle').value.trim());
+      if (el('fDate').value)         fd.append('docDate', el('fDate').value);
+      if (el('fMemo').value.trim())  fd.append('memo', el('fMemo').value.trim());
+      Array.from(files).forEach(f => fd.append('files', f));
+
+      const btn = el('upBtn');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/contract-scans`, {
+          method: 'POST', credentials: 'include', body: fd
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+
+        input.value = '';
+        el('picked').innerHTML = '';
+        el('fTitle').value = '';
+        el('fMemo').value = '';
+        await loadScans();
+        await loadContracts();
+      } catch (e) {
+        alert('등록하지 못했습니다.\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function removeScan(i) {
+      const r = scans[i];
+      if (!r) return;
+      if (!confirm(`'${r.docTitle}' (${r.originalName}) 을 삭제할까요?\n\n파일도 서버에서 지워집니다.`)) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/contract-scans/${r.id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        await loadScans();
+        await loadContracts();
+      } catch (e) {
+        alert('삭제하지 못했습니다.\n\n' + e.message);
+      }
+    }
+
+    // ── 보기 · 내려받기 ─────────────────────────────────────
+
+    function fileUrl(id, download) {
+      return `${API_BASE_URL}/api/contract-scans/${id}/file` + (download ? '?download=true' : '');
+    }
+
+    function view(i) {
+      const r = scans[i];
+      if (!r) return;
+      viewing = r;
+      el('vTitle').textContent = r.originalName;
+
+      // 주소는 우리가 만든 것만 쓰고, 파일 이름은 setAttribute 로만 넣는다
+      el('vBody').innerHTML = '';
+      const node = String(r.contentType || '').startsWith('image/')
+        ? document.createElement('img')
+        : document.createElement('iframe');
+      node.setAttribute('src', fileUrl(r.id, false));
+      node.setAttribute(node.tagName === 'IMG' ? 'alt' : 'title', r.originalName);
+      el('vBody').appendChild(node);
+
+      el('viewer').classList.add('show');
+    }
+
+    function closeViewer() {
+      el('viewer').classList.remove('show');
+      el('vBody').innerHTML = '';   // iframe 을 남겨 두면 뒤에서 계속 받고 있다
+      viewing = null;
+    }
+
+    function openInTab() {
+      if (viewing) window.open(fileUrl(viewing.id, false), '_blank');
+    }
+    function downloadCurrent() {
+      if (viewing) window.location.href = fileUrl(viewing.id, true);
+    }
+    function download(i) {
+      const r = scans[i];
+      if (r) window.location.href = fileUrl(r.id, true);
+    }
+
+    // ── 끌어다 놓기 ─────────────────────────────────────────
+
+    function initDrop() {
+      const zone = el('drop');
+      const input = el('fFiles');
+
+      ['dragenter', 'dragover'].forEach(t => zone.addEventListener(t, e => {
+        e.preventDefault(); zone.classList.add('over');
+      }));
+      ['dragleave', 'drop'].forEach(t => zone.addEventListener(t, e => {
+        e.preventDefault(); zone.classList.remove('over');
+      }));
+      zone.addEventListener('drop', e => {
+        const dropped = e.dataTransfer && e.dataTransfer.files;
+        if (!dropped || !dropped.length) return;
+        // input 에 담아 두면 등록 버튼이 평소와 똑같이 동작한다
+        const dt = new DataTransfer();
+        Array.from(dropped).forEach(f => dt.items.add(f));
+        input.files = dt.files;
+        showPicked(input.files);
+      });
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeViewer();
+    });
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+
+      el('fCategory').innerHTML = CATEGORIES.map(c =>
+        `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+      el('fDate').value = todayISO();
+      renderTabs();
+      initDrop();
+      await loadContracts();
+    })();
+  </script>
+</body>
+</html>

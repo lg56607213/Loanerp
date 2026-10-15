@@ -63,6 +63,8 @@ app:
   contact:
     recipient-email: ${MAIL_USERNAME}
   upload-dir: uploads/accounts
+  # 채권 스캔 서류(계약서·추심·법적절차) 보관 위치. 아래에 회사DB/계약번호 폴더가 생긴다.
+  scan-upload-dir: ${SCAN_UPLOAD_DIR:uploads/scans}
   multidb:
     default-db: auth
     datasources:

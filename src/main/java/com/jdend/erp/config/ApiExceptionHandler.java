@@ -6,6 +6,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -55,6 +57,25 @@ public class ApiExceptionHandler {
   public ResponseEntity<?> handleMissingParam(MissingServletRequestParameterException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
       .body(Map.of("message", "필수 파라미터 누락: " + e.getParameterName()));
+  }
+
+  /**
+   * 업로드 용량 초과 → 400.
+   *
+   * 스프링이 멀티파트를 읽는 단계에서 끊으므로 각 화면의 검사까지 오지 못한다.
+   * 그대로 두면 "Maximum upload size exceeded" 라는 영문 메시지가 사용자에게 보인다.
+   */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public ResponseEntity<?> handleUploadTooLarge(MaxUploadSizeExceededException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+      .body(Map.of("message", "파일 용량이 너무 큽니다. 한 파일은 10MB, 한 번에 올리는 전체는 30MB 까지입니다."));
+  }
+
+  /** 멀티파트 요청에 파일 칸이 아예 없을 때 → 400 (예: 파일을 고르지 않고 보냄) */
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  public ResponseEntity<?> handleMissingPart(MissingServletRequestPartException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+      .body(Map.of("message", "올릴 파일을 선택하세요."));
   }
 
   // BUG-6차-02: 미존재 경로 → 404
