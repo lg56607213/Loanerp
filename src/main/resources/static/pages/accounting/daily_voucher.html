@@ -388,12 +388,17 @@
       const descInput = descCell.querySelector('input[type=text]');
       const existing = descCell.querySelector('.bank-acct-sel');
 
-      if (name.includes('보통예금') && bankAccountOptions) {
+      // 등록된 통장이 없어도 '통장없음'은 고를 수 있어야 하므로 목록 유무를 따지지 않는다
+      if (name.includes('보통예금')) {
         if (!existing) {
           const sel = document.createElement('select');
           sel.className = 'bank-acct-sel';
           sel.style.cssText = 'width:100%;margin-bottom:4px;padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;color:#333;background:#fff;display:block;';
-          sel.innerHTML = `<option value="">-- 계좌 선택 --</option>${bankAccountOptions}`;
+          // '통장없음'을 고르면 적요에 그대로 적힌다. 계좌번호가 없으니 자금일보에서
+          // 통장없음 묶음으로 집계된다 — 비워 두는 것과 결과는 같지만 의도가 전표에 남는다.
+          sel.innerHTML = `<option value="">-- 계좌 선택 --</option>`
+                        + `<option value="통장없음">통장없음 (계좌 미지정)</option>`
+                        + bankAccountOptions;
           sel.addEventListener('change', () => {
             if (sel.value && descInput) descInput.value = sel.value;
           });
