@@ -97,56 +97,27 @@ public class DailyCashService {
   public DailyFundReportResponse daily(LocalDate date) {
     if (date == null) throw new IllegalArgumentException("date는 필수입니다.");
 
-    // 전일잔액 (기준일 이전 누적, 통장별)
-    Map<String, long[]> prevMap = new HashMap<>(); // bankName → [cumIn, cumOut]
-    for (var r : bankRepo.sumCumulativeByBankBefore(date)) {
-      prevMap.put(r.getBankName(), new long[]{nz(r.getInAmt()), nz(r.getOutAmt())});
-    }
-
-    // 당일 통장별 입출금
-    Map<String, long[]> todayMap = new HashMap<>();
+    // 은행내역업로드 자료의 당일 합계 — 통장 섹션에는 쓰지 않고 대조용으로만 쓴다.
+    long refBankIn = 0, refBankOut = 0;
     for (var r : bankRepo.sumByBankOn(date)) {
-      todayMap.put(r.getBankName(), new long[]{nz(r.getInAmt()), nz(r.getOutAmt())});
+      refBankIn  += nz(r.getInAmt());
+      refBankOut += nz(r.getOutAmt());
     }
-
-    // 통장 이름 전체 집합 (전일에만 있거나 당일에만 있어도 모두 포함)
-    Set<String> bankNames = new LinkedHashSet<>();
-    bankNames.addAll(prevMap.keySet());
-    bankNames.addAll(todayMap.keySet());
 
     List<DailyFundReportResponse.BankRow> banks = new ArrayList<>();
     long bankIn=0, bankOut=0, totalPrev=0, totalBalance=0;
 
-    for (String bankName : bankNames) {
-      long[] prev  = prevMap.getOrDefault(bankName, new long[]{0,0});
-      long[] today = todayMap.getOrDefault(bankName, new long[]{0,0});
-
-      long prevBalance = prev[0] - prev[1];
-      long inAmt  = today[0];
-      long outAmt = today[1];
-      long balance = prevBalance + inAmt - outAmt;
-
-      bankIn       += inAmt;
-      bankOut      += outAmt;
-      totalPrev    += prevBalance;
-      totalBalance += balance;
-
-      banks.add(DailyFundReportResponse.BankRow.builder()
-          .bankName(bankName)
-          .prevBalance(prevBalance)
-          .income(inAmt)
-          .expense(outAmt)
-          .balance(balance)
-          .build());
-    }
-
-    // 전표(현금성 계정만, 계정별 합계) — banks 비어있을 때 fallback보다 먼저 조회
+    // 전표(현금성 계정만, 계정별 합계)
     List<VoucherCashAggRepository.AccountCashSumRow> vRows =
         voucherCashRepo.sumCashByAccountOn(date,
             CASH_KEYS[0], CASH_KEYS[1], CASH_KEYS[2], CASH_KEYS[3], CASH_KEYS[4], CASH_KEYS[5], CASH_KEYS[6]);
 
-    // 은행 CSV 없을 때: 전표 기준 보통예금(100101) 잔액으로 Section I 대체 (계좌별 분리)
-    if (banks.isEmpty()) {
+    // 통장 섹션은 전표(재무제표) 기준으로 낸다.
+    //
+    // 전에는 은행내역업로드 자료가 있으면 그쪽을 먼저 썼다. 그러나 은행내역은
+    // 대조용 참고 자료이고, 자금일보의 통장 잔액은 장부(보통예금 전표)와 같아야 한다.
+    // 둘을 섞으면 어느 날은 은행 기준, 어느 날은 장부 기준이 되어 재무상태표와 어긋난다.
+    {
       List<BankAccount> accounts = bankAccountRepo.findByIsActiveTrueOrderByIdAsc();
 
       if (accounts.isEmpty()) {
@@ -271,8 +242,10 @@ public class DailyCashService {
         .voucherIncomeTotal(vInSum)
         .voucherExpenses(vOut)
         .voucherExpenseTotal(vOutSum)
-        .incomeDiff(bankIn - vInSum)
-        .expenseDiff(bankOut - vOutSum)
+        .refBankIncomeTotal(refBankIn)
+        .refBankExpenseTotal(refBankOut)
+        .incomeDiff(refBankIn - vInSum)
+        .expenseDiff(refBankOut - vOutSum)
         .allVoucherDebits(allDebits)
         .allVoucherDebitTotal(allDebitSum)
         .allVoucherCredits(allCredits)

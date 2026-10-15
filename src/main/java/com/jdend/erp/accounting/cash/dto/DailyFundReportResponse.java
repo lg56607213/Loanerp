@@ -46,8 +46,12 @@ public class DailyFundReportResponse {
   private List<VoucherRow> voucherExpenses;
   private Long voucherExpenseTotal;
 
-  private Long incomeDiff;   // bankIncomeTotal - voucherIncomeTotal
-  private Long expenseDiff;  // bankExpenseTotal - voucherExpenseTotal
+  /** 은행내역업로드 자료의 당일 합계 — 장부와 맞는지 대조하는 참고값 */
+  private Long refBankIncomeTotal;
+  private Long refBankExpenseTotal;
+
+  private Long incomeDiff;   // refBankIncomeTotal - voucherIncomeTotal
+  private Long expenseDiff;  // refBankExpenseTotal - voucherExpenseTotal
 
   /** II. 세부내역 — 그날 승인된 모든 전표 계정(현금성 필터 없음) */
   private List<VoucherRow> allVoucherDebits;    // 차변(DEBIT) 전체

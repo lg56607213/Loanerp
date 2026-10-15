@@ -595,14 +595,15 @@
       setEl('dailyVOutTotal', fmtAlways(d.voucherExpenseTotal));
 
       /* 차액 요약 */
-      setEl('sumBankIn',     fmtAlways(d.bankIncomeTotal));
+      // 통장 섹션은 전표 기준이라 여기서는 은행내역(참고 자료)과 대조한다
+      setEl('sumBankIn',     fmtAlways(d.refBankIncomeTotal));
       setEl('sumVoucherIn',  fmtAlways(d.voucherIncomeTotal));
       const dIn = Number(d.incomeDiff || 0);
       const dEl = document.getElementById('sumDiffIn');
       dEl.textContent = dIn === 0 ? '-' : dIn.toLocaleString();
       dEl.className   = 'num ' + diffClass(dIn);
 
-      setEl('sumBankOut',    fmtAlways(d.bankExpenseTotal));
+      setEl('sumBankOut',    fmtAlways(d.refBankExpenseTotal));
       setEl('sumVoucherOut', fmtAlways(d.voucherExpenseTotal));
       const dOut = Number(d.expenseDiff || 0);
       const dElO = document.getElementById('sumDiffOut');
