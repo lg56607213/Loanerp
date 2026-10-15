@@ -43,6 +43,14 @@ public class ContractBulkUploadService {
   }
 
   public ExcelUploadResultResponse upload(MultipartFile file) {
+    return upload(file, false);
+  }
+
+  /**
+   * @param dryRun true 면 저장하지 않고 검사만 한다. 대출은 한 행이 채권·스케줄·전표를
+   *               한꺼번에 만들기 때문에, 잘못 올리고 지우는 것보다 미리 보는 편이 낫다.
+   */
+  public ExcelUploadResultResponse upload(MultipartFile file, boolean dryRun) {
     List<Map<String, String>> rows;
     try {
       rows = ExcelReader.readRows(file.getInputStream());
@@ -56,7 +64,11 @@ public class ContractBulkUploadService {
     for (int i = 0; i < rows.size(); i++) {
       int rowNumber = i + 2; // 1행=헤더
       try {
-        contractService.create(toRequest(rows.get(i)));
+        if (dryRun) {
+          contractService.validateOnly(toRequest(rows.get(i)));
+        } else {
+          contractService.create(toRequest(rows.get(i)));
+        }
         success++;
       } catch (Exception e) {
         errors.add(ExcelUploadResultResponse.RowError.builder()

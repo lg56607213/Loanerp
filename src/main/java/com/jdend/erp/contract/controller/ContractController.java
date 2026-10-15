@@ -114,6 +114,12 @@ public class ContractController {
         .body(bulkUploadService.template());
   }
 
+  /** 저장하지 않고 검사만 한다. 무엇이 걸리는지 보고 나서 저장할 수 있게. */
+  @PostMapping("/bulk-upload/preview")
+  public ExcelUploadResultResponse bulkUploadPreview(@RequestParam("file") MultipartFile file) {
+    return bulkUploadService.upload(file, true);
+  }
+
   @PostMapping("/bulk-upload")
   public ExcelUploadResultResponse bulkUpload(@RequestParam("file") MultipartFile file) {
     return bulkUploadService.upload(file);

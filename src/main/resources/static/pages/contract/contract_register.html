@@ -1102,6 +1102,7 @@
       openExcelUploadModal({
         title: '대출 엑셀 업로드',
         templateUrl: '/api/contracts/bulk-upload/template',
+        previewUrl: '/api/contracts/bulk-upload/preview',
         uploadUrl: '/api/contracts/bulk-upload',
         onSuccess: () => loadContracts(),
       });

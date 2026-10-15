@@ -152,10 +152,36 @@ public class ContractService {
 
   // ── 등록 / 수정 / 삭제 ───────────────────────────────────────
 
+  /**
+   * 저장하지 않고 등록할 수 있는지만 본다. 엑셀 일괄 업로드의 미리보기가 쓴다.
+   *
+   * <p>검사 내용이 {@link #create} 와 어긋나면 안 된다 — 미리보기에서 통과한 행이
+   * 저장에서 떨어지거나 그 반대가 되면 건수가 맞지 않아 더 헷갈린다. 그래서
+   * 같은 {@code validateRequired} 와 같은 {@code buildContract} 를 그대로 쓰고,
+   * 저장·스케줄·전표만 하지 않는다.
+   */
+  @Transactional(readOnly = true)
+  public void validateOnly(ContractRequest req) {
+    validateRequired(req);
+    // 채권번호는 저장할 때 매긴다. 미리보기에서 채번하면 쓰지도 않을 번호를 건너뛴다.
+    requireEffectiveRateWithinCap(buildContract(req, "(미리보기)"));
+  }
+
   @Transactional
   public ContractResponse create(ContractRequest req) {
     validateRequired(req);
 
+    Contract c = buildContract(req, generateNextContractNumber(req.loanType));
+
+    requireEffectiveRateWithinCap(c);
+    contractRepo.save(c);
+    scheduleAutoGen.ensureGenerated(c);
+    createExecutionVoucher(c);
+    return toResponse(c);
+  }
+
+  /** 요청을 채권 한 건으로 옮긴다. 저장하지는 않는다. */
+  private Contract buildContract(ContractRequest req, String contractNumber) {
     Customer customer = customerRepo.findByCustomerNumber(req.customerNumber).orElse(null);
 
     String method = normalizeRepaymentMethod(req.repaymentMethod);
@@ -164,8 +190,8 @@ public class ContractService {
     long monthlyPayment = resolveMonthlyPayment(
         req.monthlyPayment, method, req.loanAmount, req.interestRate, installments, rounding);
 
-    Contract c = Contract.builder()
-        .contractNumber(generateNextContractNumber(req.loanType))
+    return Contract.builder()
+        .contractNumber(contractNumber)
         .customer(customer)
         .customerNumber(req.customerNumber)
         .customerType(req.customerType)
@@ -193,12 +219,6 @@ public class ContractService {
         .remainingPrincipal(nvl(req.loanAmount))
         .remarks(req.remarks)
         .build();
-
-    requireEffectiveRateWithinCap(c);
-    contractRepo.save(c);
-    scheduleAutoGen.ensureGenerated(c);
-    createExecutionVoucher(c);
-    return toResponse(c);
   }
 
   @Transactional
@@ -482,6 +502,14 @@ public class ContractService {
 
   private void validateRequired(ContractRequest req) {
     if (isBlank(req.customerNumber)) throw new RuntimeException("고객번호(customerNumber) 필수");
+
+    // 없는 고객번호는 막는다. 전에는 그대로 통과해 고객이 비어 있는 채권이 생겼다.
+    // 화면에서 고를 때는 생길 수 없고 엑셀로 올릴 때 오타로 생기는데, 만들고 나면
+    // 채권·스케줄·전표까지 딸려 나와 되돌리기가 번거롭다.
+    if (customerRepo.findByCustomerNumber(req.customerNumber.trim()).isEmpty()) {
+      throw new IllegalArgumentException("고객번호를 찾을 수 없습니다: " + req.customerNumber
+          + " — 고객관리에 먼저 등록하거나 번호를 확인하세요.");
+    }
     if (isBlank(req.loanType))       throw new RuntimeException("대출구분 필수");
     if (req.loanAmount == null || req.loanAmount <= 0) {
       throw new IllegalArgumentException("대출금은 1원 이상이어야 합니다.");
