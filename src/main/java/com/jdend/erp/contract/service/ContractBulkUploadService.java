@@ -6,6 +6,7 @@ import com.jdend.erp.common.excel.ExcelUploadResultResponse;
 import com.jdend.erp.contract.dto.ContractRequest;
 import com.jdend.erp.customer.Customer;
 import com.jdend.erp.customer.CustomerRepository;
+import com.jdend.erp.contract.entity.PaymentDayType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +38,7 @@ public class ContractBulkUploadService {
       "원리금균등", "20260101", "20260101", "20271231", "25", "24",
       "샘플 행입니다. 실제 데이터로 바꿔서 업로드하세요. 날짜는 8자리 숫자(20260101)로 적습니다."
           + " 고객번호를 모르면 비우고 고객명만 적어도 됩니다(같은 이름이 둘 이상이면 고객번호가 필요합니다)."
+          + " 납입일자는 숫자(25) 또는 '말일' 로 적습니다."
   );
 
   private final ContractService contractService;
@@ -103,10 +105,47 @@ public class ContractBulkUploadService {
         .executeDate(dateVal(row, "실행일"))
         .startDate(dateVal(row, "시작일자"))
         .endDate(dateVal(row, "종료일자"))
-        .paymentDay(intVal(row, "납입일자"))
+        .paymentDay(paymentDayOf(row))
+        .paymentDayType(paymentDayTypeOf(row))
         .installmentCount(intVal(row, "회차수"))
         .remarks(str(row, "비고"))
         .build();
+  }
+
+  /**
+   * 납입일자 셀 — 숫자 외에 '말일' 도 받는다.
+   *
+   * <p>달마다 말일이 28·29·30·31일로 달라져서 숫자 하나로는 적을 수 없다. 화면에서는
+   * 목록에서 '말일' 을 고르지만 엑셀에는 적을 자리가 없어 전부 오류로 떨어졌다.
+   *
+   * <p>받는 표기 — <b>말일</b>, <b>매월말일</b>, <b>32</b>(달력에 없는 날을 말일 표시로
+   * 쓰는 관행), 그리고 <b>25일</b> 처럼 '일' 을 붙여 적은 숫자.
+   *
+   * @return 말일이면 null(그 달의 마지막 날을 쓰므로 숫자를 두지 않는다)
+   */
+  private static Integer paymentDayOf(Map<String, String> row) {
+    String v = str(row, "납입일자");
+    if (v == null || v.isBlank()) return null;
+    if (isLastDayMark(v)) return null;
+
+    String digits = v.trim().replace("일", "").replace(" ", "");
+    try {
+      return Integer.valueOf(digits);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException(
+          "납입일자는 1~31 사이의 숫자이거나 '말일' 이어야 합니다. 적힌 값: " + v);
+    }
+  }
+
+  private static String paymentDayTypeOf(Map<String, String> row) {
+    String v = str(row, "납입일자");
+    return (v != null && isLastDayMark(v)) ? PaymentDayType.LAST_DAY : PaymentDayType.DAY;
+  }
+
+  /** '말일' 로 볼 표기인가 */
+  private static boolean isLastDayMark(String v) {
+    String t = v.trim().replace(" ", "");
+    return t.equals("말일") || t.equals("매월말일") || t.equals("말") || t.equals("32");
   }
 
   /**
@@ -129,10 +168,11 @@ public class ContractBulkUploadService {
         throw new IllegalArgumentException("고객번호를 찾을 수 없습니다: " + number
             + " — 고객관리에 먼저 등록하거나 번호를 확인하세요.");
       }
-      if (name != null && !name.isBlank() && !name.trim().equals(c.getCustomerName())) {
+      if (name != null && !name.isBlank() && !sameName(name, c.getCustomerName())) {
         throw new IllegalArgumentException(
             "고객번호와 고객명이 서로 다릅니다: " + number + " 는 '" + c.getCustomerName()
-            + "' 인데 파일에는 '" + name.trim() + "' 로 적혀 있습니다.");
+            + "' 인데 파일에는 '" + name.trim() + "' 로 적혀 있습니다."
+            + " 번호가 맞다면 고객명을 비우고 올리세요.");
       }
       return c.getCustomerNumber();
     }
@@ -153,6 +193,33 @@ public class ContractBulkUploadService {
           + " (" + numbers + ") — 고객번호를 적어 주세요.");
     }
     return found.get(0).getCustomerNumber();
+  }
+
+  /**
+   * 같은 고객으로 볼 이름인가.
+   *
+   * <p>딱 맞을 때만 통과시키면 쓸 수 없다. 받아 적은 자료에는 '(주)' 를 떼거나
+   * 띄어쓰기가 다르거나 뒤가 잘린 이름이 흔하다('지에스렌트카주식회사' ↔
+   * '지에스렌트카주식회'). 고객번호가 이미 적혀 있으면 어느 고객인지는 번호로
+   * 정해지므로, 이름 대조는 행을 잘못 붙여 넣은 것을 걸러 내는 그물이면 된다.
+   *
+   * <p>그래서 띄어쓰기와 법인 표기를 털어 낸 뒤, 같거나 한쪽이 다른 쪽으로 시작하면
+   * 같은 이름으로 본다. 아주 다른 이름은 그대로 걸린다.
+   */
+  private static boolean sameName(String fromFile, String stored) {
+    String a = normalizeName(fromFile);
+    String b = normalizeName(stored);
+    if (a.isEmpty() || b.isEmpty()) return true;      // 비교할 것이 없으면 번호를 믿는다
+    return a.equals(b) || a.startsWith(b) || b.startsWith(a);
+  }
+
+  private static String normalizeName(String s) {
+    if (s == null) return "";
+    return s.replace("주식회사", "")
+            .replace("(주)", "")
+            .replace("㈜", "")
+            .replaceAll("\\s+", "")
+            .trim();
   }
 
   /** 이자율 셀 — "19.9" / "19.9%" 모두 허용 */
