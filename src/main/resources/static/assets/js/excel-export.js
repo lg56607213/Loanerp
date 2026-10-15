@@ -20,7 +20,10 @@ function exportTableToExcel(tbodyId, filename) {
     var headerRow = parentTable.querySelector('thead tr');
     if (headerRow) {
       rows.push(
+        // data-noexport 가 붙은 열(체크박스 등)은 내보내지 않는다. 내보내면 빈 열이
+        // 하나 끼어 엑셀에서 머리글과 값이 한 칸씩 어긋나 보인다.
         Array.from(headerRow.querySelectorAll('th'))
+          .filter(function(th) { return !th.hasAttribute('data-noexport'); })
           .map(function(th) { return th.textContent.trim(); })
       );
     }
@@ -33,9 +36,11 @@ function exportTableToExcel(tbodyId, filename) {
     if (!cells.length) continue;
     if (cells.length === 1 && cells[0].hasAttribute('colspan')) continue;
     rows.push(
-      Array.from(cells).map(function(td) {
-        return td.textContent.trim().replace(/\s+/g, ' ');
-      })
+      Array.from(cells)
+        .filter(function(td) { return !td.hasAttribute('data-noexport'); })
+        .map(function(td) {
+          return td.textContent.trim().replace(/\s+/g, ' ');
+        })
     );
   }
 

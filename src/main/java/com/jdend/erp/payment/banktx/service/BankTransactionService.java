@@ -181,6 +181,23 @@ public class BankTransactionService {
         .rowNumber(rowNumber).reason(reason).value(value).build();
   }
 
+  /**
+   * 업로드된 내역을 지운다.
+   *
+   * 은행내역은 참고 자료라 전표처럼 승인 상태를 따지지 않는다. 잘못된 파일을
+   * 올렸거나 같은 달을 두 번 올린 경우 지우는 쪽이 맞다.
+   *
+   * 다만 일자별 입출금현황과 자금일보의 '은행' 칸이 이 표를 그대로 읽으므로,
+   * 지우면 그 화면의 숫자에서도 함께 빠진다. 두 화면이 같은 테이블을 보기 때문에
+   * 따로 맞춰 줄 것은 없다.
+   */
+  public int deleteByIds(List<Long> ids) {
+    List<Long> clean = (ids == null) ? List.of()
+        : ids.stream().filter(Objects::nonNull).distinct().toList();
+    if (clean.isEmpty()) throw new IllegalArgumentException("지울 내역을 선택하세요.");
+    return repo.deleteByIds(clean);
+  }
+
   public void updateRemarksBulk(List<RemarksUpdateRequest> list) {
     if (list == null || list.isEmpty()) return;
     for (RemarksUpdateRequest req : list) {

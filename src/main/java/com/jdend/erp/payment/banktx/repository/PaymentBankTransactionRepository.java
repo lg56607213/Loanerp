@@ -2,10 +2,12 @@ package com.jdend.erp.payment.banktx.repository;
 
 import com.jdend.erp.payment.banktx.entity.BankTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 
 public interface PaymentBankTransactionRepository extends JpaRepository<BankTransaction, Long> {
@@ -59,6 +61,16 @@ public interface PaymentBankTransactionRepository extends JpaRepository<BankTran
       @Param("startDate") LocalDate startDate,
       @Param("endDate") LocalDate endDate
   );
+
+  /**
+   * 고른 내역을 지운다. 지워진 행 수를 돌려준다.
+   *
+   * 한 건씩 불러와 지우지 않고 한 번에 보낸다. 화면에서 한 달치를 통째로 고르는
+   * 일이 흔해서다. 없는 id 가 섞여 있어도 그 건만 빠지고 나머지는 지워진다.
+   */
+  @Modifying
+  @Query("delete from BankTransaction t where t.id in :ids")
+  int deleteByIds(@Param("ids") Collection<Long> ids);
 
   // ✅ 돋보기용: (은행명/계좌번호) distinct 목록
   @Query("""
