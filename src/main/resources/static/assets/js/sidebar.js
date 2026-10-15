@@ -84,6 +84,7 @@ function loadSidebar() {
                   <li><a href="${basePath}pages/payment/payment_register.html">수납등록</a></li>
                   <li><a href="${basePath}pages/payment/payment_cancel.html">수납취소</a></li>
                   <li><a href="${basePath}pages/payment/schedule_by_contract.html">상환스케줄</a></li>
+                  <li><a href="${basePath}pages/payment/repayment_history.html">상환내역</a></li>
                 </ul>
               </li>
               <li class="has-sub">

@@ -294,6 +294,59 @@ public class RepaymentAllocator {
     return remain;
   }
 
+  /**
+   * 지정 충당 — 원금과 이자를 적힌 그대로 반영한다.
+   *
+   * <p>지난 상환내역을 엑셀로 옮겨 적을 때 쓴다. 그때의 나눔은 이미 끝난 일이고
+   * 전표도 그 금액으로 끊겨 있다. 여기서 다시 계산하면 올린 숫자와 ERP 의 숫자가
+   * 달라져, 옮겨 적은 보람이 없어진다.
+   *
+   * <p>회차에 붙이는 순서만 정한다 — 납입예정일이 오래된 회차부터, 그 회차에
+   * 모자란 만큼씩 채운다. 회차별로 어디까지 갚았는지가 남아야 상환스케줄 화면과
+   * 미납 판정이 맞는다.
+   *
+   * <p>스케줄에 적힌 몫보다 많이 올라오면(연체이자를 이자에 합쳐 적었거나 스케줄이
+   * 다시 짜인 경우) 남는 금액은 마지막 회차에 더해 둔다. 금액을 버리면 합계가
+   * 안 맞아 더 큰 혼란이 된다. 넘치는 건은 업로드할 때 미리 알려 준다.
+   */
+  public RepaymentAllocation allocateFixed(List<PaymentSchedule> schedules,
+                                           long principal, long interest, LocalDate asOf) {
+    RepaymentAllocation result = new RepaymentAllocation();
+    if (schedules.isEmpty()) return result;
+
+    List<PaymentSchedule> ordered = schedules.stream()
+        .sorted(Comparator.comparing(RepaymentAllocator::dueDateOf,
+            Comparator.nullsLast(Comparator.naturalOrder())))
+        .toList();
+
+    long restInterest = Math.max(0L, interest);
+    for (PaymentSchedule ps : ordered) {
+      if (restInterest <= 0) break;
+      restInterest = takeInterest(result, ps, restInterest, ps.unpaidInterest());
+    }
+    if (restInterest > 0) {
+      PaymentSchedule tail = ordered.get(ordered.size() - 1);
+      tail.setPaidInterest(nz(tail.getPaidInterest()) + restInterest);
+      tail.refreshLineStatus();
+      result.addInterest(restInterest);
+      result.lineFor(tail.getId(), tail.getInstallmentNo()).addInterest(restInterest);
+    }
+
+    long restPrincipal = Math.max(0L, principal);
+    restPrincipal = fillPrincipal(result, ordered, restPrincipal, ps -> true);
+    if (restPrincipal > 0) {
+      PaymentSchedule tail = ordered.get(ordered.size() - 1);
+      tail.setPaidPrincipal(nz(tail.getPaidPrincipal()) + restPrincipal);
+      tail.refreshLineStatus();
+      result.addPrincipal(restPrincipal);
+      result.lineFor(tail.getId(), tail.getInstallmentNo()).addPrincipal(restPrincipal);
+    }
+
+    // 지정한 만큼만 반영하므로 남는 돈(선수금으로 돌릴 금액)은 없다.
+    result.setExcess(0L);
+    return result;
+  }
+
   private static boolean isDue(PaymentSchedule ps, LocalDate asOf) {
     LocalDate d = dueDateOf(ps);
     return d != null && !d.isAfter(asOf);

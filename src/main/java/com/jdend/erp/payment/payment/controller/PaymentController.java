@@ -6,6 +6,7 @@ import com.jdend.erp.payment.payment.service.PaymentService;
 import jakarta.servlet.http.HttpSession;
 import com.jdend.erp.common.excel.ExcelUploadResultResponse;
 import com.jdend.erp.payment.payment.service.PaymentBulkUploadService;
+import com.jdend.erp.payment.payment.service.RepaymentHistoryUploadService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,7 @@ public class PaymentController {
 
   private final PaymentService service;
   private final PaymentBulkUploadService bulkUploadService;
+  private final RepaymentHistoryUploadService repaymentHistoryUploadService;
   private final PermissionService permissionService;
 
   @GetMapping
@@ -84,5 +86,30 @@ public class PaymentController {
       @RequestParam(required = false, defaultValue = "false") boolean dryRun
   ) {
     return bulkUploadService.upload(file, createVoucher, dryRun);
+  }
+
+  // ── 상환내역 (원금·이자를 적힌 그대로 올린다) ──────────────
+
+  @GetMapping("/repayment-history/template")
+  public ResponseEntity<byte[]> repaymentHistoryTemplate() {
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=repayment_history_template.xlsx")
+        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+        .body(repaymentHistoryUploadService.template());
+  }
+
+  /** 저장하지 않고 검사만 한다. */
+  @PostMapping("/repayment-history/preview")
+  public ExcelUploadResultResponse repaymentHistoryPreview(
+      @RequestParam("file") MultipartFile file, HttpSession session) {
+    permissionService.requireManager(session);
+    return repaymentHistoryUploadService.upload(file, true);
+  }
+
+  @PostMapping("/repayment-history")
+  public ExcelUploadResultResponse repaymentHistoryUpload(
+      @RequestParam("file") MultipartFile file, HttpSession session) {
+    permissionService.requireManager(session);
+    return repaymentHistoryUploadService.upload(file, false);
   }
 }

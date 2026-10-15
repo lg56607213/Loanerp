@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상환내역 | Loan ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .split { display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start; }
+    @media (max-width: 1100px) { .split { grid-template-columns:1fr; } }
+
+    .box { border:1px solid #e3e8ef; border-radius:10px; background:#fff; overflow:hidden; }
+    .box-head { background:#f8fafc; padding:10px 14px; font-size:14px; font-weight:800; color:#1a3c7a; border-bottom:1px solid #e3e8ef; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .box-body { padding:12px 14px; }
+
+    .search-row { display:flex; gap:8px; margin-bottom:10px; }
+    .search-row input { flex:1; height:34px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+    .btn-primary { height:34px; padding:0 14px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-excel { height:30px; padding:0 12px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; }
+    .btn-excel:hover { background:#166534; }
+    .btn-ghost { height:30px; padding:0 12px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; }
+    .btn-ghost:hover { background:#f1f5f9; }
+    .btn-row { padding:3px 9px; background:#fff; color:#b91c1c; border:1px solid #fecaca; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+    .btn-row:hover { background:#fef2f2; }
+
+    .contract-list { max-height:620px; overflow:auto; }
+    .contract-item { padding:10px 12px; border-bottom:1px solid #eef2f7; cursor:pointer; }
+    .contract-item:hover { background:#f1f5f9; }
+    .contract-item.active { background:#eff6ff; border-left:3px solid #1a73e8; padding-left:9px; }
+    .ci-no { font-size:12px; color:#64748b; }
+    .ci-name { font-size:14px; font-weight:700; color:#1f2937; }
+    .ci-amt { font-size:12px; color:#475569; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+    .head-strip { display:flex; flex-wrap:wrap; gap:14px 24px; padding:12px 14px; background:#1a3c7a; color:#fff; }
+    .hs { display:flex; flex-direction:column; gap:2px; }
+    .hs-l { font-size:11px; color:#c7d7f0; }
+    .hs-v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:8px 9px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; position:sticky; top:0; }
+    td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:40px; }
+    tfoot td { background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; }
+    .table-wrap { max-height:560px; overflow:auto; }
+
+    .pill { font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; border:1px solid transparent; }
+    .pill.up { background:#fff7ed; color:#c2410c; border-color:#fed7aa; }
+    .pill.erp { background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe; }
+
+    .warn { margin-top:10px; padding:10px 12px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; line-height:1.6; }
+    .hint { font-size:12px; color:#64748b; margin-top:8px; line-height:1.6; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>상환내역</h1>
+      <p>수납관리 &gt; 상환내역</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+        <div class="split">
+
+          <div class="box">
+            <div class="box-head">채권 목록</div>
+            <div class="box-body">
+              <div class="search-row">
+                <input type="text" id="kw" placeholder="고객명 · 채권번호"
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();loadContracts();}">
+                <button class="btn-primary" onclick="loadContracts()">검색</button>
+              </div>
+              <div class="contract-list" id="contractList">
+                <div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="box">
+            <div class="box-head">
+              <span id="histTitle">상환내역 — 왼쪽에서 채권을 고르세요</span>
+              <span style="display:flex;gap:6px;">
+                <button class="btn-ghost" onclick="downloadTemplate()">양식 다운로드</button>
+                <button class="btn-excel" onclick="openUpload()">상환내역 업로드</button>
+              </span>
+            </div>
+
+            <div class="head-strip" id="headStrip" style="display:none;">
+              <div class="hs"><span class="hs-l">고객</span><span class="hs-v" id="hCustomer">-</span></div>
+              <div class="hs"><span class="hs-l">대출금</span><span class="hs-v" id="hLoan">-</span></div>
+              <div class="hs"><span class="hs-l">상환 원금 누계</span><span class="hs-v" id="hPaid">-</span></div>
+              <div class="hs"><span class="hs-l">미회수원금</span><span class="hs-v" id="hRemain">-</span></div>
+              <div class="hs"><span class="hs-l">받은 이자 누계</span><span class="hs-v" id="hInterest">-</span></div>
+            </div>
+
+            <div class="box-body">
+              <div id="balanceWarn" class="warn" style="display:none;"></div>
+
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:104px;">상환일자</th>
+                      <th style="width:78px;">구분</th>
+                      <th class="num" style="text-align:right;">원금</th>
+                      <th class="num" style="text-align:right;">이자</th>
+                      <th class="num" style="text-align:right;">합계</th>
+                      <th class="num" style="text-align:right;">상환후잔액</th>
+                      <th style="width:70px;">전표</th>
+                      <th>비고</th>
+                      <th style="width:60px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="histBody">
+                    <tr><td colspan="9" class="no-data">왼쪽 목록에서 채권을 고르면 상환내역이 표시됩니다.</td></tr>
+                  </tbody>
+                  <tfoot id="histFoot" style="display:none;">
+                    <tr>
+                      <td colspan="2">합계</td>
+                      <td class="num" id="sumPrincipal">0</td>
+                      <td class="num" id="sumInterest">0</td>
+                      <td class="num" id="sumTotal">0</td>
+                      <td colspan="4"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div class="hint">
+                <b>업로드</b>는 계약번호 기준이고 <b>원금·이자를 적힌 그대로</b> 반영합니다 —
+                지난 상환의 나눔은 이미 끝난 일이라 ERP 가 다시 계산하지 않습니다.
+                올린 내역은 수납과 같은 자리에 들어가므로 상환스케줄·수납현황·미회수원금에 바로 반영되고,
+                앞으로 ERP 에서 받는 수납과 한 줄로 이어집니다.
+                그 시기 전표는 전표 일괄업로드로 따로 올리므로 <b>여기서는 전표를 만들지 않습니다</b>.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/excel-upload.js"></script>
+  <script>
+    let contracts = [];
+    let rows = [];
+    let current = null;
+
+    function esc(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function el(id) { return document.getElementById(id); }
+
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    // ── 채권 목록 ───────────────────────────────────────────
+
+    async function loadContracts() {
+      const kw = el('kw').value.trim();
+      const box = el('contractList');
+      box.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;">불러오는 중…</div>';
+
+      contracts = await safeJson(
+        `${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(kw)}`, []);
+
+      if (!contracts.length) {
+        box.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;">채권이 없습니다.</div>';
+        return;
+      }
+      box.innerHTML = contracts.map((c, i) => `
+        <div class="contract-item" data-i="${i}" onclick="pick(${i})">
+          <div class="ci-no">${esc(c.contractNumber)}</div>
+          <div class="ci-name">${esc(c.customerName ?? '')}</div>
+          <div class="ci-amt">대출 ${won(c.loanAmount)} · 잔여 ${won(c.remainingPrincipal)}</div>
+        </div>`).join('');
+
+      if (current) {
+        const idx = contracts.findIndex(x => x.contractNumber === current.contractNumber);
+        if (idx >= 0) { current = contracts[idx]; markActive(idx); }
+      }
+    }
+
+    function markActive(i) {
+      document.querySelectorAll('.contract-item').forEach(x =>
+        x.classList.toggle('active', Number(x.dataset.i) === i));
+    }
+
+    async function pick(i) {
+      const c = contracts[i];
+      if (!c) return;
+      current = c;
+      markActive(i);
+
+      el('histTitle').textContent = `상환내역 — ${c.contractNumber} ${c.customerName ?? ''}`;
+      el('hCustomer').textContent = c.customerName ?? '-';
+      el('hLoan').textContent     = won(c.loanAmount);
+      el('hRemain').textContent   = won(c.remainingPrincipal);
+      el('headStrip').style.display = 'flex';
+
+      await loadHistory();
+    }
+
+    // ── 상환내역 ────────────────────────────────────────────
+
+    async function loadHistory() {
+      if (!current) return;
+      const body = el('histBody');
+      body.innerHTML = '<tr><td colspan="9" class="no-data">불러오는 중…</td></tr>';
+
+      rows = await safeJson(
+        `${API_BASE_URL}/api/payments/by-contract/${encodeURIComponent(current.contractNumber)}`, []);
+
+      // 오래된 순으로 보여준다 — 잔액이 줄어드는 흐름을 따라 읽는 쪽이 자연스럽다
+      rows.sort((a, b) => String(a.paymentDate ?? '').localeCompare(String(b.paymentDate ?? ''))
+                       || Number(a.id) - Number(b.id));
+
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="9" class="no-data">상환내역이 없습니다. 위의 <b>상환내역 업로드</b>로 지난 내역을 올리세요.</td></tr>';
+        el('histFoot').style.display = 'none';
+        el('balanceWarn').style.display = 'none';
+        el('hPaid').textContent = won(0);
+        el('hInterest').textContent = won(0);
+        return;
+      }
+
+      const loanAmount = Number(current.loanAmount || 0);
+      let runningPrincipal = 0;
+      let sumP = 0, sumI = 0;
+
+      body.innerHTML = rows.map(r => {
+        const uploaded = r.fixedPrincipal != null || r.fixedInterest != null;
+        const principal = Number(r.fixedPrincipal ?? 0);
+        const interest  = Number(r.fixedInterest ?? 0);
+        const total     = Number(r.paymentAmount ?? 0);
+
+        // 올린 건은 원금·이자가 적혀 있고, ERP 수납은 충당 결과가 회차에 흩어져 있다.
+        // 흩어진 것을 여기서 되살리지는 않고 합계만 보여준다 — 회차별 내역은 상환스케줄에서 본다.
+        if (uploaded) { runningPrincipal += principal; sumP += principal; sumI += interest; }
+
+        // 파일에 적어 올린 잔액이 있으면 그 값을 그대로 보여준다(올린 장부와 같아야 한다).
+        // 안 적었으면 대출금에서 그때까지의 상환원금을 뺀 값으로 채운다.
+        const balance = !uploaded ? null
+                      : (r.fixedBalance != null ? Number(r.fixedBalance) : loanAmount - runningPrincipal);
+
+        return `
+        <tr>
+          <td>${esc(r.paymentDate ?? '')}</td>
+          <td><span class="pill ${uploaded ? 'up' : 'erp'}">${uploaded ? '업로드' : 'ERP수납'}</span></td>
+          <td class="num">${uploaded ? num(principal) : '-'}</td>
+          <td class="num">${uploaded ? num(interest) : '-'}</td>
+          <td class="num"><b>${num(total)}</b></td>
+          <td class="num">${balance == null ? '-' : num(balance)}</td>
+          <td>${r.voucherId ? '있음' : '-'}</td>
+          <td>${esc(r.memo ?? '')}</td>
+          <td><button class="btn-row" onclick="removeRow(${r.id})">삭제</button></td>
+        </tr>`;
+      }).join('');
+
+      const sumTotal = rows.reduce((a, r) => a + Number(r.paymentAmount || 0), 0);
+      el('sumPrincipal').textContent = num(sumP);
+      el('sumInterest').textContent  = num(sumI);
+      el('sumTotal').textContent     = num(sumTotal);
+      el('histFoot').style.display   = '';
+
+      el('hPaid').textContent     = won(sumP);
+      el('hInterest').textContent = won(sumI);
+
+      checkBalance(loanAmount, sumP);
+    }
+
+    /**
+     * 올린 원금 합계로 계산한 잔액과 ERP 의 미회수원금이 다르면 알려 준다.
+     * ERP 수납이 섞여 있으면 원래 다를 수 있으므로 그때는 알리지 않는다.
+     */
+    function checkBalance(loanAmount, uploadedPrincipal) {
+      const box = el('balanceWarn');
+      const hasErpPayment = rows.some(r => r.fixedPrincipal == null && r.fixedInterest == null);
+      const expected = loanAmount - uploadedPrincipal;
+      const actual = Number(current.remainingPrincipal || 0);
+
+      if (hasErpPayment || expected === actual) { box.style.display = 'none'; return; }
+
+      box.innerHTML = `올린 상환내역으로 계산한 잔액은 <b>${won(expected)}</b> 인데 `
+                    + `ERP 의 미회수원금은 <b>${won(actual)}</b> 입니다. `
+                    + `파일의 원금이 빠졌거나 중복으로 올라간 건이 있는지 확인하세요.`;
+      box.style.display = 'block';
+    }
+
+    async function removeRow(id) {
+      const r = rows.find(x => Number(x.id) === Number(id));
+      if (!r) return;
+      if (!confirm(`${r.paymentDate} · ${won(r.paymentAmount)} 건을 지울까요?\n\n`
+                 + `미회수원금과 상환스케줄이 함께 다시 계산됩니다.`)) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/${id}`, {
+          method: 'DELETE', credentials: 'include'
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        await refresh();
+      } catch (e) {
+        alert('삭제하지 못했습니다.\n\n' + e.message);
+      }
+    }
+
+    // ── 업로드 ──────────────────────────────────────────────
+
+    function downloadTemplate() {
+      window.open(`${API_BASE_URL}/api/payments/repayment-history/template`, '_blank');
+    }
+
+    function openUpload() {
+      openExcelUploadModal({
+        title: '상환내역 엑셀 업로드 (계약번호 기준)',
+        templateUrl: '/api/payments/repayment-history/template',
+        previewUrl: '/api/payments/repayment-history/preview',
+        uploadUrl: '/api/payments/repayment-history',
+        onSuccess: () => refresh(),
+      });
+    }
+
+    /** 업로드·삭제 뒤에는 잔여원금도 바뀌므로 채권 정보부터 다시 읽는다. */
+    async function refresh() {
+      if (!current) { await loadContracts(); return; }
+      const cn = current.contractNumber;
+      const list = await safeJson(
+        `${API_BASE_URL}/api/accounting/lookup/contracts/search?kw=${encodeURIComponent(cn)}`, []);
+      const hit = list.find(x => x.contractNumber === cn);
+      if (hit) {
+        current = hit;
+        el('hRemain').textContent = won(hit.remainingPrincipal);
+      }
+      await loadHistory();
+      await loadContracts();
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+      await loadContracts();
+    })();
+  </script>
+</body>
+</html>

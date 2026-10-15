@@ -103,6 +103,9 @@ public class PaymentService {
         .applyDate(req.getApplyDate())
         .surplusPolicy(PaymentSurplusPolicy.of(req.getSurplusPolicy()).label())
         .paymentSource(PaymentSource.orDefault(req.getPaymentSource()))
+        .fixedPrincipal(req.getFixedPrincipal())
+        .fixedInterest(req.getFixedInterest())
+        .fixedBalance(req.getFixedBalance())
         .build());
 
     // 변제충당 반영 — 회차별 원금/이자/지연배상금 충당 실적을 다시 계산한다.
@@ -543,6 +546,9 @@ public class PaymentService {
         .applyDate(p.getApplyDate())
         .surplusPolicy(p.getSurplusPolicy())
         .paymentSource(p.getPaymentSource())
+        .fixedPrincipal(p.getFixedPrincipal())
+        .fixedInterest(p.getFixedInterest())
+        .fixedBalance(p.getFixedBalance())
         .build();
   }
 

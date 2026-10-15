@@ -89,11 +89,17 @@ public class RepaymentPostingService {
     //   이자가 줄면 같은 수납에서 원금으로 가는 몫이 늘어 원금이 또 줄어든다.
     // 그래서 '충당 → 이자 재계산'을 금액이 더 안 바뀔 때까지 되풀이한다.
     // 보통 두 번이면 멈춘다. 끝내 안 멈추면 마지막 결과를 쓰고 로그를 남긴다.
+    // 옮겨 적은 상환내역이 섞인 채권은 회차 이자를 다시 계산하지 않는다.
+    // 그 건들은 이자 금액이 이미 정해져 있어서, 회차 약정이자를 흔들면 올린
+    // 숫자와 스케줄이 서로를 밀어내며 수렴하지 않는다.
+    boolean anyFixed = payments.stream().anyMatch(Payment::hasFixedAllocation);
+
     NavigableMap<LocalDate, Long> timeline = new TreeMap<>();
     for (int pass = 1; pass <= MAX_INTEREST_PASSES; pass++) {
       timeline = new TreeMap<>();
       last = replay(c, schedules, payments, writeOffDate, contractNumber, timeline, focusPaymentId);
 
+      if (anyFixed) break;
       if (!recalcScheduledInterest(c, schedules, timeline)) break;
 
       if (pass == MAX_INTEREST_PASSES) {
@@ -130,10 +136,16 @@ public class RepaymentPostingService {
       LocalDate date = effectiveDateOf(p);
       boolean writeOffOrder = writeOffDate != null && !date.isBefore(writeOffDate);
 
-      long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
-      last = allocator.allocate(c, schedules, amount, date, availableCost, writeOffOrder,
-          AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
-          PaymentSurplusPolicy.of(p.getSurplusPolicy()));
+      if (p.hasFixedAllocation()) {
+        // 옮겨 적은 지난 상환내역 — 원금·이자가 이미 정해져 있다. 다시 계산하지 않는다.
+        last = allocator.allocateFixed(schedules,
+            nz(p.getFixedPrincipal()), nz(p.getFixedInterest()), date);
+      } else {
+        long availableCost = Math.max(0L, chargeableCostAsOf(contractNumber, date) - allocatedCost);
+        last = allocator.allocate(c, schedules, amount, date, availableCost, writeOffOrder,
+            AcceleratedRepaymentPolicy.REDUCE_PRINCIPAL,
+            PaymentSurplusPolicy.of(p.getSurplusPolicy()));
+      }
       allocatedCost += last.getCost();
       if (focusPaymentId != null && focusPaymentId.equals(p.getId())) focused = last;
 

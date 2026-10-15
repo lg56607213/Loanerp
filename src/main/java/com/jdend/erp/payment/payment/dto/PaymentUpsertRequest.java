@@ -29,4 +29,13 @@ public class PaymentUpsertRequest {
    * false           = 수납상태만 변경, 전표 미생성 (기존 데이터 컨버전용)
    */
   private Boolean createVoucher;
+
+  /**
+   * 지정 충당 — 원금·이자를 직접 적어 넣을 때만 쓴다(상환내역 업로드).
+   * 비워 두면 평소처럼 변제충당 순서대로 계산한다.
+   */
+  private Long fixedPrincipal;
+  private Long fixedInterest;
+  /** 파일에 적힌 상환 후 잔액. 대조용. */
+  private Long fixedBalance;
 }

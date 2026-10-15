@@ -73,6 +73,31 @@ public class Payment {
   @Column(name="voucher_id")
   private Long voucherId;
 
+  /**
+   * 지정 충당 — 원금.
+   *
+   * 지난 상환내역을 엑셀로 옮겨 적을 때 쓴다. 그때의 원금·이자 나눔은 이미
+   * 끝난 일이고 전표까지 그 금액으로 끊겨 있으므로, 다시 계산하면 장부와
+   * 어긋난다. 값이 있으면 충당을 계산하지 않고 이 금액 그대로 반영한다.
+   *
+   * ERP 에서 평소에 하는 수납은 비워 둔다 — 그건 변제충당 순서대로 계산한다.
+   */
+  @Column(name="fixed_principal")
+  private Long fixedPrincipal;
+
+  /** 지정 충당 — 이자 */
+  @Column(name="fixed_interest")
+  private Long fixedInterest;
+
+  /** 파일에 적혀 있던 상환 후 대출잔액. 대조용으로만 들고 있는다. */
+  @Column(name="fixed_balance")
+  private Long fixedBalance;
+
+  /** 원금·이자를 지정해 올린 건인가 */
+  public boolean hasFixedAllocation() {
+    return fixedPrincipal != null || fixedInterest != null;
+  }
+
   @CreationTimestamp
   @Column(name="created_at", updatable=false)
   private LocalDateTime createdAt;
