@@ -187,12 +187,14 @@
             <tr><td colspan="6" style="text-align:center;padding:14px;">조회중...</td></tr>
           </tbody>
         </table>
+        <div id="contractModalPager"></div>
       </div>
     </div>
   </div>
 
   <script src="../../assets/js/sidebar.js"></script>
   <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/modal-pager.js"></script>
   <script>
     function mustOk(res){
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -382,6 +384,31 @@
     const modalKw = document.getElementById('contractModalKw');
     const modalTbody = document.getElementById('contractModalTbody');
 
+    // 계약이 많으면 한 줄로 늘어놓아서는 찾을 수 없다 — 30건씩 끊는다(공통 modal-pager)
+    const modalPager = createModalPager({
+      tbody: modalTbody,
+      pager: document.getElementById('contractModalPager'),
+      colSpan: 6,
+      renderRow: (row) => {
+        const tr = document.createElement('tr');
+        tr.className = 'row-pick';
+        tr.innerHTML = `
+          <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
+          <td>${row.customerName ?? '-'}</td>
+          <td>${row.startDate ?? '-'}</td>
+          <td>${row.endDate ?? '-'}</td>
+          <td>${(row.monthlyPayment ?? 0).toLocaleString()} 원</td>
+          <td><button type="button" class="btn-small">선택</button></td>
+        `;
+        tr.addEventListener('click', async () => {
+          contractNoEl.value = row.contractNumber || '';
+          closeModal();
+          await loadContractInfo();
+        });
+        return tr;
+      }
+    });
+
     async function openModal(){
       modalBackdrop.style.display = 'flex';
       modalKw.value = '';
@@ -406,40 +433,14 @@
       const kw = modalKw.value.trim();
 
       try{
-        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색중...</td></tr>`;
+        modalPager.message('검색중...');
         const res = await fetch(`${API_BASE_URL}/api/contracts/search?kw=${encodeURIComponent(kw)}`);
         mustOk(res);
         const list = await res.json();
-
-        if(!list.length){
-          modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">검색 결과가 없습니다.</td></tr>`;
-          return;
-        }
-
-        modalTbody.innerHTML = '';
-        list.forEach(row => {
-          const tr = document.createElement('tr');
-          tr.className = 'row-pick';
-          tr.innerHTML = `
-            <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
-            <td>${row.customerName ?? '-'}</td>
-            <td>${row.startDate ?? '-'}</td>
-            <td>${row.endDate ?? '-'}</td>
-            <td>${(row.monthlyPayment ?? 0).toLocaleString()} 원</td>
-            <td><button type="button" class="btn-small">선택</button></td>
-          `;
-
-          tr.addEventListener('click', async () => {
-            contractNoEl.value = row.contractNumber || '';
-            closeModal();
-            await loadContractInfo();
-          });
-
-          modalTbody.appendChild(tr);
-        });
+        modalPager.show(list || []);
       }catch(e){
         console.error(e);
-        modalTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
+        modalPager.message(`조회 실패: ${e.message}`);
       }
     }
 

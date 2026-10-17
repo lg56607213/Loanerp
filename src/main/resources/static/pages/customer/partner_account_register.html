@@ -271,12 +271,14 @@
           </thead>
           <tbody id="partnerModalTbody"></tbody>
         </table>
+        <div id="partnerModalPager"></div>
       </div>
     </div>
   </div>
 
   <script src="../../assets/js/sidebar.js"></script>
   <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/modal-pager.js"></script>
   <script src="../../assets/js/html-escape.js"></script>
 
   <script>
@@ -523,14 +525,13 @@
       renderPartnerModalTable(allPartnersForModal);
     }
 
-    function renderPartnerModalTable(list) {
-      partnerModalTbody.innerHTML = "";
-      if (!list || list.length === 0) {
-        partnerModalTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:12px;">데이터 없음</td></tr>`;
-        return;
-      }
-
-      list.forEach(p => {
+    // 거래처가 많아지면 한 줄로 늘어놓아서는 찾을 수 없다 — 30건씩 끊는다(공통 modal-pager)
+    const partnerModalPager = createModalPager({
+      tbody: partnerModalTbody,
+      pager: document.getElementById("partnerModalPager"),
+      colSpan: 5,
+      emptyText: "데이터 없음",
+      renderRow: (p) => {
         const tr = document.createElement("tr");
         tr.className = "pick-row";
         tr.innerHTML = `
@@ -550,9 +551,12 @@
           partnerNameInput.value = p.customerName ?? "";
           closePartnerModal();
         });
+        return tr;
+      }
+    });
 
-        partnerModalTbody.appendChild(tr);
-      });
+    function renderPartnerModalTable(list) {
+      partnerModalPager.show(list || []);
     }
 
     function openPartnerModal() {

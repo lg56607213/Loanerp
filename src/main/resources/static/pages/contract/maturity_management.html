@@ -201,6 +201,7 @@
               <tr><td colspan="4" style="text-align:center; padding:14px;">검색어를 입력하고 검색하세요.</td></tr>
             </tbody>
           </table>
+          <div id="contractSearchPager"></div>
         </div>
 
         <div style="margin-top:10px;" class="muted" id="contractSearchCount"></div>
@@ -210,6 +211,7 @@
 
   <script src="../../assets/js/sidebar.js"></script>
   <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/modal-pager.js"></script>
   <script src="../../assets/js/html-escape.js"></script>
 
   <script>
@@ -390,18 +392,12 @@
       renderContractSearch(list || []);
     }
 
-    function renderContractSearch(list){
-      contractSearchBody.innerHTML = '';
-      contractSearchCount.textContent = '';
-
-      if(!list.length){
-        contractSearchBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:14px;">검색 결과가 없습니다.</td></tr>`;
-        return;
-      }
-
-      contractSearchCount.textContent = `총 ${list.length}건`;
-
-      list.forEach(c => {
+    // 한 번에 다 늘어놓으면 찾을 수 없다 — 30건씩 끊어 보여준다(공통 modal-pager)
+    const contractSearchPager = createModalPager({
+      tbody: contractSearchBody,
+      pager: document.getElementById('contractSearchPager'),
+      colSpan: 4,
+      renderRow: (c) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${escHtml(c.contractNumber || '-')}</td>
@@ -414,8 +410,13 @@
           applyOldContract(c);
           contractModal.style.display = 'none';
         });
-        contractSearchBody.appendChild(tr);
-      });
+        return tr;
+      }
+    });
+
+    function renderContractSearch(list){
+      contractSearchCount.textContent = (list && list.length) ? `총 ${list.length}건` : '';
+      contractSearchPager.show(list || []);
     }
 
     // 기존 계약 선택 적용
