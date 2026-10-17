@@ -25,6 +25,9 @@
     .modal{
       width:min(980px, 96vw); background:#fff; border-radius:12px; overflow:hidden;
       box-shadow:0 12px 30px rgba(0,0,0,.2);
+      /* 30건이 화면보다 길어지면 상자째로 잘려 쪽 버튼에 손이 닿지 않았다.
+         상자 높이를 화면 안으로 묶고, 길어지는 것은 표만 스크롤되게 한다. */
+      max-height:calc(100vh - 48px); display:flex; flex-direction:column;
     }
     .modal-header{
       display:flex; align-items:center; justify-content:space-between;
@@ -32,7 +35,8 @@
     }
     .modal-title{ font-size:16px; font-weight:700; }
     .modal-close{ border:none; background:transparent; font-size:22px; cursor:pointer; line-height:1; }
-    .modal-body{ padding:14px 16px; }
+    .modal-body{ padding:14px 16px; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+    .modal-table-wrap{ flex:1; min-height:0; overflow:auto; }
     .modal-search-row{ display:flex; gap:8px; margin-bottom:12px; }
     .modal-search-row input{
       flex:1; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
@@ -45,7 +49,16 @@
     .modal-table th, .modal-table td{
       border-bottom:1px solid #eee; padding:10px 8px; font-size:13px;
     }
-    .modal-table th{ background:#fafafa; text-align:left; }
+    .modal-table th{ background:#fafafa; text-align:left; position:sticky; top:0; z-index:1; }
+    .modal-pager{ display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap; }
+    .modal-pager .count{ font-size:12px; color:#64748b; margin-right:auto; }
+    .modal-pager button{
+      min-width:30px; height:28px; padding:0 8px; border:1px solid #d7d7d7;
+      background:#fff; border-radius:5px; font-size:12px; cursor:pointer;
+    }
+    .modal-pager button:hover:not(:disabled){ background:#f5f5f5; }
+    .modal-pager button.active{ background:#1a3c7a; border-color:#1a3c7a; color:#fff; font-weight:700; }
+    .modal-pager button:disabled{ color:#bbb; cursor:not-allowed; }
     .row-pick{ cursor:pointer; }
     .row-pick:hover{ background:#f7fbff; }
     .badge{
@@ -363,6 +376,7 @@
           <button type="button" id="btnContractModalSearch">검색</button>
         </div>
 
+        <div class="modal-table-wrap">
         <table class="modal-table">
           <thead>
             <tr>
@@ -378,6 +392,9 @@
             <tr><td colspan="7" style="text-align:center;padding:14px;">조회중...</td></tr>
           </tbody>
         </table>
+        </div>
+
+        <div class="modal-pager" id="contractModalPager"></div>
 
         <div class="muted" style="margin-top:10px;">
           * 상태가 종료/해지/상환/만기종료 등인 계약은 제외되고, 만기일이 지난 계약도 제외됩니다.
@@ -658,6 +675,7 @@
     const modalBackdrop = document.getElementById('contractModalBackdrop');
     const modalKw = document.getElementById('contractModalKw');
     const modalTbody = document.getElementById('contractModalTbody');
+    const modalPager = document.getElementById('contractModalPager');
 
     async function openContractModal() {
       modalBackdrop.style.display = 'flex';
@@ -678,49 +696,108 @@
       if (e.target === modalBackdrop) closeContractModal();
     });
 
+    // 계약이 수백 건이면 한 번에 늘어놓아서는 찾을 수 없다. 30건씩 끊어 보여준다.
+    const MODAL_PAGE_SIZE = 30;
+    let modalRows = [];
+    let modalPage = 1;
+
     async function searchPayableContracts() {
       const kw = modalKw.value.trim();
 
       try {
         modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">검색중...</td></tr>`;
+        modalPager.innerHTML = '';
 
         const res = await fetch(`${API_BASE_URL}/api/contracts/payable-search?kw=${encodeURIComponent(kw)}`);
         await mustOk(res);
-        const list = await res.json();
+        modalRows = await res.json();
 
-        if (!list.length) {
+        if (!modalRows.length) {
           modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">수납 가능한 계약이 없습니다.</td></tr>`;
           return;
         }
 
-        modalTbody.innerHTML = '';
-
-        list.forEach(row => {
-          const tr = document.createElement('tr');
-          tr.className = 'row-pick';
-          tr.innerHTML = `
-            <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
-            <td>${row.customerName ?? '-'}</td>
-            <td>${row.startDate ?? '-'}</td>
-            <td>${row.endDate ?? '-'}</td>
-            <td>${won(row.monthlyPayment)}</td>
-            <td><button type="button" class="btn-small">선택</button></td>
-          `;
-
-          tr.addEventListener('click', async () => {
-            document.getElementById('contractNumber').value = row.contractNumber || '';
-            closeContractModal();
-            await searchContract();
-          });
-
-          modalTbody.appendChild(tr);
-        });
+        renderModalPage(1);
 
       } catch (e) {
         console.error(e);
+        modalRows = [];
         modalTbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:14px;">조회 실패: ${e.message}</td></tr>`;
       }
     }
+
+    function renderModalPage(page) {
+      const total = modalRows.length;
+      const lastPage = Math.max(1, Math.ceil(total / MODAL_PAGE_SIZE));
+      modalPage = Math.min(Math.max(1, page), lastPage);
+
+      const start = (modalPage - 1) * MODAL_PAGE_SIZE;
+      const rows = modalRows.slice(start, start + MODAL_PAGE_SIZE);
+
+      modalTbody.innerHTML = '';
+      rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.className = 'row-pick';
+        tr.innerHTML = `
+          <td><span class="badge">${row.contractNumber ?? '-'}</span></td>
+          <td>${row.customerName ?? '-'}</td>
+          <td>${row.startDate ?? '-'}</td>
+          <td>${row.endDate ?? '-'}</td>
+          <td>${won(row.monthlyPayment)}</td>
+          <td><button type="button" class="btn-small">선택</button></td>
+        `;
+
+        tr.addEventListener('click', async () => {
+          document.getElementById('contractNumber').value = row.contractNumber || '';
+          closeContractModal();
+          await searchContract();
+        });
+
+        modalTbody.appendChild(tr);
+      });
+
+      renderModalPager(total, lastPage, start, rows.length);
+
+      // 쪽을 넘겼는데 가운데부터 보이면 어디로 간 것인지 알 수 없다
+      const wrap = document.querySelector('.modal-table-wrap');
+      if (wrap) wrap.scrollTop = 0;
+    }
+
+    /**
+     * 쪽 번호 — 현재 쪽 둘레 다섯 개만 보여준다.
+     * 계약이 많아져 쪽이 수십 개가 되어도 줄이 넘치지 않게 한다.
+     */
+    function renderModalPager(total, lastPage, start, shown) {
+      if (lastPage <= 1) {
+        modalPager.innerHTML = `<span class="count">총 ${total}건</span>`;
+        return;
+      }
+
+      const from = start + 1;
+      const to = start + shown;
+      const dots = `<span class="count">...</span>`;
+
+      let html = `<span class="count">총 ${total}건 중 ${from}~${to}</span>`;
+      html += `<button type="button" data-page="${modalPage - 1}" ${modalPage === 1 ? 'disabled' : ''}>이전</button>`;
+
+      const first = Math.max(1, modalPage - 2);
+      const last = Math.min(lastPage, first + 4);
+      if (first > 1) html += `<button type="button" data-page="1">1</button>`;
+      if (first > 2) html += dots;
+      for (let i = first; i <= last; i++) {
+        html += `<button type="button" data-page="${i}" class="${i === modalPage ? 'active' : ''}">${i}</button>`;
+      }
+      if (last < lastPage - 1) html += dots;
+      if (last < lastPage) html += `<button type="button" data-page="${lastPage}">${lastPage}</button>`;
+
+      html += `<button type="button" data-page="${modalPage + 1}" ${modalPage === lastPage ? 'disabled' : ''}>다음</button>`;
+      modalPager.innerHTML = html;
+    }
+
+    modalPager.addEventListener('click', (e) => {
+      const p = e.target.getAttribute && e.target.getAttribute('data-page');
+      if (p) renderModalPage(Number(p));
+    });
 
     document.getElementById('btnContractModalSearch').addEventListener('click', searchPayableContracts);
 
