@@ -30,11 +30,28 @@ public class TenantSchemaUpdateRunner implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        List<String> tenantDbs = jdbcTemplate.queryForList(
+        List<String> tenantDbs = new java.util.ArrayList<>(jdbcTemplate.queryForList(
             "SELECT schema_name FROM information_schema.schemata " +
             "WHERE schema_name LIKE 'loan_company_%' ORDER BY schema_name",
             String.class
-        );
+        ));
+
+        // 템플릿 DB 도 함께 갱신한다.
+        //
+        // 회사를 새로 만들면 그 DB 는 템플릿을 복사해 만들어진다(TenantDatabaseService).
+        // 템플릿은 loan_company_ 로 시작하지 않아 지금까지 이 갱신에서 빠져 있었고,
+        // 그래서 템플릿이 낡은 채로 남아 새로 만든 회사가 구버전 스키마를 물려받았다.
+        // 실제로 새로 만든 회사에서 대출 등록이 'Unknown column execute_account' 로
+        // 전부 실패했다. 템플릿을 먼저 맞춰 두면 다음에 만드는 회사는 처음부터 맞다.
+        String templateDb = properties.getTemplateDb();
+        if (templateDb != null && !templateDb.isBlank() && !tenantDbs.contains(templateDb)) {
+            Integer exists = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = ?",
+                Integer.class, templateDb);
+            if (exists != null && exists > 0) {
+                tenantDbs.add(0, templateDb);
+            }
+        }
 
         if (tenantDbs.isEmpty()) {
             log.info("[TenantSchemaUpdate] 테넌트 DB 없음, 스킵");
