@@ -125,6 +125,16 @@ public class ContractQueryController {
     if (stored != null && ContractStatus.STORED.contains(stored)) {
       return stored;
     }
+
+    // 미회수원금이 0 이면 다 갚은 채권이다 — 만기가 남았어도 종료로 본다.
+    //
+    // 중도에 몰아서 갚은 채권이 만기까지 '정상'으로 남아 있으면, 받을 돈이 없는데도
+    // 채권현황의 정상 건수에 섞여 실제로 관리할 채권이 몇 건인지 알 수 없게 된다.
+    // 이관한 데이터에는 완제된 옛 채권이 많아 특히 그렇다.
+    if (row.getRemainingPrincipal() != null && row.getRemainingPrincipal() <= 0L) {
+      return ContractStatus.CLOSED;
+    }
+
     // 만기가 지났는데 미납이 없으면 종료로 본다.
     boolean overdue = overdueNumbers.contains(row.getContractNumber());
     if (!overdue && row.getContractEnd() != null && row.getContractEnd().isBefore(today)) {
