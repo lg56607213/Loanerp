@@ -508,7 +508,15 @@ public class ContractService {
             && !req.getPaymentDayType().equals(PaymentDayType.orDefault(c.getPaymentDayType())))
         || (isNotBlank(req.getInterestCalcType())
             && !req.getInterestCalcType().equals(InterestCalcType.orDefault(c.getInterestCalcType())))
-        || (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount()));
+        || (req.getInstallmentCount() != null && !req.getInstallmentCount().equals(c.getInstallmentCount()))
+        // 단수 설정도 회차 금액을 바꾼다.
+        //
+        // 백원단위로 끊기로 하면 회차 청구액이 111,491 에서 111,500 으로 달라진다.
+        // 이게 빠져 있어서 계약의 월납입액만 바뀌고 스케줄은 옛 금액으로 남았다.
+        // 그러면 청구액과 월납입액이 서로 다른 말을 하게 된다.
+        || (req.getRoundingUnit() != null && !req.getRoundingUnit().equals(c.getRoundingUnit()))
+        || (isNotBlank(req.getRoundingMode()) && !req.getRoundingMode().equals(c.getRoundingMode()))
+        || (req.getMonthlyPayment() != null && !req.getMonthlyPayment().equals(c.getMonthlyPayment()));
   }
 
   private void validateRequired(ContractRequest req) {

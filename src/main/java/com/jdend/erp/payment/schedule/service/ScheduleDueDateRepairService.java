@@ -43,6 +43,7 @@ public class ScheduleDueDateRepairService {
    */
   @Transactional
   public Map<String, Integer> repair(boolean dryRun) {
+    // 점검(dryRun)은 읽기만 한다 — 아래에서 엔티티를 건드리지 않는다.
     Map<String, Integer> changed = new LinkedHashMap<>();
 
     for (Contract c : contractRepo.findAll()) {
@@ -58,6 +59,7 @@ public class ScheduleDueDateRepairService {
           ? c.getPaymentDay() : start.getDayOfMonth();
 
       List<PaymentSchedule> dirty = new ArrayList<>();
+      int wrong = 0;
       for (PaymentSchedule ps : rows) {
         Integer no = ps.getInstallmentNo();
         if (no == null || no <= 0) continue;
@@ -65,14 +67,22 @@ public class ScheduleDueDateRepairService {
         LocalDate dueMonth = start.plusMonths(no);
         LocalDate due = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
 
-        if (!due.equals(ps.getPaymentDate())) {
+        if (due.equals(ps.getPaymentDate())) continue;
+        wrong++;
+
+        // 점검만 할 때는 손대지 않는다.
+        //
+        // 영속 상태의 엔티티는 값을 바꾸는 순간 트랜잭션이 끝날 때 그대로 저장된다.
+        // saveAll 을 부르지 않아도 마찬가지다. 그래서 '보기만 하겠다'고 부른 호출이
+        // 실제로 데이터를 바꿔 버렸다. 바꾸는 것은 고칠 때만 한다.
+        if (!dryRun) {
           ps.setPaymentDate(due);
           dirty.add(ps);
         }
       }
 
-      if (!dirty.isEmpty()) {
-        changed.put(c.getContractNumber(), dirty.size());
+      if (wrong > 0) {
+        changed.put(c.getContractNumber(), wrong);
         if (!dryRun) scheduleRepo.saveAll(dirty);
       }
     }
