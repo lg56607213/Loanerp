@@ -110,6 +110,7 @@
             <div class="hs"><span class="hs-l">상환 원금 누계</span><span class="hs-v" id="hPaid">-</span></div>
             <div class="hs"><span class="hs-l">미회수원금</span><span class="hs-v" id="hRemain">-</span></div>
             <div class="hs"><span class="hs-l">받은 이자 누계</span><span class="hs-v" id="hInterest">-</span></div>
+            <div class="hs"><span class="hs-l">미납(원금+이자)</span><span class="hs-v" id="hUnpaid">-</span></div>
           </div>
         </div>
 
@@ -363,6 +364,12 @@
 
       el('hPaid').textContent     = won(sumP);
       el('hInterest').textContent = won(sumI);
+
+      // 미회수원금은 '원금 잔액'이고, 실제로 덜 받은 돈은 이자까지 더해야 한다.
+      // 둘을 나란히 보여주지 않으면 "2회차가 밀렸는데 왜 16만원뿐이냐" 가 된다.
+      const dueTotal  = schedule.reduce((a, s) => a + Number(s.rent || 0), 0);
+      const unpaidAll = Math.max(0, dueTotal - scans.reduce((a, r) => a + Number(r.paymentAmount || 0), 0));
+      el('hUnpaid').textContent = schedule.length ? won(unpaidAll) : '-';
 
       checkBalance(loanAmount, sumP);
     }

@@ -123,7 +123,6 @@ public class PaymentService {
     }
 
     // BUG-10: 수납 등록 후 납기일 이전(포함) 미납 미수금 상태 업데이트
-    updateReceivableStatus(saved.getContractNumber(), saved.getPaymentAmount(), paymentDate);
 
     // 선수금으로 낸 수납이면 그만큼 선수금을 깎는다.
     if (PaymentSource.isPrepaid(saved.getPaymentSource()) && saved.getContractId() != null) {
@@ -172,7 +171,6 @@ public class PaymentService {
     prepaidRentService.deleteByPaymentReference(p.getContractId(), id);
 
     // BUG-03: 수정 전 미수금 상태 복구
-    restoreReceivableStatus(p.getContractNumber(), p.getPaymentAmount());
 
     // BUG-03: 기존 연결 전표 삭제
     if (p.getVoucherId() != null) {
@@ -230,7 +228,6 @@ public class PaymentService {
     paymentRepo.save(p);
 
     // 수정 후 새 금액으로 납기일 이전(포함) 미수금 상태 재적용
-    updateReceivableStatus(p.getContractNumber(), req.getPaymentAmount(), updatedPaymentDate);
 
     // 초과금액 → 선수금 자동 등록 (create 와 동일)
     if (PaymentSource.isPrepaid(p.getPaymentSource()) && p.getContractId() != null) {
@@ -264,7 +261,6 @@ public class PaymentService {
     }
 
     // BUG-03: 삭제 시 미수금 상태 복구
-    restoreReceivableStatus(p.getContractNumber(), p.getPaymentAmount());
 
     // 자동 등록된 선수금 레코드 삭제
     prepaidRentService.deleteByPaymentReference(p.getContractId(), id);
@@ -456,53 +452,21 @@ public class PaymentService {
     return Math.max(0L, totalDue - alreadyPaid);
   }
 
-  /**
-   * 수납 등록 시 납기일 이전(포함) 미납 스케줄을 납부 처리한다.
-   * PaymentSchedules.paymentDate = 수납일자 로 업데이트.
-   * 초과분은 선수금으로 별도 처리되므로 미래 스케줄은 건드리지 않는다.
+  /*
+   * 예전에는 수납할 때 PaymentSchedule.paymentDate 를 입금일로 바꿔 '납부 완료' 표시로 썼다.
+   * 그런데 그 칸은 표시용이 아니라 <b>납입예정일</b>이다 — 변제충당과 연체 판정이
+   * 모두 그 날짜를 기준으로 삼는다.
+   *
+   * 그래서 수납이 들어올 때마다 예정일이 실제 입금일로 바뀌었다. 결과는
+   *   · 상환내역에서 예정일과 상환일이 늘 같아 보여 지연이 드러나지 않고
+   *   · 연체일수가 입금일 기준으로 다시 계산돼 연체가 숨거나 어긋나고
+   *   · 수납을 지우면 예정일이 null 이 되어 그 회차가 연체 판정에서 아예 빠졌다
+   *     (최양진 채권에서 36회차 중 4회차의 예정일이 비어 있었다).
+   *
+   * 납부 여부는 이미 회차별 충당 실적(paidPrincipal·paidInterest·lineStatus)이
+   * 들고 있다. 같은 사실을 두 군데 적을 이유가 없으므로 이 처리를 없앴다.
    */
-  private void updateReceivableStatus(String contractNumber, Long paymentAmount, LocalDate asOfDate) {
-    if (contractNumber == null || contractNumber.isBlank()) return;
-    if (paymentAmount == null || paymentAmount <= 0) return;
 
-    List<PaymentSchedule> unpaid =
-        paymentScheduleRepo.findUnpaidByContractNumberAndDateLTE(contractNumber, asOfDate);
-    if (unpaid.isEmpty()) return;
-
-    long remaining = paymentAmount;
-    for (PaymentSchedule ps : unpaid) {
-      long amt = ps.getRentAmount() == null ? 0L : ps.getRentAmount();
-      if (remaining >= amt) {
-        ps.setPaymentDate(asOfDate);
-        paymentScheduleRepo.save(ps);
-        remaining -= amt;
-      } else {
-        break;
-      }
-    }
-  }
-
-  /** 수납 삭제/수정 시 납부 처리된 스케줄을 역순으로 미납(paymentDate = null)으로 되돌린다. */
-  private void restoreReceivableStatus(String contractNumber, Long paymentAmount) {
-    if (contractNumber == null || contractNumber.isBlank()) return;
-    if (paymentAmount == null || paymentAmount <= 0) return;
-
-    List<PaymentSchedule> paid =
-        paymentScheduleRepo.findPaidByContractNumberOrderByDateDesc(contractNumber);
-    if (paid.isEmpty()) return;
-
-    long toReverse = paymentAmount;
-    for (PaymentSchedule ps : paid) {
-      long amt = ps.getRentAmount() == null ? 0L : ps.getRentAmount();
-      if (toReverse >= amt) {
-        ps.setPaymentDate(null);
-        paymentScheduleRepo.save(ps);
-        toReverse -= amt;
-      } else {
-        break;
-      }
-    }
-  }
 
   private String nextVoucherNo(LocalDate date) {
     return voucherNumberService.next(date);
