@@ -177,9 +177,24 @@ public class PaymentScheduleAutoGeneratorService {
     long remaining = principal;
     LocalDate billStart = start;
 
+    // 첫 회차는 '실행일 이후 처음 오는 납입일'이다.
+    //
+    // 전에는 실행일에서 한 달 뒤를 첫 회차로 잡았다. 그런데 실제로는 돈을 내준
+    // 그 달의 납입일부터 받는다 — 11월 16일에 실행하고 11월 25일에 첫 납입을
+    // 받는 식이다. 한 달을 더 얹어 두니 모든 회차가 실제보다 한 달 늦게 도래해
+    // 연체가 느슨하게 잡히고 만기도 한 달 밀렸다(94건 중 30건이 그랬다).
+    //
+    // 납입일이 실행일보다 앞서면(28일 실행 / 25일 납입) 그 달은 건너뛰고
+    // 다음 달 납입일을 첫 회차로 삼는다.
+    LocalDate firstDue = lastDay ? lastDayOf(start) : withDaySafe(start, payDay);
+    if (firstDue.isBefore(start)) {
+      LocalDate next = start.plusMonths(1);
+      firstDue = lastDay ? lastDayOf(next) : withDaySafe(next, payDay);
+    }
+
     for (int i = 1; i <= installments; i++) {
       LocalDate billEnd = billStart.plusMonths(1).minusDays(1);
-      LocalDate dueMonth = start.plusMonths(i);
+      LocalDate dueMonth = firstDue.plusMonths(i - 1);
       LocalDate dueDate = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
 
       // 이자도 같은 단위로 끊는다. 이자만 1원 단위로 두면 원금+이자 합계가

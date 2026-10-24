@@ -58,13 +58,20 @@ public class ScheduleDueDateRepairService {
       int payDay = (c.getPaymentDay() != null && c.getPaymentDay() > 0)
           ? c.getPaymentDay() : start.getDayOfMonth();
 
+      // 첫 회차는 실행일 이후 처음 오는 납입일 — 스케줄을 만들 때와 같은 규칙이다.
+      LocalDate firstDue = lastDay ? lastDayOf(start) : withDaySafe(start, payDay);
+      if (firstDue.isBefore(start)) {
+        LocalDate next = start.plusMonths(1);
+        firstDue = lastDay ? lastDayOf(next) : withDaySafe(next, payDay);
+      }
+
       List<PaymentSchedule> dirty = new ArrayList<>();
       int wrong = 0;
       for (PaymentSchedule ps : rows) {
         Integer no = ps.getInstallmentNo();
         if (no == null || no <= 0) continue;
 
-        LocalDate dueMonth = start.plusMonths(no);
+        LocalDate dueMonth = firstDue.plusMonths(no - 1);
         LocalDate due = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
 
         if (due.equals(ps.getPaymentDate())) continue;
