@@ -129,26 +129,28 @@
               <table>
                 <thead>
                   <tr>
-                    <th style="width:100px;">상환일자</th>
-                    <th style="width:78px;">구분</th>
-                    <th class="num" style="width:104px;">원금</th>
+                    <th style="width:48px;">회차</th>
+                    <th style="width:100px;">상환예정일</th>
+                    <th style="width:100px;">상환일</th>
+                    <th style="width:62px;">지연</th>
+                    <th class="num" style="width:104px;">상환금액</th>
                     <th class="num" style="width:96px;">이자</th>
-                    <th class="num" style="width:104px;">합계</th>
-                    <th class="num" style="width:110px;">상환후잔액</th>
+                    <th class="num" style="width:104px;">원금</th>
+                    <th class="num" style="width:112px;">미회수원금</th>
                     <th style="width:56px;">전표</th>
                     <th>비고</th>
                     <th style="width:56px;"></th>
                   </tr>
                 </thead>
                 <tbody id="histBody">
-                  <tr><td colspan="9" class="no-data">위에서 채권을 고르면 상환내역이 표시됩니다.</td></tr>
+                  <tr><td colspan="11" class="no-data">위에서 채권을 고르면 상환내역이 표시됩니다.</td></tr>
                 </tbody>
                 <tfoot id="histFoot" style="display:none;">
                   <tr>
-                    <td colspan="2">합계</td>
-                    <td class="num" id="sumPrincipal">0</td>
-                    <td class="num" id="sumInterest">0</td>
+                    <td colspan="4">합계</td>
                     <td class="num" id="sumTotal">0</td>
+                    <td class="num" id="sumInterest">0</td>
+                    <td class="num" id="sumPrincipal">0</td>
                     <td colspan="4"></td>
                   </tr>
                 </tfoot>
@@ -175,6 +177,7 @@
   <script>
     let contracts = [];
     let scans = [];      // 상환내역 줄
+    let schedule = [];   // 상환스케줄 — 회차·상환예정일을 붙이는 데 쓴다
     let current = null;
     let pickPager = null;
 
@@ -185,6 +188,36 @@
     function num(v) { return Number(v || 0).toLocaleString(); }
     function won(v) { return Number(v || 0).toLocaleString() + '원'; }
     function el(id) { return document.getElementById(id); }
+
+    function dayDiff(from, to) {
+      if (!from || !to) return null;
+      return Math.round((new Date(to) - new Date(from)) / 86400000);
+    }
+
+    /**
+     * 이 상환일이 어느 회차를 낸 것인지 — 납입예정일이 가장 가까운 회차로 본다.
+     *
+     * 실제로는 예정일 하루이틀 뒤에 들어오고, 한 회차를 두 번에 나눠 내기도 한다.
+     * 날짜가 가장 가까운 회차에 붙이면 사람이 보기에 어긋나지 않는다.
+     */
+    function dueFor(payDate) {
+      if (!payDate || !schedule.length) return null;
+      let best = null, bestGap = Infinity;
+      for (const s of schedule) {
+        if (!s.payDate) continue;
+        const gap = Math.abs(dayDiff(s.payDate, payDate));
+        if (gap < bestGap) { bestGap = gap; best = s; }
+      }
+      return best;
+    }
+
+    /** 예정일보다 며칠 늦었는지 — 당일·선납은 '-' 로 둔다. */
+    function lateBadge(days) {
+      if (days == null) return '-';
+      if (days <= 0) return '<span style="color:#15803d;">정시</span>';
+      const color = days >= 30 ? '#b91c1c' : (days >= 7 ? '#c2410c' : '#64748b');
+      return `<span style="color:${color};">+${days}일</span>`;
+    }
 
     async function safeJson(url, fallback) {
       try {
@@ -267,17 +300,21 @@
     async function loadHistory() {
       if (!current) return;
       const body = el('histBody');
-      body.innerHTML = '<tr><td colspan="9" class="no-data">불러오는 중…</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="no-data">불러오는 중…</td></tr>';
 
-      scans = await safeJson(
-        `${API_BASE_URL}/api/payments/by-contract/${encodeURIComponent(current.contractNumber)}`, []);
+      const [paid, sched] = await Promise.all([
+        safeJson(`${API_BASE_URL}/api/payments/by-contract/${encodeURIComponent(current.contractNumber)}`, []),
+        safeJson(`${API_BASE_URL}/api/schedules/by-contract-number?contractNumber=${encodeURIComponent(current.contractNumber)}`, null),
+      ]);
+      scans = paid;
+      schedule = (sched && sched.schedule) || [];
 
       // 오래된 순 — 잔액이 줄어드는 흐름을 따라 읽는 쪽이 자연스럽다
       scans.sort((a, b) => String(a.paymentDate ?? '').localeCompare(String(b.paymentDate ?? ''))
                         || Number(a.id) - Number(b.id));
 
       if (!scans.length) {
-        body.innerHTML = '<tr><td colspan="9" class="no-data">상환내역이 없습니다.</td></tr>';
+        body.innerHTML = '<tr><td colspan="11" class="no-data">상환내역이 없습니다.</td></tr>';
         el('histFoot').style.display = 'none';
         el('balanceWarn').style.display = 'none';
         el('hPaid').textContent = won(0);
@@ -300,13 +337,18 @@
         const balance = !uploaded ? null
                       : (r.fixedBalance != null ? Number(r.fixedBalance) : loanAmount - running);
 
+        const due = dueFor(r.paymentDate);
+        const late = due ? dayDiff(due.payDate, r.paymentDate) : null;
+
         return `
         <tr>
+          <td>${due ? due.no : '-'}</td>
+          <td>${due ? esc(due.payDate) : '-'}</td>
           <td>${esc(r.paymentDate ?? '')}</td>
-          <td><span class="pill ${uploaded ? 'up' : 'erp'}">${uploaded ? '업로드' : 'ERP수납'}</span></td>
-          <td class="num">${uploaded ? num(principal) : '-'}</td>
-          <td class="num">${uploaded ? num(interest) : '-'}</td>
+          <td>${lateBadge(late)}</td>
           <td class="num"><b>${num(total)}</b></td>
+          <td class="num">${uploaded ? num(interest) : '-'}</td>
+          <td class="num">${uploaded ? num(principal) : '-'}</td>
           <td class="num">${balance == null ? '-' : num(balance)}</td>
           <td>${r.voucherId ? '있음' : '-'}</td>
           <td>${esc(r.memo ?? '')}</td>
