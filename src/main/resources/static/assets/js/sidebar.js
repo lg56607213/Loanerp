@@ -82,6 +82,7 @@ function loadSidebar() {
                 <ul>
                   <li><a href="${basePath}pages/payment/contract_overview_total.html">종합관리</a></li>
                   <li><a href="${basePath}pages/payment/payment_register.html">수납등록</a></li>
+                  <li><a href="${basePath}pages/payment/customer_bulk_payment.html">일괄수납</a></li>
                   <li><a href="${basePath}pages/payment/payment_cancel.html">수납취소</a></li>
                   <li><a href="${basePath}pages/payment/schedule_by_contract.html">상환스케줄</a></li>
                   <li><a href="${basePath}pages/payment/repayment_history.html">상환내역</a></li>

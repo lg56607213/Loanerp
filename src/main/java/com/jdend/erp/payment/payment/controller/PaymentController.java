@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpSession;
 import com.jdend.erp.common.excel.ExcelUploadResultResponse;
 import com.jdend.erp.payment.payment.service.PaymentBulkUploadService;
 import com.jdend.erp.payment.payment.service.RepaymentHistoryUploadService;
+import com.jdend.erp.payment.payment.service.CustomerBulkPaymentService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +27,7 @@ public class PaymentController {
   private final PaymentService service;
   private final PaymentBulkUploadService bulkUploadService;
   private final RepaymentHistoryUploadService repaymentHistoryUploadService;
+  private final CustomerBulkPaymentService customerBulkPaymentService;
   private final PermissionService permissionService;
 
   @GetMapping
@@ -86,6 +88,19 @@ public class PaymentController {
       @RequestParam(required = false, defaultValue = "false") boolean dryRun
   ) {
     return bulkUploadService.upload(file, createVoucher, dryRun);
+  }
+
+  // ── 일괄수납 (고객 단위로 받아 채권에 나눈다) ──────────────
+
+  /** 저장하지 않고 어느 채권에 얼마가 들어가는지만 본다. */
+  @PostMapping("/customer-bulk/preview")
+  public CustomerBulkPaymentResponse customerBulkPreview(@RequestBody CustomerBulkPaymentRequest req) {
+    return customerBulkPaymentService.preview(req);
+  }
+
+  @PostMapping("/customer-bulk")
+  public CustomerBulkPaymentResponse customerBulk(@RequestBody CustomerBulkPaymentRequest req) {
+    return customerBulkPaymentService.apply(req);
   }
 
   // ── 상환내역 (원금·이자를 적힌 그대로 올린다) ──────────────

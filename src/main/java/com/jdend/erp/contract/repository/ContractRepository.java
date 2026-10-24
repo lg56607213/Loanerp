@@ -23,6 +23,9 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
 
   Optional<Contract> findByContractNumber(String contractNumber);
 
+  /** 한 고객의 채권 전부. 일괄수납이 고객 단위로 나눌 때 쓴다. */
+  List<Contract> findByCustomerNumberOrderByIdAsc(String customerNumber);
+
   @Query("""
     select c
     from Contract c

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>일괄수납 | Loan ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .box { border:1px solid #e3e8ef; border-radius:10px; background:#fff; overflow:hidden; margin-bottom:14px; }
+    .box-head { background:#f8fafc; padding:10px 14px; font-size:14px; font-weight:800; color:#1a3c7a;
+                border-bottom:1px solid #e3e8ef; display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+    .box-body { padding:12px 14px; }
+
+    .search-row { display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .search-row input { flex:1; min-width:180px; height:34px; padding:0 10px; border:1px solid #ccc; border-radius:5px; font-size:13px; }
+
+    .entry-row { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; }
+    .fg { display:flex; flex-direction:column; gap:4px; }
+    .fg label { font-size:12px; font-weight:600; color:#444; }
+    .fg input, .fg select { height:34px; padding:0 9px; border:1px solid #ccc; border-radius:5px; font-size:13px; width:100%; background:#fff; }
+    .fg input.amount { text-align:right; font-variant-numeric:tabular-nums; font-weight:700; }
+
+    .btn-primary { height:34px; padding:0 14px; background:#1a73e8; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-primary:hover { background:#1557b0; }
+    .btn-add { height:34px; padding:0 16px; background:#15803d; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:700; font-size:13px; }
+    .btn-add:hover { background:#166534; }
+    .btn-add:disabled { background:#bbb; cursor:not-allowed; }
+    .btn-ghost { height:30px; padding:0 12px; background:#fff; color:#334155; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer; font-weight:700; font-size:12px; }
+    .btn-row { padding:3px 9px; background:#fff; color:#1a73e8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer; font-size:12px; font-weight:700; }
+
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; padding:8px 9px; font-size:13px; text-align:left; white-space:nowrap; }
+    th { background:#f8fafc; font-weight:700; position:sticky; top:0; z-index:1; }
+    td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+    td.no-data { text-align:center; color:#aaa; padding:34px; }
+    tfoot td { background:#f8fafc; font-weight:800; border-top:2px solid #cbd5e1; }
+    .table-wrap { overflow:auto; max-height:300px; }
+    tr.pick-row { cursor:pointer; }
+    tr.pick-row:hover td { background:#f1f5f9; }
+
+    .head-strip { display:flex; flex-wrap:wrap; gap:12px 22px; padding:12px 14px; background:#1a3c7a; color:#fff; }
+    .hs { display:flex; flex-direction:column; gap:2px; }
+    .hs-l { font-size:11px; color:#c7d7f0; }
+    .hs-v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+    .rule { margin-top:10px; font-size:12px; color:#64748b; line-height:1.7; }
+    .rule b { color:#1a3c7a; }
+    .excess { margin-top:10px; padding:10px 12px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>일괄수납</h1>
+      <p>수납관리 &gt; 일괄수납</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="box">
+          <div class="box-head">
+            <span>고객 선택</span>
+            <span style="display:flex;gap:6px;align-items:center;">
+              <span id="pickedNote" style="font-size:12px;color:#475569;"></span>
+              <button class="btn-ghost" id="btnTogglePick" onclick="togglePick()">목록 접기</button>
+            </span>
+          </div>
+          <div class="box-body" id="pickBody">
+            <div class="search-row">
+              <input type="text" id="kw" placeholder="고객명 · 고객번호"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();loadCustomers();}">
+              <button class="btn-primary" onclick="loadCustomers()">검색</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:110px;">고객번호</th>
+                    <th>고객명</th>
+                    <th style="width:80px;">구분</th>
+                    <th style="width:60px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="custRows"><tr><td colspan="4" class="no-data">불러오는 중…</td></tr></tbody>
+              </table>
+            </div>
+            <div id="custPager"></div>
+          </div>
+        </div>
+
+        <div class="box" id="entryBox" style="display:none;">
+          <div class="box-head"><span id="entryTitle">입금 내용</span></div>
+          <div class="box-body">
+            <div class="entry-row">
+              <div class="fg" style="width:150px;">
+                <label for="pDate">입금일</label>
+                <input type="date" id="pDate">
+              </div>
+              <div class="fg" style="width:170px;">
+                <label for="pAmount">입금금액</label>
+                <input type="text" id="pAmount" class="amount" inputmode="numeric" placeholder="0" oninput="formatAmount(this)">
+              </div>
+              <div class="fg" style="width:150px;">
+                <label for="pApplyDate">충당기준일</label>
+                <input type="date" id="pApplyDate">
+              </div>
+              <div class="fg" style="width:140px;">
+                <label for="pVoucher">전표 발생</label>
+                <select id="pVoucher">
+                  <option value="Y">발생</option>
+                  <option value="N">발생 안 함</option>
+                </select>
+              </div>
+              <div class="fg" style="width:200px;">
+                <label for="pAccount">입금된 당사 계좌</label>
+                <select id="pAccount"><option value="">불러오는 중…</option></select>
+              </div>
+              <div class="fg" style="width:180px;">
+                <label for="pMemo">비고</label>
+                <input type="text" id="pMemo" placeholder="비고">
+              </div>
+              <button class="btn-primary" onclick="preview()">배분 미리보기</button>
+            </div>
+
+            <div class="rule">
+              받은 돈은 <b>비용 → 지연배상금 → 이자 → 원금</b> 순으로 충당되고,
+              각 단계 안에서는 <b>오래된 대출부터</b> 채웁니다.
+              100만원을 받았는데 전체 미납 이자가 80만원이면 80만원이 먼저 이자로 들어가고,
+              남은 20만원이 가장 오래된 대출의 원금으로 갑니다.
+            </div>
+          </div>
+        </div>
+
+        <div class="box" id="resultBox" style="display:none;">
+          <div class="head-strip">
+            <div class="hs"><span class="hs-l">고객</span><span class="hs-v" id="rCustomer">-</span></div>
+            <div class="hs"><span class="hs-l">입금금액</span><span class="hs-v" id="rAmount">-</span></div>
+            <div class="hs"><span class="hs-l">채권에 들어갈 금액</span><span class="hs-v" id="rAllocated">-</span></div>
+            <div class="hs"><span class="hs-l">남는 금액(선수금)</span><span class="hs-v" id="rExcess">-</span></div>
+          </div>
+          <div class="box-body">
+            <div class="table-wrap" style="max-height:420px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:150px;">채권번호</th>
+                    <th style="width:100px;">실행일</th>
+                    <th class="num" style="width:110px;">미회수원금</th>
+                    <th class="num" style="width:96px;">비용</th>
+                    <th class="num" style="width:104px;">지연배상금</th>
+                    <th class="num" style="width:104px;">이자</th>
+                    <th class="num" style="width:110px;">원금</th>
+                    <th class="num" style="width:116px;">합계</th>
+                  </tr>
+                </thead>
+                <tbody id="allocRows"><tr><td colspan="8" class="no-data">금액을 넣고 미리보기를 누르세요.</td></tr></tbody>
+                <tfoot id="allocFoot" style="display:none;">
+                  <tr>
+                    <td colspan="3">합계</td>
+                    <td class="num" id="sCost">0</td>
+                    <td class="num" id="sOverdue">0</td>
+                    <td class="num" id="sInterest">0</td>
+                    <td class="num" id="sPrincipal">0</td>
+                    <td class="num" id="sTotal">0</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            <div class="excess" id="excessNote" style="display:none;"></div>
+
+            <div style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px;">
+              <button class="btn-add" id="btnSave" onclick="save()">이대로 수납 등록</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/auth.js"></script>
+  <script src="../../assets/js/modal-pager.js"></script>
+  <script>
+    let customers = [];
+    let current = null;
+    let custPager = null;
+    let lastPreview = null;
+
+    function esc(s) {
+      return String(s ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;')
+                            .replaceAll('>','&gt;').replaceAll('"','&quot;');
+    }
+    function num(v) { return Number(v || 0).toLocaleString(); }
+    function won(v) { return Number(v || 0).toLocaleString() + '원'; }
+    function el(id) { return document.getElementById(id); }
+    function todayISO() {
+      const d = new Date();
+      return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'),
+              String(d.getDate()).padStart(2,'0')].join('-');
+    }
+    function formatAmount(e) {
+      const digits = e.value.replace(/[^0-9]/g, '');
+      e.value = digits ? Number(digits).toLocaleString() : '';
+    }
+    function amountValue(e) { return Number(e.value.replace(/[^0-9]/g, '') || 0); }
+
+    async function safeJson(url, fallback) {
+      try {
+        const res = await fetch(url, { credentials:'include' });
+        if (!res.ok) return fallback;
+        return await res.json();
+      } catch (_) { return fallback; }
+    }
+    async function failMessage(res) {
+      try {
+        const b = await res.json();
+        if (b && b.message) return b.message;
+      } catch (_) { /* JSON 이 아닐 수 있다 */ }
+      return `처리하지 못했습니다. (HTTP ${res.status})`;
+    }
+
+    // ── 고객 고르기 ─────────────────────────────────────────
+
+    function initPicker() {
+      custPager = createModalPager({
+        tbody: el('custRows'),
+        pager: el('custPager'),
+        colSpan: 4,
+        emptyText: '고객이 없습니다.',
+        renderRow: (c) => {
+          const tr = document.createElement('tr');
+          tr.className = 'pick-row';
+          tr.innerHTML = `
+            <td>${esc(c.customerNumber ?? '')}</td>
+            <td>${esc(c.customerName ?? '')}</td>
+            <td>${esc(c.customerType ?? '')}</td>
+            <td><button type="button" class="btn-row">선택</button></td>
+          `;
+          tr.addEventListener('click', () => pick(c));
+          return tr;
+        }
+      });
+    }
+
+    async function loadCustomers() {
+      custPager.message('불러오는 중…');
+      const kw = el('kw').value.trim();
+      customers = await safeJson(`${API_BASE_URL}/api/customers?kw=${encodeURIComponent(kw)}`, []);
+      custPager.show(customers);
+    }
+
+    function togglePick() {
+      const body = el('pickBody');
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : '';
+      el('btnTogglePick').textContent = open ? '목록 펼치기' : '목록 접기';
+    }
+
+    function pick(c) {
+      current = c;
+      el('pickedNote').textContent = `${c.customerNumber} · ${c.customerName ?? ''}`;
+      el('entryTitle').textContent = `입금 내용 — ${c.customerName ?? ''}`;
+      el('entryBox').style.display = '';
+      el('pickBody').style.display = 'none';
+      el('btnTogglePick').textContent = '목록 펼치기';
+      el('resultBox').style.display = 'none';
+      lastPreview = null;
+    }
+
+    // ── 배분 ────────────────────────────────────────────────
+
+    function payload() {
+      return {
+        customerNumber: current.customerNumber,
+        paymentDate: el('pDate').value || todayISO(),
+        applyDate: el('pApplyDate').value || null,
+        amount: amountValue(el('pAmount')),
+        createVoucher: el('pVoucher').value === 'Y',
+        companyAccount: el('pAccount').value || null,
+        memo: el('pMemo').value.trim() || null,
+      };
+    }
+
+    async function preview() {
+      if (!current) { alert('고객을 먼저 고르세요.'); return; }
+      const body = payload();
+      if (!body.amount) { alert('입금금액을 입력하세요.'); el('pAmount').focus(); return; }
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/customer-bulk/preview`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        lastPreview = await res.json();
+        renderResult(lastPreview);
+      } catch (e) {
+        alert('미리보기에 실패했습니다.\n\n' + e.message);
+      }
+    }
+
+    function renderResult(d) {
+      el('rCustomer').textContent  = `${d.customerNumber} ${d.customerName ?? ''}`;
+      el('rAmount').textContent    = won(d.amount);
+      el('rAllocated').textContent = won(d.allocated);
+      el('rExcess').textContent    = won(d.excess);
+
+      const rows = d.lines || [];
+      const body = el('allocRows');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="8" class="no-data">들어갈 채권이 없습니다.</td></tr>';
+        el('allocFoot').style.display = 'none';
+      } else {
+        body.innerHTML = rows.map(r => `
+          <tr>
+            <td>${esc(r.contractNumber)}</td>
+            <td>${esc(r.executeDate ?? '')}</td>
+            <td class="num">${num(r.remainingPrincipal)}</td>
+            <td class="num">${num(r.paidCost)}</td>
+            <td class="num">${num(r.paidOverdueInterest)}</td>
+            <td class="num">${num(r.paidInterest)}</td>
+            <td class="num">${num(r.paidPrincipal)}</td>
+            <td class="num"><b>${num(r.paidTotal)}</b></td>
+          </tr>`).join('');
+        const sum = (k) => rows.reduce((a, r) => a + Number(r[k] || 0), 0);
+        el('sCost').textContent      = num(sum('paidCost'));
+        el('sOverdue').textContent   = num(sum('paidOverdueInterest'));
+        el('sInterest').textContent  = num(sum('paidInterest'));
+        el('sPrincipal').textContent = num(sum('paidPrincipal'));
+        el('sTotal').textContent     = num(sum('paidTotal'));
+        el('allocFoot').style.display = '';
+      }
+
+      const note = el('excessNote');
+      if (Number(d.excess || 0) > 0) {
+        note.textContent = `갚을 것을 다 메우고 ${won(d.excess)} 이 남습니다. `
+                         + `이 금액은 가장 오래된 채권의 선수금으로 쌓입니다.`;
+        note.style.display = 'block';
+      } else {
+        note.style.display = 'none';
+      }
+
+      el('btnSave').disabled = !rows.length;
+      el('resultBox').style.display = '';
+    }
+
+    async function save() {
+      if (!lastPreview) { alert('먼저 미리보기를 누르세요.'); return; }
+      const d = lastPreview;
+      if (!confirm(`${d.customerName} 님의 ${won(d.amount)} 을 채권 ${d.lines.length}건에 나눠 등록할까요?\n\n`
+                 + `이자 ${won(d.lines.reduce((a,r)=>a+Number(r.paidInterest||0),0))} · `
+                 + `원금 ${won(d.lines.reduce((a,r)=>a+Number(r.paidPrincipal||0),0))}`)) return;
+
+      const btn = el('btnSave');
+      btn.disabled = true;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/payments/customer-bulk`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload())
+        });
+        if (!res.ok) { alert(await failMessage(res)); return; }
+        const saved = await res.json();
+        alert(`수납 ${saved.lines.length}건을 등록했습니다.`);
+        renderResult(saved);
+        el('pAmount').value = '';
+        lastPreview = null;
+      } catch (e) {
+        alert('등록하지 못했습니다.\n\n' + e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function loadBankAccounts() {
+      const sel = el('pAccount');
+      const accounts = await safeJson(`${API_BASE_URL}/api/my-info/bank-accounts?activeOnly=true`, []);
+      if (!accounts.length) { sel.innerHTML = '<option value="">등록된 통장이 없습니다</option>'; return; }
+      sel.innerHTML = '<option value="">선택하세요</option>'
+        + accounts.map(a => {
+            const label = [a.accountAlias, a.bankName, a.accountNumber].filter(Boolean).join(' ');
+            return `<option value="${esc(label)}">${esc(label)}</option>`;
+          }).join('');
+    }
+
+    (async () => {
+      if (!(await authCheck())) return;   // 로그인 화면으로 이동 중이면 멈춘다
+      loadSidebar();
+      initPicker();
+      el('pDate').value = todayISO();
+      await Promise.all([loadCustomers(), loadBankAccounts()]);
+    })();
+  </script>
+</body>
+</html>
