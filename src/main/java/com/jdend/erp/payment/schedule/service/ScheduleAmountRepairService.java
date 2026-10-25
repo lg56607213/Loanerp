@@ -26,6 +26,12 @@ import java.util.Map;
  * <p>여기서는 행을 지우지 않는다. 청구(billing)가 스케줄 id 를 참조하므로
  * 지우고 다시 만들면 그 연결이 끊긴다. 회차 번호로 맞춰 금액만 바꿔 넣고,
  * 충당 실적은 수납을 다시 흘려보내({@code recompute}) 새 금액 위에서 계산한다.
+ *
+ * <p>손대는 것은 <b>회차 원금 몫</b>뿐이다. 이자와 청구액, 회차별 잔액은
+ * {@code recompute} 가 '그 기간에 실제로 남아 있던 원금' 으로 다시 매긴다 —
+ * 계획상 금액으로 비교하면 조기상환이나 일할 계산 때문에 멀쩡한 채권까지
+ * 어긋난 것으로 잡힌다(78건 중 52건이 그랬다). 약정 납입액이 달라지면 원금
+ * 몫이 반드시 달라지므로, 원금 몫만 보면 고칠 곳을 정확히 짚는다.
  */
 @Slf4j
 @Service
@@ -71,7 +77,7 @@ public class ScheduleAmountRepairService {
         PaymentSchedule w = wanted.get(ps.getInstallmentNo());
         if (w == null) continue;  // 회차 수가 줄어든 경우 — 남은 행은 그대로 둔다
 
-        if (same(ps, w)) continue;
+        if (nz(ps.getPrincipalAmount()) == nz(w.getPrincipalAmount())) continue;
         wrong++;
         if (wrong == 1) {
           before = nz(ps.getRentAmount());
@@ -81,10 +87,11 @@ public class ScheduleAmountRepairService {
         // 점검만 할 때는 손대지 않는다. 영속 엔티티는 값을 바꾸는 순간
         // 트랜잭션이 끝날 때 그대로 저장되므로 '보기만' 하려면 건드려선 안 된다.
         if (!dryRun) {
-          ps.setRentAmount(w.getRentAmount());
+          // 원금·이자·청구액을 한 묶음으로 넣어 서로 어긋나지 않게 한다.
+          // 이자와 청구액은 바로 뒤 recompute 가 실제 잔액 기준으로 다시 매긴다.
           ps.setPrincipalAmount(w.getPrincipalAmount());
           ps.setInterestAmount(w.getInterestAmount());
-          ps.setRemainingPrincipal(w.getRemainingPrincipal());
+          ps.setRentAmount(w.getRentAmount());
           dirty.add(ps);
         }
       }
@@ -104,13 +111,6 @@ public class ScheduleAmountRepairService {
     log.info("[ScheduleAmountRepair] {} 채권의 회차 금액 {}",
         out.size(), dryRun ? "확인(저장 안 함)" : "복구");
     return out;
-  }
-
-  private static boolean same(PaymentSchedule a, PaymentSchedule b) {
-    return nz(a.getRentAmount()) == nz(b.getRentAmount())
-        && nz(a.getPrincipalAmount()) == nz(b.getPrincipalAmount())
-        && nz(a.getInterestAmount()) == nz(b.getInterestAmount())
-        && nz(a.getRemainingPrincipal()) == nz(b.getRemainingPrincipal());
   }
 
   private static long nz(Long v) { return v == null ? 0L : v; }
