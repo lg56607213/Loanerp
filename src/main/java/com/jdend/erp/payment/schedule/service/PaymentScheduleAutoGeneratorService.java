@@ -169,6 +169,17 @@ public class PaymentScheduleAutoGeneratorService {
         ? c.getPaymentDay()
         : start.getDayOfMonth();
 
+    // 만기일시는 회차를 하나 더 둔다 — 이자 회차 뒤에 원금을 받는 만기 회차다.
+    //
+    // 만기는 '최초납부일 + 회차수(개월)'다. 10월 15일에 내주고 10월 25일부터 12개월
+    // 이자를 받기로 했으면 원금은 이듬해 10월 25일에 받는다. 전에는 원금을 마지막
+    // 이자 회차(9월 25일)에 얹어서, 만기가 한 달 남았는데도 원금이 미납으로 잡혀
+    // 연체가 됐다. 4억을 빌려준 건은 그 때문에 지연배상금이 453만원 더 붙었다.
+    //
+    // 원리금균등·원금균등은 회차마다 원금을 받아 마지막 회차에서 완제되므로
+    // 이 회차가 필요 없다.
+    int rows = RepaymentMethod.BULLET.equals(method) ? installments + 1 : installments;
+
     // 일할이면 연이율 ÷ 365 × 회차 일수로 이자를 매긴다. 31일인 달은 더, 2월은 덜 붙는다.
     // 원리금균등은 납입액 고정이 정의라 일할을 허용하지 않는다(등록 시 막지만 여기서도 지킨다).
     boolean daily = InterestCalcType.isDaily(c.getInterestCalcType())
@@ -192,7 +203,7 @@ public class PaymentScheduleAutoGeneratorService {
       firstDue = lastDay ? lastDayOf(next) : withDaySafe(next, payDay);
     }
 
-    for (int i = 1; i <= installments; i++) {
+    for (int i = 1; i <= rows; i++) {
       LocalDate billEnd = billStart.plusMonths(1).minusDays(1);
       LocalDate dueMonth = firstDue.plusMonths(i - 1);
       LocalDate dueDate = lastDay ? lastDayOf(dueMonth) : withDaySafe(dueMonth, payDay);
@@ -205,13 +216,13 @@ public class PaymentScheduleAutoGeneratorService {
           : AmortizationCalculator.monthlyInterest(remaining, monthlyRate, rounding);
       long principalPart = switch (method) {
         case RepaymentMethod.EQUAL_PRINCIPAL -> equalPrincipalPart;
-        case RepaymentMethod.BULLET -> (i == installments) ? remaining : 0L;
+        case RepaymentMethod.BULLET -> (i == rows) ? remaining : 0L;
         default -> fixedPayment - interest;
       };
       if (principalPart < 0) principalPart = 0;
 
       // 마지막 회차이거나 계산 원금이 잔액을 넘으면 잔액 전부를 상환해 0으로 맞춘다.
-      if (i == installments || principalPart > remaining) {
+      if (i == rows || principalPart > remaining) {
         principalPart = remaining;
       }
 

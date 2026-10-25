@@ -3,6 +3,7 @@ package com.jdend.erp.payment.schedule.controller;
 import com.jdend.erp.payment.schedule.dto.ScheduleSaveRequest;
 import com.jdend.erp.payment.schedule.dto.ScheduleSearchResponse;
 import com.jdend.erp.auth.service.PermissionService;
+import com.jdend.erp.payment.schedule.service.BulletMaturityRepairService;
 import com.jdend.erp.payment.schedule.service.ScheduleAmountRepairService;
 import com.jdend.erp.payment.schedule.service.ScheduleDueDateRepairService;
 import com.jdend.erp.payment.schedule.service.ScheduleManagementService;
@@ -21,6 +22,7 @@ public class ScheduleManagementController {
   private final ScheduleManagementService service;
   private final ScheduleDueDateRepairService dueDateRepair;
   private final ScheduleAmountRepairService amountRepair;
+  private final BulletMaturityRepairService bulletRepair;
   private final PermissionService permissionService;
 
   @GetMapping("/by-contract-number")
@@ -75,6 +77,30 @@ public class ScheduleManagementController {
         "dryRun", dryRun,
         "contracts", changed.size(),
         "rows", changed.stream().mapToInt(ScheduleAmountRepairService.Result::rows).sum(),
+        "detail", changed);
+  }
+
+  /**
+   * 만기일시 채권에 만기 회차를 세우고 만기일을 맞춘다.
+   *
+   * 원금을 마지막 이자 회차에 얹어 두어 만기가 남았는데도 연체로 잡히던 것을
+   * 바로잡는다. 만기는 '최초납부일 + 회차수(개월)' 다.
+   *
+   * @param dryRun 기본 true — 먼저 어디가 어긋났는지 보고 나서 고친다.
+   * @param contractNumber 한 건만 손볼 때
+   */
+  @PostMapping("/repair-bullet-maturity")
+  public Map<String, Object> repairBulletMaturity(
+      @RequestParam(required = false, defaultValue = "true") boolean dryRun,
+      @RequestParam(required = false) String contractNumber,
+      HttpSession session) {
+    permissionService.requireManager(session);
+    var changed = bulletRepair.repair(dryRun, contractNumber);
+    return Map.of(
+        "dryRun", dryRun,
+        "contracts", changed.size(),
+        "rowsChanged", changed.stream().mapToInt(BulletMaturityRepairService.Result::changed).sum(),
+        "rowsAdded", changed.stream().mapToInt(BulletMaturityRepairService.Result::added).sum(),
         "detail", changed);
   }
 }
