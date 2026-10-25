@@ -15,6 +15,7 @@ import com.jdend.erp.contract.repository.ContractRepository;
 import com.jdend.erp.contract.support.AmortizationCalculator;
 import com.jdend.erp.contract.support.AmountRounding;
 import com.jdend.erp.contract.support.DebtTypeCode;
+import com.jdend.erp.contract.policy.LoanPolicyService;
 import com.jdend.erp.contract.support.LoanRateValidator;
 import com.jdend.erp.accounting.settings.service.OtherAccountSettingsService;
 import com.jdend.erp.accounting.voucher.dto.VoucherCreateRequest;
@@ -63,6 +64,7 @@ public class ContractService {
   private final PaymentRepository paymentRepo;
   private final ReceivableRepository receivableRepo;
   private final ConsultationRepository consultationRepo;
+  private final LoanPolicyService loanPolicy;
 
   /** 대출 실행 전표를 이 채권에 딸린 것으로 찾기 위한 적요 접두어 */
   private static final String EXEC_VOUCHER_MEMO = "대출실행";
@@ -316,8 +318,9 @@ public class ContractService {
     if (c.getEndDate() != null && c.getStartDate() != null && c.getEndDate().isBefore(c.getStartDate())) {
       throw new IllegalArgumentException("종료일자는 시작일자보다 이전일 수 없습니다.");
     }
-    LoanRateValidator.validateInterestRate(c.getInterestRate());
-    LoanRateValidator.validateOverdueRate(c.getOverdueRate(), c.getInterestRate());
+    BigDecimal cap = loanPolicy.maxInterestRate();
+    LoanRateValidator.validateInterestRate(c.getInterestRate(), cap);
+    LoanRateValidator.validateOverdueRate(c.getOverdueRate(), c.getInterestRate(), cap);
 
     // 월납입액은 명시 입력이 있으면 그것을 쓰고, 조건이 바뀌었으면 다시 산출한다.
     if (req.getMonthlyPayment() != null) {
@@ -561,8 +564,9 @@ public class ContractService {
     }
 
     // 대부업법 최고이자율 — 화면 검증만으로는 API 직접 호출을 막지 못하므로 여기서 강제한다.
-    LoanRateValidator.validateInterestRate(req.interestRate);
-    LoanRateValidator.validateOverdueRate(req.overdueRate, req.interestRate);
+    BigDecimal cap = loanPolicy.maxInterestRate();
+    LoanRateValidator.validateInterestRate(req.interestRate, cap);
+    LoanRateValidator.validateOverdueRate(req.overdueRate, req.interestRate, cap);
   }
 
   private String normalizeRepaymentMethod(String method) {
@@ -596,7 +600,8 @@ public class ContractService {
    */
   private void requireEffectiveRateWithinCap(Contract c) {
     LoanRateValidator.validateEffectiveRate(
-        scheduleAutoGen.effectiveAnnualRate(c, scheduleAutoGen.preview(c)));
+        scheduleAutoGen.effectiveAnnualRate(c, scheduleAutoGen.preview(c)),
+        loanPolicy.maxInterestRate());
   }
 
   private long resolveMonthlyPayment(Long given, String method, Long principal,
