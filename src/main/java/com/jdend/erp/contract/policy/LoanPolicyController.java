@@ -23,6 +23,7 @@ public class LoanPolicyController {
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("maxInterestRate", s.getMaxInterestRate());
     out.put("reason", s.getReason());
+    out.put("useAgreedMonthly", s.useAgreedMonthly());
     out.put("updatedAt", s.getUpdatedAt());
     return out;
   }
@@ -30,7 +31,7 @@ public class LoanPolicyController {
   @PutMapping
   public Map<String, Object> save(@RequestBody Request req, HttpSession session) {
     permissionService.requireManager(session);
-    service.save(req.getMaxInterestRate(), req.getReason());
+    service.save(req.getMaxInterestRate(), req.getReason(), req.getUseAgreedMonthly());
     return get();
   }
 
@@ -38,5 +39,6 @@ public class LoanPolicyController {
   public static class Request {
     private BigDecimal maxInterestRate;
     private String reason;
+    private Boolean useAgreedMonthly;
   }
 }

@@ -25,6 +25,14 @@ public class LoanPolicyService {
         .orElse(LoanRateValidator.LEGAL_MAX_RATE);
   }
 
+  /** 만기일시의 회차 청구액을 약정 월납입액으로 쓰는가. */
+  @Transactional(readOnly = true)
+  public boolean useAgreedMonthly() {
+    return repo.findById(LoanPolicySettings.SINGLETON_ID)
+        .map(LoanPolicySettings::useAgreedMonthly)
+        .orElse(false);
+  }
+
   @Transactional(readOnly = true)
   public LoanPolicySettings get() {
     return repo.findById(LoanPolicySettings.SINGLETON_ID)
@@ -41,7 +49,8 @@ public class LoanPolicyService {
    * 올릴 일이 없고, 올린 기록이 남아야 나중에 왜 이렇게 되어 있는지 알 수 있다.
    */
   @Transactional
-  public LoanPolicySettings save(BigDecimal maxInterestRate, String reason) {
+  public LoanPolicySettings save(BigDecimal maxInterestRate, String reason,
+                                Boolean useAgreedMonthly) {
     if (maxInterestRate == null || maxInterestRate.compareTo(BigDecimal.ZERO) <= 0) {
       throw new IllegalArgumentException("이자율 상한은 0% 보다 커야 합니다.");
     }
@@ -56,6 +65,7 @@ public class LoanPolicyService {
         .orElseGet(() -> LoanPolicySettings.builder().id(LoanPolicySettings.SINGLETON_ID).build());
     s.setMaxInterestRate(maxInterestRate);
     s.setReason(reason == null ? null : reason.trim());
+    if (useAgreedMonthly != null) s.setUseAgreedMonthlyYn(useAgreedMonthly);
     LoanPolicySettings saved = repo.save(s);
     if (overLegal) {
       log.warn("[LoanPolicy] 이자율 상한을 연 {}% 로 둔다 — {}", maxInterestRate, saved.getReason());
