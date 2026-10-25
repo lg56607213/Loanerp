@@ -76,7 +76,7 @@ public class CustomerBulkPaymentService {
     LocalDate payDate = req.getPaymentDate() != null ? req.getPaymentDate() : LocalDate.now();
     LocalDate asOf = req.getApplyDate() != null ? req.getApplyDate() : payDate;
 
-    List<Contract> targets = payableContracts(customerNumber);
+    List<Contract> targets = payableContracts(customerNumber, asOf);
     if (targets.isEmpty()) {
       throw new IllegalArgumentException(
           "수납할 채권이 없습니다: " + customer.getCustomerName()
@@ -147,11 +147,21 @@ public class CustomerBulkPaymentService {
         .build();
   }
 
-  /** 수납 대상 채권 — 미회수원금이 남아 있고 상각·종료가 아닌 것, 오래된 순. */
-  private List<Contract> payableContracts(String customerNumber) {
+  /**
+   * 수납 대상 채권 — 미회수원금이 남아 있고 상각·종료가 아닌 것, 오래된 순.
+   *
+   * <p>그날 아직 내주지 않은 대출은 뺀다. 원금 단계는 '그 채권의 미회수 전액'까지
+   * 받으므로, 빼지 않으면 2023년에 받은 돈이 2025년에 내준 대출의 원금으로
+   * 들어간다. 지난 내역을 옮겨 적을 때 실제로 그렇게 섞인다.
+   */
+  private List<Contract> payableContracts(String customerNumber, LocalDate asOf) {
     return contractRepo.findByCustomerNumberOrderByIdAsc(customerNumber).stream()
         .filter(c -> !ContractStatus.EXCLUDED_FROM_OVERDUE.contains(c.getStatus()))
         .filter(c -> c.getRemainingPrincipal() != null && c.getRemainingPrincipal() > 0)
+        .filter(c -> {
+          LocalDate exec = executeDateOf(c);
+          return exec == null || !exec.isAfter(asOf);
+        })
         .sorted(Comparator.comparing(CustomerBulkPaymentService::executeDateOf,
             Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(Contract::getContractNumber))
