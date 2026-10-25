@@ -46,7 +46,6 @@ public class RepaymentPostingService {
   private final RepaymentAllocator allocator;
   private final WriteOffRepository writeOffRepo;
   private final LegalCostItemRepository legalCostRepo;
-  private final com.jdend.erp.contract.policy.LoanPolicyService loanPolicy;
 
   /**
    * 채권의 충당 실적을 전부 다시 계산하고 잔여원금을 갱신한다.
@@ -321,14 +320,6 @@ public class RepaymentPostingService {
     if (schedules.isEmpty()) return false;
     BigDecimal rate = c.getInterestRate();
     if (rate == null || rate.signum() <= 0) return false;
-
-    // 만기일시에 약정 월납입액을 그대로 청구하는 장부는 손대지 않는다.
-    // 이율에서 다시 매기면 실제로 받는 금액과 어긋난다.
-    if (RepaymentMethod.BULLET.equals(c.getRepaymentMethod())
-        && c.getMonthlyPayment() != null && c.getMonthlyPayment() > 0
-        && loanPolicy.useAgreedMonthly()) {
-      return false;
-    }
 
     long loanAmount = c.getLoanAmount() == null ? 0L : c.getLoanAmount();
     AmountRounding rounding = AmountRounding.of(c.getRoundingUnit(), c.getRoundingMode());

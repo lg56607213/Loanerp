@@ -40,17 +40,6 @@ public class LoanPolicySettings {
   @Column(name = "reason", length = 500)
   private String reason;
 
-  /**
-   * 만기일시 채권의 회차 청구액을 '약정 월납입액' 그대로 쓸지.
-   *
-   * <p>끄면(기본) 회차 이자를 이율에서 계산한다 — 지금까지와 같다. 켜면 계약에
-   * 적어 둔 월납입액을 매회 청구한다. 월 28만원을 받기로 했는데 이율로 계산하면
-   * 280,500원이 되는 것처럼, 실제 받는 금액이 계산식과 떨어지는 장부를 위한 것이다.
-   * 재무 기록보다 수납 기록이 목적인 장부에서 쓴다.
-   */
-  @Column(name = "use_agreed_monthly_yn", nullable = false)
-  private Boolean useAgreedMonthlyYn;
-
   @UpdateTimestamp
   @Column(name = "updated_at")
   private LocalDateTime updatedAt;
@@ -58,10 +47,5 @@ public class LoanPolicySettings {
   @PrePersist
   public void prePersist() {
     if (id == null) id = SINGLETON_ID;
-    if (useAgreedMonthlyYn == null) useAgreedMonthlyYn = false;
-  }
-
-  public boolean useAgreedMonthly() {
-    return Boolean.TRUE.equals(useAgreedMonthlyYn);
   }
 }

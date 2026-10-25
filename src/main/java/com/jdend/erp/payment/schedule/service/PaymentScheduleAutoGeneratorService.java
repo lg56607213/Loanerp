@@ -4,7 +4,6 @@ import com.jdend.erp.contract.entity.Contract;
 import com.jdend.erp.contract.entity.InterestCalcType;
 import com.jdend.erp.contract.entity.PaymentDayType;
 import com.jdend.erp.contract.entity.RepaymentMethod;
-import com.jdend.erp.contract.policy.LoanPolicyService;
 import com.jdend.erp.contract.support.AmortizationCalculator;
 import com.jdend.erp.contract.support.AmountRounding;
 import com.jdend.erp.contract.support.DailyInterestCalculator;
@@ -38,7 +37,6 @@ import java.util.List;
 public class PaymentScheduleAutoGeneratorService {
 
   private final PaymentScheduleRepository scheduleRepo;
-  private final LoanPolicyService loanPolicy;
 
   /**
    * 계약 기준 스케줄 자동 생성 (멱등).
@@ -182,16 +180,6 @@ public class PaymentScheduleAutoGeneratorService {
     // 이 회차가 필요 없다.
     int rows = RepaymentMethod.BULLET.equals(method) ? installments + 1 : installments;
 
-    // 만기일시의 회차 청구액을 약정 월납입액 그대로 쓰는 장부가 있다.
-    //
-    // 월 28만원을 받기로 했는데 연 19.8% 로 계산하면 280,500원이 된다. 재무 기록보다
-    // 수납 기록이 목적인 장부에서는 실제로 받는 금액이 맞아야 하므로, 회사 설정을
-    // 켜 두면 계약에 적어 둔 월납입액을 매회 이자로 청구한다.
-    // 끄면(기본) 이율에서 계산한다 — 대부업 장부는 그대로다.
-    Long agreedMonthly = (RepaymentMethod.BULLET.equals(method)
-        && c.getMonthlyPayment() != null && c.getMonthlyPayment() > 0
-        && loanPolicy.useAgreedMonthly()) ? c.getMonthlyPayment() : null;
-
     // 일할이면 연이율 ÷ 365 × 회차 일수로 이자를 매긴다. 31일인 달은 더, 2월은 덜 붙는다.
     // 원리금균등은 납입액 고정이 정의라 일할을 허용하지 않는다(등록 시 막지만 여기서도 지킨다).
     boolean daily = InterestCalcType.isDaily(c.getInterestCalcType())
@@ -222,11 +210,10 @@ public class PaymentScheduleAutoGeneratorService {
 
       // 이자도 같은 단위로 끊는다. 이자만 1원 단위로 두면 원금+이자 합계가
       // 약정한 납입액과 끝자리에서 어긋난다.
-      long interest = agreedMonthly != null ? agreedMonthly
-          : daily
-              ? rounding.apply(DailyInterestCalculator.accrued(
-                    remaining, c.getInterestRate(), daysOf(billStart, billEnd)))
-              : AmortizationCalculator.monthlyInterest(remaining, monthlyRate, rounding);
+      long interest = daily
+          ? rounding.apply(DailyInterestCalculator.accrued(
+                remaining, c.getInterestRate(), daysOf(billStart, billEnd)))
+          : AmortizationCalculator.monthlyInterest(remaining, monthlyRate, rounding);
       long principalPart = switch (method) {
         case RepaymentMethod.EQUAL_PRINCIPAL -> equalPrincipalPart;
         case RepaymentMethod.BULLET -> (i == rows) ? remaining : 0L;
