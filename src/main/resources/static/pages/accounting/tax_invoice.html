@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세금계산서내역 | Loan ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .top-bar button {
+      border-radius:6px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer;
+    }
+    .btn-upload { background:#1a73e8; color:#fff; border:none; }
+    .btn-upload:hover { background:#1558b0; }
+    .btn-delete { background:#fff; color:#d93025; border:1px solid #f0b4b0; }
+    .btn-delete:hover:not(:disabled) { background:#fef2f2; }
+    .btn-delete:disabled { color:#bbb; border-color:#e0e0e0; cursor:not-allowed; }
+
+    .search-section { background:#f8f9fa; border-radius:8px; padding:16px; margin-bottom:16px; }
+    .search-grid { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:12px; font-weight:600; color:#555; }
+    .form-group input, .form-group select {
+      padding:7px 10px; border:1px solid #d1d5db; border-radius:5px; font-size:13px;
+    }
+    .btn-search {
+      background:#23304e; color:#fff; border:none; border-radius:5px;
+      padding:8px 20px; font-size:13px; font-weight:700; cursor:pointer;
+    }
+
+    th.col-check, td.col-check { width:36px; padding-left:4px; padding-right:4px; }
+    tr.row-picked td { background:#fff7f6; }
+    td.r, th.r { text-align:right; }
+    td.c, th.c { text-align:center; }
+
+    .type-badge { display:inline-block; border-radius:4px; padding:2px 8px; font-size:12px; font-weight:700; }
+    .t-매출 { background:#dbeafe; color:#1d4ed8; }
+    .t-매입 { background:#fef3c7; color:#b45309; }
+
+    .sum-bar {
+      display:flex; gap:20px; flex-wrap:wrap; background:#f1f5f9;
+      border-radius:6px; padding:10px 14px; margin-bottom:12px; font-size:13px;
+    }
+    .sum-bar b { color:#1b253a; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>세금계산서내역</h1>
+      <p>회계관리 &gt; 세금계산서 &gt; 내역</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="top-bar">
+          <span style="font-size:13px;color:#555;">
+            매출은 내가 발행한 것, 매입은 내가 받은 것입니다. 통장·전표와 맞대려면 합계금액이 통장 금액과 같아야 합니다.
+          </span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="selectedCount" style="font-size:12px;color:#888;"></span>
+            <button class="btn-delete" id="btnDelete" onclick="deleteSelected()" disabled>선택 삭제</button>
+            <button class="btn-upload" onclick="openUpload()">엑셀 업로드</button>
+          </div>
+        </div>
+
+        <div class="search-section">
+          <div class="search-grid">
+            <div class="form-group">
+              <label for="fType">구분</label>
+              <select id="fType" style="width:120px;">
+                <option value="">전체</option>
+                <option value="매출">매출</option>
+                <option value="매입">매입</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fStart">작성일자</label>
+              <input type="date" id="fStart">
+            </div>
+            <div class="form-group">
+              <label for="fEnd">~</label>
+              <input type="date" id="fEnd">
+            </div>
+            <div class="form-group">
+              <label for="fKw">거래처·품목</label>
+              <input type="text" id="fKw" placeholder="이름 일부" style="width:200px;">
+            </div>
+            <button class="btn-search" onclick="load()">조회</button>
+          </div>
+        </div>
+
+        <div class="sum-bar" id="sumBar"></div>
+
+        <div class="tbl-wrap" style="max-height:560px; overflow:auto;">
+          <table data-export-name="세금계산서내역">
+            <thead>
+              <tr>
+                <th class="col-check" data-noexport><input type="checkbox" id="chkAll" onclick="toggleAll(this)"></th>
+                <th class="c">번호</th>
+                <th class="c">구분</th>
+                <th class="c">작성일자</th>
+                <th>거래처명</th>
+                <th class="c">사업자등록번호</th>
+                <th class="r">공급가액</th>
+                <th class="r">세액</th>
+                <th class="r">합계</th>
+                <th>품목</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="11" class="c" style="color:#9ca3af;padding:24px;">조회 버튼을 눌러주세요.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/excel-upload.js"></script>
+  <script src="../../assets/js/excel-export.js"></script>
+  <script>
+    let rows = [];
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function fmt(n) { return (n === null || n === undefined || n === '') ? '-' : Number(n).toLocaleString(); }
+
+    function qs() {
+      const p = new URLSearchParams();
+      const t = document.getElementById('fType').value;
+      const s = document.getElementById('fStart').value;
+      const e = document.getElementById('fEnd').value;
+      const k = document.getElementById('fKw').value.trim();
+      if (t) p.set('invoiceType', t);
+      if (s) p.set('startDate', s);
+      if (e) p.set('endDate', e);
+      if (k) p.set('kw', k);
+      return p.toString();
+    }
+
+    async function load() {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="11" class="c" style="color:#9ca3af;padding:24px;">불러오는 중...</td></tr>';
+      try {
+        const res = await fetch('/api/tax-invoices?' + qs(), { credentials: 'include' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        rows = await res.json();
+        render();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="11" class="c" style="color:#ef4444;padding:24px;">조회 실패: ${esc(err.message)}</td></tr>`;
+      }
+    }
+
+    function render() {
+      const tbody = document.getElementById('tbody');
+      const sumBar = document.getElementById('sumBar');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="11" class="c" style="color:#9ca3af;padding:24px;">내역이 없습니다.</td></tr>';
+        sumBar.innerHTML = '';
+        return;
+      }
+
+      let sSupply = 0, sTax = 0, sTotal = 0, pSupply = 0, pTax = 0, pTotal = 0;
+      for (const r of rows) {
+        if (r.invoiceType === '매출') { sSupply += +r.supplyAmount; sTax += +r.taxAmount; sTotal += +r.totalAmount; }
+        else { pSupply += +r.supplyAmount; pTax += +r.taxAmount; pTotal += +r.totalAmount; }
+      }
+      sumBar.innerHTML =
+        `<span>매출 <b>${fmt(sTotal)}</b>원 (공급가액 ${fmt(sSupply)} + 세액 ${fmt(sTax)})</span>` +
+        `<span>매입 <b>${fmt(pTotal)}</b>원 (공급가액 ${fmt(pSupply)} + 세액 ${fmt(pTax)})</span>` +
+        `<span>납부할 부가세 <b>${fmt(sTax - pTax)}</b>원</span>` +
+        `<span>총 ${rows.length}건</span>`;
+
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td class="col-check" data-noexport><input type="checkbox" class="rowChk" value="${r.id}" onclick="onPick(this)"></td>
+          <td class="c">${i + 1}</td>
+          <td class="c"><span class="type-badge t-${esc(r.invoiceType)}">${esc(r.invoiceType)}</span></td>
+          <td class="c">${esc(r.issueDate)}</td>
+          <td>${esc(r.partnerName)}</td>
+          <td class="c">${esc(r.partnerBizNo || '-')}</td>
+          <td class="r">${fmt(r.supplyAmount)}</td>
+          <td class="r">${fmt(r.taxAmount)}</td>
+          <td class="r"><b>${fmt(r.totalAmount)}</b></td>
+          <td>${esc(r.item || '-')}</td>
+          <td>${esc(r.remarks || '')}</td>
+        </tr>`).join('');
+      updatePicked();
+    }
+
+    function toggleAll(box) {
+      document.querySelectorAll('.rowChk').forEach(c => { c.checked = box.checked; });
+      updatePicked();
+    }
+    function onPick() { updatePicked(); }
+
+    function updatePicked() {
+      const picked = [...document.querySelectorAll('.rowChk:checked')];
+      document.querySelectorAll('.rowChk').forEach(c => {
+        c.closest('tr').classList.toggle('row-picked', c.checked);
+      });
+      document.getElementById('btnDelete').disabled = picked.length === 0;
+      document.getElementById('selectedCount').textContent = picked.length ? picked.length + '건 선택' : '';
+    }
+
+    async function deleteSelected() {
+      const ids = [...document.querySelectorAll('.rowChk:checked')].map(c => Number(c.value));
+      if (!ids.length) return;
+      if (!confirm(ids.length + '건을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
+      const res = await fetch('/api/tax-invoices/delete', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      if (!res.ok) { alert('삭제 실패: HTTP ' + res.status); return; }
+      await load();
+    }
+
+    function openUpload() {
+      openExcelUploadModal({
+        title: '세금계산서내역 업로드',
+        templateUrl: '/api/tax-invoices/template',
+        previewUrl: '/api/tax-invoices/upload/preview',
+        uploadUrl: '/api/tax-invoices/upload',
+        onSuccess: load
+      });
+    }
+
+    (function init() {
+      const today = new Date();
+      const y = today.getFullYear();
+      document.getElementById('fStart').value = `${y}-01-01`;
+      document.getElementById('fEnd').value = today.toISOString().slice(0, 10);
+      load();
+    })();
+  </script>
+</body>
+</html>

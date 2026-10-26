@@ -130,6 +130,13 @@ function loadSidebar() {
                 </ul>
               </li>
               <li class="has-sub">
+                <span class="menu-label">세금계산서</span>
+                <ul>
+                  <li><a href="${basePath}pages/accounting/tax_invoice.html">세금계산서내역</a></li>
+                  <li><a href="${basePath}pages/accounting/tax_invoice_reconcile.html">세금계산서 대조</a></li>
+                </ul>
+              </li>
+              <li class="has-sub">
                 <span class="menu-label">차입금관리</span>
                 <ul>
                   <li><a href="${basePath}pages/accounting/borrowing_register.html">차입금등록</a></li>

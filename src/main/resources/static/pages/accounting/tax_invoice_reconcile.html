@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>세금계산서 대조 | Loan ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .search-section { background:#f8f9fa; border-radius:8px; padding:16px; margin-bottom:16px; }
+    .search-grid { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:12px; font-weight:600; color:#555; }
+    .form-group input, .form-group select {
+      padding:7px 10px; border:1px solid #d1d5db; border-radius:5px; font-size:13px;
+    }
+    .btn-search {
+      background:#23304e; color:#fff; border:none; border-radius:5px;
+      padding:8px 20px; font-size:13px; font-weight:700; cursor:pointer;
+    }
+    .hint { font-size:12px; color:#6b7280; margin-top:8px; line-height:1.6; }
+
+    .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .card-tile {
+      flex:1 1 220px; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;
+      background:#fff; cursor:pointer;
+    }
+    .card-tile:hover { background:#f9fafb; }
+    .card-tile.on { border-color:#1a73e8; box-shadow:0 0 0 2px #dbeafe inset; }
+    .card-tile .t { font-size:13px; font-weight:700; color:#1b253a; }
+    .card-tile .n { font-size:1.35rem; font-weight:800; margin:6px 0 2px; }
+    .card-tile .a { font-size:12px; color:#6b7280; }
+    .card-tile .d { font-size:11px; color:#9ca3af; margin-top:6px; line-height:1.5; }
+
+    .c-미수금 .n { color:#1d4ed8; }
+    .c-미지급금 .n { color:#b45309; }
+    .c-매출세금계산서없음 .n { color:#dc2626; }
+    .c-매입세금계산서없음 .n { color:#dc2626; }
+    .c-전표없음 .n { color:#7c3aed; }
+
+    td.r, th.r { text-align:right; }
+    td.c, th.c { text-align:center; }
+    .ck { font-weight:800; }
+    .ck.y { color:#15803d; }
+    .ck.n { color:#dc2626; }
+    .type-chip { display:inline-block; border-radius:4px; padding:2px 8px; font-size:12px; font-weight:700; background:#eef2ff; color:#3730a3; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>세금계산서 대조</h1>
+      <p>회계관리 &gt; 세금계산서 &gt; 대조</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="search-section">
+          <div class="search-grid">
+            <div class="form-group">
+              <label for="fStart">기간</label>
+              <input type="date" id="fStart">
+            </div>
+            <div class="form-group">
+              <label for="fEnd">~</label>
+              <input type="date" id="fEnd">
+            </div>
+            <div class="form-group">
+              <label for="fWindow">입출금 허용 일수</label>
+              <select id="fWindow" style="width:120px;">
+                <option value="30">30일</option>
+                <option value="60">60일</option>
+                <option value="90" selected>90일</option>
+                <option value="180">180일</option>
+                <option value="365">365일</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fName">거래처명 대조</label>
+              <select id="fName" style="width:160px;">
+                <option value="true" selected>이름까지 맞춰본다</option>
+                <option value="false">금액·날짜만 본다</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fMin">무시할 소액</label>
+              <input type="number" id="fMin" value="0" min="0" step="10000" style="width:130px;">
+            </div>
+            <button class="btn-search" onclick="run()">대조</button>
+          </div>
+          <div class="hint">
+            세금계산서 합계금액과 통장 금액이 같고, 작성일과 입출금일 차이가 허용 일수 안이고, 통장 적요에 거래처명이 들어 있으면 한 쌍으로 봅니다.
+            여러 건을 한 번에 결제했거나 금액을 쪼개어 보낸 거래는 짝을 못 찾아 양쪽에 모두 남습니다 — 그것도 확인할 거래이므로 숨기지 않습니다.
+            이자·수수료 같은 잡거래가 섞여 보이면 '무시할 소액'을 올려보세요.
+          </div>
+        </div>
+
+        <div class="cards" id="cards"></div>
+
+        <div class="tbl-wrap" style="max-height:560px; overflow:auto;">
+          <table data-export-name="세금계산서대조">
+            <thead>
+              <tr>
+                <th class="c">번호</th>
+                <th class="c">유형</th>
+                <th class="c">일자</th>
+                <th>거래처 / 적요</th>
+                <th class="r">금액</th>
+                <th class="c">세금계산서</th>
+                <th class="c">통장</th>
+                <th class="c">전표</th>
+                <th class="c">통장일자</th>
+                <th>확인할 점</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="10" class="c" style="color:#9ca3af;padding:24px;">기간을 정하고 대조 버튼을 눌러주세요.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/excel-export.js"></script>
+  <script>
+    let all = [];
+    let filterType = '';
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function fmt(n) { return (n === null || n === undefined || n === '') ? '-' : Number(n).toLocaleString(); }
+    function cls(t) { return 'c-' + String(t).replace(/\s/g, ''); }
+
+    async function run() {
+      const s = document.getElementById('fStart').value;
+      const e = document.getElementById('fEnd').value;
+      if (!s || !e) { alert('기간을 정해주세요.'); return; }
+
+      const p = new URLSearchParams({
+        startDate: s, endDate: e,
+        dayWindow: document.getElementById('fWindow').value,
+        matchByName: document.getElementById('fName').value,
+        minAmount: document.getElementById('fMin').value || '0'
+      });
+
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="10" class="c" style="color:#9ca3af;padding:24px;">대조 중...</td></tr>';
+      try {
+        const res = await fetch('/api/tax-invoices/reconcile?' + p.toString(), { credentials: 'include' });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.message || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        all = data.rows || [];
+        filterType = '';
+        renderCards(data.summary || []);
+        renderRows();
+      } catch (err) {
+        document.getElementById('cards').innerHTML = '';
+        tbody.innerHTML = `<tr><td colspan="10" class="c" style="color:#ef4444;padding:24px;">대조 실패: ${esc(err.message)}</td></tr>`;
+      }
+    }
+
+    function renderCards(summary) {
+      const box = document.getElementById('cards');
+      if (!summary.length) {
+        box.innerHTML = '<div class="card-tile"><div class="t">확인할 건 없음</div>'
+          + '<div class="d">세금계산서·통장·전표가 모두 맞습니다.</div></div>';
+        return;
+      }
+      const total = summary.reduce((a, s) => a + s.count, 0);
+      box.innerHTML = summary.map(s => `
+        <div class="card-tile ${cls(s.type)}" data-type="${esc(s.type)}" onclick="pick('${esc(s.type)}')">
+          <div class="t">${esc(s.type)}</div>
+          <div class="n">${s.count}건</div>
+          <div class="a">${fmt(s.amount)}원</div>
+          <div class="d">${esc(s.note)}</div>
+        </div>`).join('')
+        + `<div class="card-tile" data-type="" onclick="pick('')">
+             <div class="t">전체</div><div class="n">${total}건</div>
+             <div class="d">유형을 눌러 그 건만 볼 수 있습니다.</div>
+           </div>`;
+    }
+
+    function pick(t) {
+      filterType = t;
+      document.querySelectorAll('.card-tile').forEach(el => {
+        el.classList.toggle('on', (el.dataset.type || '') === t);
+      });
+      renderRows();
+    }
+
+    function renderRows() {
+      const tbody = document.getElementById('tbody');
+      const list = filterType ? all.filter(r => r.type === filterType) : all;
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="10" class="c" style="color:#9ca3af;padding:24px;">확인할 건이 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map((r, i) => `
+        <tr>
+          <td class="c">${i + 1}</td>
+          <td class="c"><span class="type-chip">${esc(r.type)}</span></td>
+          <td class="c">${esc(r.date)}</td>
+          <td>${esc(r.partnerName)}${r.invoiceType ? ' <span style="color:#9ca3af;font-size:11px;">(' + esc(r.invoiceType) + ')</span>' : ''}</td>
+          <td class="r"><b>${fmt(r.amount)}</b></td>
+          <td class="c"><span class="ck ${r.hasInvoice ? 'y' : 'n'}">${r.hasInvoice ? 'O' : 'X'}</span></td>
+          <td class="c"><span class="ck ${r.hasBankTx ? 'y' : 'n'}">${r.hasBankTx ? 'O' : 'X'}</span></td>
+          <td class="c"><span class="ck ${r.hasVoucher ? 'y' : 'n'}">${r.hasVoucher ? 'O' : 'X'}</span></td>
+          <td class="c">${esc(r.bankDate || '-')}</td>
+          <td>${esc(r.note || '')}</td>
+        </tr>`).join('');
+    }
+
+    (function init() {
+      const today = new Date();
+      document.getElementById('fStart').value = `${today.getFullYear()}-01-01`;
+      document.getElementById('fEnd').value = today.toISOString().slice(0, 10);
+    })();
+  </script>
+</body>
+</html>
