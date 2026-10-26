@@ -60,6 +60,7 @@
     .st-만기 { background: #fef3c7; color: #b45309; }
     .st-종료 { background: #f1f5f9; color: #475569; }
     .st-반납 { background: #fee2e2; color: #b91c1c; }
+    .st-완납 { background: #e0e7ff; color: #3730a3; }
     .st-other { background: #e0f2fe; color: #0369a1; }
 
     .info-grid {
@@ -152,8 +153,10 @@
     }
     .list-header h2 { margin: 0; font-size: 1rem; font-weight: 800; color: #1b253a; }
     .list-filter { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .list-filter input[type="date"] {
+    .list-filter input[type="date"],
+    .list-filter select {
       padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 0.88rem;
+      background: #fff; color: #1b253a;
     }
     .list-filter button {
       padding: 7px 16px; background: #23304e; color: #fff;
@@ -212,6 +215,12 @@
     <div class="list-header">
       <h2>계약 목록</h2>
       <div class="list-filter">
+        <span style="font-size:0.88rem; color:#374151;">상태</span>
+        <select id="listStatus" onchange="applyListFilter()">
+          <option value="정상" selected>정상</option>
+          <option value="완납">완납</option>
+          <option value="전체">전체</option>
+        </select>
         <span style="font-size:0.88rem; color:#374151;">계약시작일</span>
         <input type="date" id="listStartDate">
         <span style="font-size:0.88rem; color:#374151;">~</span>
@@ -613,22 +622,48 @@
     const tbody = document.getElementById('contractListBody');
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#9ca3af; padding:20px;">불러오는 중...</td></tr>';
     try {
-      const res = await fetch('/api/contracts', { credentials: 'include' });
+      // 채권현황과 같은 엔드포인트를 쓴다.
+      //
+      // /api/contracts 는 '해지·상각·종료' 처럼 사건으로 확정된 상태만 담고 있어,
+      // 다 갚은 대출도 상태가 비어 온다. 그 값을 '정상' 으로 메우고 있었으므로
+      // 완납된 건까지 전부 정상으로 보였다. 이쪽은 미회수원금까지 보고
+      // 정상/연체/완납을 판정해 준다.
+      const res = await fetch('/api/contracts/status', { credentials: 'include' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       allListContracts = await res.json();
 
-      renderContractList(allListContracts);
+      applyListFilter();
     } catch (e) {
       tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#ef4444; padding:20px;">로드 실패: ${esc(e.message)}</td></tr>`;
     }
   }
 
+  // 완납 — 미회수원금이 없는 건. ERP 는 이 상태를 '종료' 로 판정한다.
+  function isPaidOff(c) {
+    return statusOf(c) === '종료' || Number(c.remainingPrincipal || 0) <= 0;
+  }
+
+  function statusOf(c) {
+    return c.contractStatus || c.status || '';
+  }
+
+  /** 목록에 보일 상태 — 다 갚은 건은 '완납' 으로 적는다. */
+  function listStatusLabel(c) {
+    if (isPaidOff(c)) return '완납';
+    return statusOf(c) || '정상';
+  }
+
   function applyListFilter() {
-    const start = document.getElementById('listStartDate').value;
-    const end   = document.getElementById('listEndDate').value;
+    const start  = document.getElementById('listStartDate').value;
+    const end    = document.getElementById('listEndDate').value;
+    const wanted = (document.getElementById('listStatus') || {}).value || '정상';
+
     const filtered = allListContracts.filter(c => {
+      if (wanted === '완납' && !isPaidOff(c)) return false;
+      if (wanted === '정상' && isPaidOff(c))  return false;
+
       if (!start && !end) return true;
-      const d = c.startDate || '';
+      const d = c.contractStart || c.startDate || '';
       if (start && d < start) return false;
       if (end   && d > end)   return false;
       return true;
@@ -643,15 +678,15 @@
       return;
     }
     tbody.innerHTML = list.map((c, i) => {
-      const st = c.status || '정상';
+      const st = listStatusLabel(c);
       return `<tr style="cursor:pointer;" onclick="selectContract('${esc(c.contractNumber)}')">
         <td style="text-align:center;">${i + 1}</td>
         <td>${esc(c.contractNumber || '-')}</td>
         <td>${esc(c.customerName || '-')}</td>
         <td>${esc(c.loanType || '-')}</td>
         <td class="r">${fmt(c.loanAmount)}</td>
-        <td style="text-align:center;">${esc(c.startDate || '-')}</td>
-        <td style="text-align:center;">${esc(c.endDate || '-')}</td>
+        <td style="text-align:center;">${esc(c.contractStart || c.startDate || '-')}</td>
+        <td style="text-align:center;">${esc(c.contractEnd || c.endDate || '-')}</td>
         <td class="r">${fmt(c.remainingPrincipal)}</td>
         <td style="text-align:center;"><span class="status-badge st-${esc(st)}">${esc(st)}</span></td>
       </tr>`;
