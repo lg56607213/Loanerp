@@ -136,13 +136,15 @@ public class TaxInvoiceService {
       long supply = parseMoney(row.get("공급가액"));
       long tax = parseMoney(row.get("세액"));
       long total = parseMoney(row.get("합계"));
-      if (total <= 0) total = supply + tax;
-      if (total <= 0) {
+      if (total == 0) total = supply + tax;
+      if (total == 0) {
         errors.add(err(rowNo, "금액이 없습니다. 공급가액·세액 또는 합계를 적어주세요.", ""));
         continue;
       }
+      // 금액이 음수인 것은 수정세금계산서(취소·감액)다. 홈택스 목록에 그렇게 나오고
+      // 그 건을 빼면 매출·매입 합계가 신고분과 어긋나므로 그대로 받는다.
       // 합계만 적고 공급가액·세액을 비운 경우 10% 부가세로 나눠 채운다.
-      if (supply <= 0 && tax <= 0) {
+      if (supply == 0 && tax == 0) {
         supply = Math.round(total / 1.1);
         tax = total - supply;
       }
@@ -204,9 +206,10 @@ public class TaxInvoiceService {
     long supply = nz(req.getSupplyAmount());
     long tax = nz(req.getTaxAmount());
     long total = nz(req.getTotalAmount());
-    if (total <= 0) total = supply + tax;
-    if (total <= 0) throw new IllegalArgumentException("금액은 필수입니다.");
-    if (supply <= 0 && tax <= 0) {
+    if (total == 0) total = supply + tax;
+    if (total == 0) throw new IllegalArgumentException("금액은 필수입니다.");
+    // 음수는 수정세금계산서(취소·감액)다 — 그대로 받는다.
+    if (supply == 0 && tax == 0) {
       supply = Math.round(total / 1.1);
       tax = total - supply;
     }

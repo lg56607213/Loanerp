@@ -70,8 +70,10 @@ public class TaxInvoiceReconcileService {
     int window = dayWindow <= 0 ? 90 : dayWindow;
 
     // 세금계산서는 기간 그대로, 통장은 짝을 찾을 수 있게 앞뒤로 넓혀 읽는다.
-    List<TaxInvoice> sales = invoiceRepo.findForReconcile(TaxInvoice.SALES, startDate, endDate);
-    List<TaxInvoice> purchases = invoiceRepo.findForReconcile(TaxInvoice.PURCHASE, startDate, endDate);
+    List<TaxInvoice> sales = dropCancelled(
+        invoiceRepo.findForReconcile(TaxInvoice.SALES, startDate, endDate));
+    List<TaxInvoice> purchases = dropCancelled(
+        invoiceRepo.findForReconcile(TaxInvoice.PURCHASE, startDate, endDate));
     List<BankTransaction> bank = bankRepo.search("", "",
         startDate.minusDays(window), endDate.plusDays(window));
 
@@ -158,6 +160,33 @@ public class TaxInvoiceReconcileService {
         .dayWindow(window).matchByName(matchByName)
         .summary(summary).rows(rows)
         .build();
+  }
+
+  /**
+   * 수정세금계산서로 취소된 건은 짝 맞추기에서 뺀다.
+   *
+   * <p>홈택스 목록에는 취소·감액이 금액 음수로 나온다. 음수만 빼면 취소된 원래
+   * 세금계산서가 '돈이 안 들어왔다'며 미수금으로 올라오므로, 같은 거래처·같은
+   * 금액의 양수 한 건과 함께 뺀다. 짝이 없는 음수는 그대로 둔다 — 그것도 봐야 한다.
+   */
+  private List<TaxInvoice> dropCancelled(List<TaxInvoice> list) {
+    List<TaxInvoice> out = new ArrayList<>(list);
+    for (TaxInvoice neg : list) {
+      if (nz(neg.getTotalAmount()) >= 0) continue;
+      long want = -nz(neg.getTotalAmount());
+      TaxInvoice hit = null;
+      for (TaxInvoice pos : out) {
+        if (nz(pos.getTotalAmount()) != want) continue;
+        if (!normalizeName(pos.getPartnerName()).equals(normalizeName(neg.getPartnerName()))) continue;
+        hit = pos;
+        break;
+      }
+      if (hit != null) {
+        out.remove(hit);
+        out.remove(neg);
+      }
+    }
+    return out;
   }
 
   // ── 짝 맞추기 ────────────────────────────────────────────
