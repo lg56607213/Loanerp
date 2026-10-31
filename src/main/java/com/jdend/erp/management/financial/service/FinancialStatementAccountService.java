@@ -94,6 +94,37 @@ public class FinancialStatementAccountService {
     return toRes(e);
   }
 
+  /**
+   * 하위 계정의 다음 코드 — 부모코드 + 2자리 순번.
+   *
+   * <p>전에는 '자식 수 + 1' 로 번호를 매겼다. 그런데 기본 계정에는 빈 번호가 있다
+   * (기타자산 밑이 ...01 ~ 05 와 07 로 06 이 비어 있다). 자식이 6개니 다음을 07 로
+   * 잡아 이미 있는 코드와 부딪혔고, 계정을 더하려 하면 '이미 등록된 데이터입니다' 만
+   * 나왔다. 쓰지 않는 계정을 미사용으로 꺼 둔 뒤에도 코드는 남으므로 같은 일이 생긴다.
+   *
+   * <p>그래서 이미 쓰인 번호 중 가장 큰 것 다음을 쓴다.
+   */
+  private String nextChildCode(FinancialStatementAccount parent) {
+    String prefix = parent.getAccountCode();
+    int max = 0;
+    for (FinancialStatementAccount child : repo.findByParentId(parent.getId())) {
+      String code = child.getAccountCode();
+      if (code == null || !code.startsWith(prefix)) continue;
+      String tail = code.substring(prefix.length());
+      if (tail.length() != 2) continue;
+      try {
+        max = Math.max(max, Integer.parseInt(tail));
+      } catch (NumberFormatException ignored) {
+        // 숫자가 아닌 꼬리표는 번호 계산에서 뺀다
+      }
+    }
+    if (max >= 99) {
+      throw new IllegalArgumentException(
+          "이 분류에는 더 담을 수 없습니다(하위 코드 99개를 다 썼습니다): " + parent.getAccountName());
+    }
+    return prefix + String.format("%02d", max + 1);
+  }
+
   @Transactional
   public void delete(Long id) {
     if (repo.existsByParentId(id)) {
@@ -157,8 +188,7 @@ public class FinancialStatementAccountService {
       level = parent.getLevel() + 1;
       category = parent.getCategory();
       statementType = parent.getStatementType();
-      long seq = repo.countByParentId(parentId) + 1;
-      accountCode = parent.getAccountCode() + String.format("%02d", seq);
+      accountCode = nextChildCode(parent);
     }
 
     FinancialStatementAccount saved = repo.save(
