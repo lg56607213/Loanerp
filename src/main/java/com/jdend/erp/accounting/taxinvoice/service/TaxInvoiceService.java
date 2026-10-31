@@ -164,11 +164,16 @@ public class TaxInvoiceService {
           .build();
       t.setRowHash(hashOf(t));
 
-      // 승인번호가 있으면 그것이 가장 확실한 열쇠다. 없으면 행 지문으로 본다.
+      // 승인번호가 있으면 그것만 본다.
+      //
+      // 전에는 승인번호가 있어도 행 지문(일자·거래처·금액·품목)까지 함께 봤다.
+      // 같은 날 같은 거래처에 같은 금액으로 두 건을 발행하면 승인번호가 달라도
+      // 지문이 같아서 뒤의 것이 중복으로 걸러졌다 — 제이디엔드 26년 매출에서
+      // 실제로 그런 건이 있어 65,000원이 빠졌다. 지문은 승인번호가 없을 때만 쓴다.
       String approval = t.getApprovalNo();
-      boolean dup = (approval != null && (seenInFile.contains("A:" + approval) || repo.existsByApprovalNo(approval)))
-          || seenInFile.contains("H:" + t.getRowHash())
-          || repo.existsByRowHash(t.getRowHash());
+      boolean dup = (approval != null)
+          ? (seenInFile.contains("A:" + approval) || repo.existsByApprovalNo(approval))
+          : (seenInFile.contains("H:" + t.getRowHash()) || repo.existsByRowHash(t.getRowHash()));
       if (dup) {
         skipped++;
         duplicates.add(rowNo + "행 " + type + " " + issueDate + " " + partner + " " + total + "원");
