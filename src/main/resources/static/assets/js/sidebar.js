@@ -127,6 +127,7 @@ function loadSidebar() {
                 <span class="menu-label">미지급관리</span>
                 <ul>
                   <li><a href="${basePath}pages/accounting/payable_management.html">미지급현황</a></li>
+                  <li><a href="${basePath}pages/accounting/partner_balance.html">미수금·미지급금</a></li>
                 </ul>
               </li>
               <li class="has-sub">

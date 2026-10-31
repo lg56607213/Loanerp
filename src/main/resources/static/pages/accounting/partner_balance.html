@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>미수금·미지급금 | Loan ERP</title>
+  <link rel="stylesheet" href="../../assets/css/sidebar.css">
+  <link rel="stylesheet" href="../../assets/css/pages.css">
+  <style>
+    .top-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .top-bar button { border-radius:6px; padding:8px 18px; font-size:14px; font-weight:600; cursor:pointer; }
+    .btn-upload { background:#1a73e8; color:#fff; border:none; }
+    .btn-upload:hover { background:#1558b0; }
+    .btn-delete { background:#fff; color:#d93025; border:1px solid #f0b4b0; }
+    .btn-delete:disabled { color:#bbb; border-color:#e0e0e0; cursor:not-allowed; }
+
+    .search-section { background:#f8f9fa; border-radius:8px; padding:16px; margin-bottom:16px; }
+    .search-grid { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:12px; font-weight:600; color:#555; }
+    .form-group input, .form-group select {
+      padding:7px 10px; border:1px solid #d1d5db; border-radius:5px; font-size:13px; background:#fff;
+    }
+    .btn-search { background:#23304e; color:#fff; border:none; border-radius:5px;
+      padding:8px 20px; font-size:13px; font-weight:700; cursor:pointer; }
+
+    .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .tile { flex:1 1 240px; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; background:#fff; }
+    .tile .t { font-size:13px; font-weight:700; color:#1b253a; }
+    .tile .n { font-size:1.4rem; font-weight:800; margin:6px 0 2px; }
+    .tile.r .n { color:#1d4ed8; }
+    .tile.p .n { color:#b45309; }
+    .tile .d { font-size:12px; color:#9ca3af; }
+
+    th.col-check, td.col-check { width:36px; padding-left:4px; padding-right:4px; }
+    tr.row-picked td { background:#fff7f6; }
+    td.r, th.r { text-align:right; }
+    td.c, th.c { text-align:center; }
+    .chip { display:inline-block; border-radius:4px; padding:2px 8px; font-size:12px; font-weight:700; }
+    .b-미수금 { background:#dbeafe; color:#1d4ed8; }
+    .b-미지급금 { background:#fef3c7; color:#b45309; }
+    .s-미결 { background:#fee2e2; color:#dc2626; }
+    .s-부분 { background:#fef3c7; color:#b45309; }
+    .s-완료 { background:#dcfce7; color:#15803d; }
+    .aging { font-weight:700; }
+    .aging.hot { color:#dc2626; }
+    .btn-settle { padding:3px 10px; font-size:12px; border:1px solid #c7d2fe;
+      background:#eef2ff; color:#3730a3; border-radius:4px; cursor:pointer; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div id="sidebar-container"></div>
+  <div class="content-wrapper">
+    <div class="page-header">
+      <h1>미수금·미지급금</h1>
+      <p>회계관리 &gt; 거래처 채권·채무</p>
+    </div>
+
+    <div class="erp-card">
+      <div class="card-body">
+
+        <div class="top-bar">
+          <span style="font-size:13px;color:#555;">
+            받을 돈과 줄 돈을 거래처별로 관리합니다. '회수' 를 눌러 받은(준) 금액을 쌓으면 잔액이 줄고, 0 이 되면 완료가 됩니다.
+          </span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span id="selectedCount" style="font-size:12px;color:#888;"></span>
+            <button class="btn-delete" id="btnDelete" onclick="deleteSelected()" disabled>선택 삭제</button>
+            <button class="btn-upload" onclick="openUpload()">엑셀 업로드</button>
+          </div>
+        </div>
+
+        <div class="search-section">
+          <div class="search-grid">
+            <div class="form-group">
+              <label for="fType">구분</label>
+              <select id="fType" style="width:130px;">
+                <option value="">전체</option>
+                <option value="미수금">미수금</option>
+                <option value="미지급금">미지급금</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fOpen">잔액</label>
+              <select id="fOpen" style="width:150px;">
+                <option value="true" selected>남은 것만</option>
+                <option value="false">완료 포함 전체</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="fStart">발생일</label>
+              <input type="date" id="fStart">
+            </div>
+            <div class="form-group">
+              <label for="fEnd">~</label>
+              <input type="date" id="fEnd">
+            </div>
+            <div class="form-group">
+              <label for="fKw">거래처·내용</label>
+              <input type="text" id="fKw" placeholder="이름 일부" style="width:190px;">
+            </div>
+            <button class="btn-search" onclick="load()">조회</button>
+          </div>
+        </div>
+
+        <div class="cards" id="cards"></div>
+
+        <div class="tbl-wrap" style="max-height:540px; overflow:auto;">
+          <table data-export-name="미수금미지급금">
+            <thead>
+              <tr>
+                <th class="col-check" data-noexport><input type="checkbox" id="chkAll" onclick="toggleAll(this)"></th>
+                <th class="c">번호</th>
+                <th class="c">구분</th>
+                <th>거래처명</th>
+                <th class="c">발생일</th>
+                <th class="c">약정일</th>
+                <th class="r">발생금액</th>
+                <th class="r">회수·지급</th>
+                <th class="r">잔액</th>
+                <th class="c">경과일</th>
+                <th class="c">상태</th>
+                <th>내용</th>
+                <th class="c" data-noexport>회수</th>
+              </tr>
+            </thead>
+            <tbody id="tbody">
+              <tr><td colspan="13" class="c" style="color:#9ca3af;padding:24px;">조회 버튼을 눌러주세요.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="../../assets/js/sidebar.js"></script>
+  <script src="../../assets/js/config.js"></script>
+  <script src="../../assets/js/excel-upload.js"></script>
+  <script src="../../assets/js/excel-export.js"></script>
+  <script>
+    let rows = [];
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function fmt(n) { return (n === null || n === undefined || n === '') ? '-' : Number(n).toLocaleString(); }
+
+    function qs() {
+      const p = new URLSearchParams();
+      const t = document.getElementById('fType').value;
+      const s = document.getElementById('fStart').value;
+      const e = document.getElementById('fEnd').value;
+      const k = document.getElementById('fKw').value.trim();
+      p.set('openOnly', document.getElementById('fOpen').value);
+      if (t) p.set('balanceType', t);
+      if (s) p.set('startDate', s);
+      if (e) p.set('endDate', e);
+      if (k) p.set('kw', k);
+      return p.toString();
+    }
+
+    async function load() {
+      const tbody = document.getElementById('tbody');
+      tbody.innerHTML = '<tr><td colspan="13" class="c" style="color:#9ca3af;padding:24px;">불러오는 중...</td></tr>';
+      try {
+        const res = await fetch('/api/partner-balances?' + qs(), { credentials: 'include' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        rows = await res.json();
+        render();
+        await loadSummary();
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="13" class="c" style="color:#ef4444;padding:24px;">조회 실패: ${esc(err.message)}</td></tr>`;
+      }
+    }
+
+    async function loadSummary() {
+      const box = document.getElementById('cards');
+      try {
+        const res = await fetch('/api/partner-balances/summary?' + qs(), { credentials: 'include' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const d = await res.json();
+        const top = (d.rows || []).slice(0, 4);
+        box.innerHTML =
+          `<div class="tile r"><div class="t">받을 돈 (미수금)</div><div class="n">${fmt(d.receivableTotal)}</div>
+             <div class="d">원</div></div>
+           <div class="tile p"><div class="t">줄 돈 (미지급금)</div><div class="n">${fmt(d.payableTotal)}</div>
+             <div class="d">원</div></div>` +
+          top.map(r => `<div class="tile"><div class="t">${esc(r.partnerName)}</div>
+             <div class="n" style="font-size:1.1rem;">${fmt(r.balance)}</div>
+             <div class="d">${esc(r.balanceType)} ${r.count}건${r.oldestAgingDays != null ? ' · 최장 ' + r.oldestAgingDays + '일' : ''}</div></div>`).join('');
+      } catch (e) {
+        box.innerHTML = '';
+      }
+    }
+
+    function render() {
+      const tbody = document.getElementById('tbody');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="13" class="c" style="color:#9ca3af;padding:24px;">내역이 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map((r, i) => `
+        <tr>
+          <td class="col-check" data-noexport><input type="checkbox" class="rowChk" value="${r.id}" onclick="updatePicked()"></td>
+          <td class="c">${i + 1}</td>
+          <td class="c"><span class="chip b-${esc(r.balanceType)}">${esc(r.balanceType)}</span></td>
+          <td>${esc(r.partnerName)}</td>
+          <td class="c">${esc(r.occurredDate)}</td>
+          <td class="c">${esc(r.dueDate || '-')}</td>
+          <td class="r">${fmt(r.amount)}</td>
+          <td class="r">${fmt(r.settledAmount)}</td>
+          <td class="r"><b>${fmt(r.balance)}</b></td>
+          <td class="c"><span class="aging ${r.agingDays != null && r.agingDays >= 90 ? 'hot' : ''}">${r.agingDays != null ? r.agingDays : '-'}</span></td>
+          <td class="c"><span class="chip s-${esc(r.status)}">${esc(r.status)}</span></td>
+          <td>${esc(r.item || '')}</td>
+          <td class="c" data-noexport>${r.balance !== 0
+            ? `<button class="btn-settle" onclick="settle(${r.id}, ${r.balance})">회수</button>` : ''}</td>
+        </tr>`).join('');
+      updatePicked();
+    }
+
+    async function settle(id, left) {
+      const raw = prompt('받은(준) 금액을 적어주세요. 전액이면 그대로 두세요.', String(left));
+      if (raw === null) return;
+      const amount = Number(String(raw).replace(/,/g, '').trim());
+      if (!amount) { alert('금액을 숫자로 적어주세요.'); return; }
+      const res = await fetch(`/api/partner-balances/${id}/settle`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        alert('처리 실패: ' + (b.message || res.status));
+        return;
+      }
+      await load();
+    }
+
+    function toggleAll(box) {
+      document.querySelectorAll('.rowChk').forEach(c => { c.checked = box.checked; });
+      updatePicked();
+    }
+
+    function updatePicked() {
+      const picked = [...document.querySelectorAll('.rowChk:checked')];
+      document.querySelectorAll('.rowChk').forEach(c => {
+        c.closest('tr').classList.toggle('row-picked', c.checked);
+      });
+      document.getElementById('btnDelete').disabled = picked.length === 0;
+      document.getElementById('selectedCount').textContent = picked.length ? picked.length + '건 선택' : '';
+    }
+
+    async function deleteSelected() {
+      const ids = [...document.querySelectorAll('.rowChk:checked')].map(c => Number(c.value));
+      if (!ids.length) return;
+      if (!confirm(ids.length + '건을 삭제합니다. 되돌릴 수 없습니다. 계속할까요?')) return;
+      const res = await fetch('/api/partner-balances/delete', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids })
+      });
+      if (!res.ok) { alert('삭제 실패: HTTP ' + res.status); return; }
+      await load();
+    }
+
+    function openUpload() {
+      openExcelUploadModal({
+        title: '미수금·미지급금 업로드',
+        templateUrl: '/api/partner-balances/template',
+        previewUrl: '/api/partner-balances/upload/preview',
+        uploadUrl: '/api/partner-balances/upload',
+        onSuccess: load
+      });
+    }
+
+    (function init() {
+      const today = new Date();
+      document.getElementById('fStart').value = `${today.getFullYear() - 1}-01-01`;
+      document.getElementById('fEnd').value = today.toISOString().slice(0, 10);
+      load();
+    })();
+  </script>
+</body>
+</html>
